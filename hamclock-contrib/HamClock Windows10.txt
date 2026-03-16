@@ -1,0 +1,67 @@
+PowerShell (run as Administrator):
+-------------
+    Install WSL Debian:
+
+wsl --install --distribution Debian
+wsl --set-default-version 2
+wsl --update
+wsl --status
+
+    Allow connections to port 8181 on local pc which then port forwards to the WSL-Debian on port 8081 
+    allowing you to connect via the local PC IP address/hostname and not the dynamic WSL IP.
+
+netsh advfirewall firewall add rule name="HamClock-WSL-Debian" dir=in action=allow protocol=TCP localport=8181
+netsh interface portproxy add v4tov4 listenaddress=0.0.0.0 listenport=8181 connectaddress=localhost connectport=8081
+
+    Note that HamClock versions prior to version 2.86 used port 8080, not 8081. So if you perform an
+    over-the-air update then find you can no longer connect, remove the old 8080 forward as follows then
+    do the above to add 8081:
+
+netsh interface portproxy delete v4tov4 listenport=8181 listenaddress=0.0.0.0
+
+    Confirm that the port forward rule points port 8181 to 8081:
+
+netsh interface portproxy show all
+
+Listen on ipv4:             Connect to ipv4:
+Address         Port        Address         Port
+--------------- ----------  --------------- ----------
+0.0.0.0         8181        localhost       8081
+
+
+
+
+WSL-Debian:
+------------
+sudo nano /etc/sudoers
+add the following at the end of the file to disable password prompt on sudo.
+%sudo ALL=(ALL) NOPASSWD: ALL
+
+sudo apt-get update
+sudo apt-get upgrade
+sudo apt install curl make g++ xorg-dev libx11-dev zip
+
+cd
+rm -fr ESPHamClock
+curl -O https://www.clearskyinstitute.com/ham/HamClock/ESPHamClock.zip
+unzip ESPHamClock.zip
+cd ESPHamClock
+make -j 4 hamclock-web-1600x960
+sudo make install
+
+
+Windows PC:
+-------------
+Open a CMD window and run the below command:
+wsl sudo hamclock &
+
+Hamclock can now be accessed from web browser on http://127.0.0.1:8181/live.html or 
+from the rest of your network on http://[IP/HostName of Windows 10 machine]:8181/live.html
+
+
+Auto Start hamclock
+---------------------
+Create shceduled task on windows to run the following command from cmd.exe every time the computer starts:
+wsl sudo hamclock &
+
+
