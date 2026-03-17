@@ -1,0 +1,50 @@
+name: Release with manage-hc-docker.sh asset
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag name (e.g., v0.0.1)'
+        required: true
+        default: 'v0.0.0'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Required to create releases
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Prepare assets
+        run: |
+          # Define asset names with the tag
+          TAG="${{ github.event.inputs.tag_name }}"
+          REF="${{ github.ref_name }}"
+          MGR_NAME="manage-hc-docker-$TAG.sh"
+
+          # create a manager with version in the name and file
+          sed "s/^\(HC_MANAGER_VERSION=\).*$/\1$TAG/" ./docker/manage-hc-docker.sh \
+          > "./docker/$MGR_NAME"
+
+          # add version artifact
+          echo "TAG=$TAG" > VERSION.txt
+
+          # create the tars and zips
+          mkdir dist
+          tar -czf "dist/HC-$TAG.tar.gz" --exclude=dist .
+          zip -r "dist/HC-$TAG.zip" . -x "dist/*"
+
+      - name: Create Release and Upload Asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Grabs file from repo tree and uploads with a label
+          gh release create ${{ github.event.inputs.tag_name }} \
+            "./docker/manage-hc-docker-${{ github.event.inputs.tag_name }}.sh#Manage Hamclock Docker Installs" \
+            "dist/HC-${{ github.event.inputs.tag_name }}.tar.gz#Hamclock Source Tarball" \
+            "dist/HC-${{ github.event.inputs.tag_name }}.zip#Hamclock Source Zip" \
+            --title "Hamclock Release: ${{ github.event.inputs.tag_name }}" \
+            --generate-notes

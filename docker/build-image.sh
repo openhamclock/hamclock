@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # Variables to set
-IMAGE_BASE=komacke/hamclock-latest
+HC_SIZE=2440x1440  # my favorite, use -s to override
+IMAGE_BASE=komacke/hamclock
 
 # Don't set anything past here
 TAG=$(git describe --exact-match --tags 2>/dev/null)
@@ -35,6 +36,7 @@ $THIS:
             docker buildx create --name ohb --driver docker-container --use
             docker buildx inspect --bootstrap
     -n: add --no-cache to build
+    -s: set hamclock size to one of the following: 800x480 1600x960 2400x1440 3200x1920
 EOF
     exit 0
 }
@@ -48,16 +50,19 @@ main() {
         usage
     fi
 
-    while getopts ":p:cmh" opt; do
+    while getopts ":hmns:" opt; do
         case $opt in
+            h)
+                usage
+                ;;
             m)
                 MULTI_PLATFORM=true
                 ;;
             n)
                 NOCACHE=true
                 ;;
-            h)
-                usage
+            s)
+                HC_SIZE="$OPTARG"
                 ;;
             \?) # Handle invalid options
                 echo "Invalid option: -$OPTARG" >&2
@@ -122,15 +127,18 @@ build_image() {
     if [ $NOCACHE == true ]; then
         NOCACHE_ARG="--no-cache"
     fi
+    if [ -n "$HC_SIZE" ]; then
+        SET_HC_SIZE="--build-arg HC_SIZE=${HC_SIZE}"
+    fi
     # Build the image
     echo
     echo "Building image for '$IMAGE_BASE:$TAG'"
     pushd "$HERE/.." >/dev/null
     echo $GIT_VERSION > git.version
     if [ $MULTI_PLATFORM == true ]; then
-        docker buildx build $NOCACHE_ARG --pull -t $IMAGE -f docker/Dockerfile --platform linux/amd64,linux/arm64 --push .
+        docker buildx build $NOCACHE_ARG --pull $SET_HC_SIZE -t $IMAGE -f docker/Dockerfile --platform linux/amd64,linux/arm64 --push .
     else
-        docker build $NOCACHE_ARG --pull -t $IMAGE -f docker/Dockerfile .
+        docker build $NOCACHE_ARG --pull $SET_HC_SIZE -t $IMAGE -f docker/Dockerfile .
     fi
     rm -f git.version
     RETVAL=$?
