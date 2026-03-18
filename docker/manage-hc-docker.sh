@@ -1,6 +1,6 @@
 #!/bin/bash
 
-MANAGER_HC_VERSION=latest
+HC_MANAGER_VERSION=latest
 GITHUB_LATEST_RELEASE_URL="https://api.github.com/repos/komacke/hamclock/releases/latest"
 
 IMAGE_BASE=komacke/hamclock
@@ -13,7 +13,7 @@ STARTED_FROM="$PWD"
 cd $HERE
 
 DOCKER_PROJECT=${THIS%.*}
-DEFAULT_TAG=$MANAGER_HC_VERSION
+DEFAULT_TAG=$HC_MANAGER_VERSION
 GIT_TAG=$(git describe --exact-match --tags 2>/dev/null)
 GIT_VERSION=$(git rev-parse --short HEAD 2>/dev/null)
 CONTAINER=${IMAGE_BASE##*/}
@@ -200,7 +200,7 @@ EOF
 }
 
 manager_version() {
-    echo $MANAGER_HC_VERSION
+    echo $HC_MANAGER_VERSION
 }
 
 get_sticky_vars() {
@@ -228,12 +228,12 @@ upgrade_this_script() {
     URL_LATEST_RELEASE=$(echo "$CHECK_LATEST_JSON" | jq -r '.html_url')
     AVAILABLE_VERSION=$(basename "$URL_LATEST_RELEASE")
 
-    if [ "$AVAILABLE_VERSION" == "$MANAGER_HC_VERSION" ]; then
-        echo "$THIS is currently the latest version: '$MANAGER_HC_VERSION'"
+    if [ "$AVAILABLE_VERSION" == "$HC_MANAGER_VERSION" ]; then
+        echo "$THIS is currently the latest version: '$HC_MANAGER_VERSION'"
         return $RETVAL
     fi
     cat <<EOF
-There is a new version: '$AVAILABLE_VERSION'. The version you have is '$MANAGER_HC_VERSION'.
+There is a new version: '$AVAILABLE_VERSION'. The version you have is '$HC_MANAGER_VERSION'.
 
 Source and release notes can be found at this URL:
 
@@ -303,7 +303,7 @@ is_backend_image_default() {
 }
 
 is_hamclock_installed() {
-    echo "$THIS version: '$MANAGER_HC_VERSION'"
+    echo "$THIS version: '$HC_MANAGER_VERSION'"
 
     echo
     echo "Checking for Hamclock source code from git ..."
@@ -615,11 +615,11 @@ determine_tag() {
 
     # third precedence
     elif [ -n "$GIT_TAG" ]; then 
-        if [ ${FUNCNAME[3]} == upgrade_hamclock -a "$GIT_TAG" != "$MANAGER_HC_VERSION" ]; then
+        if [ ${FUNCNAME[3]} == upgrade_hamclock -a "$GIT_TAG" != "$HC_MANAGER_VERSION" ]; then
             echo
             echo "WARNING:"
             echo "         You are in a git repository on tag: '$GIT_TAG'"
-            echo "         Your version of '$THIS' is: '$MANAGER_HC_VERSION'"
+            echo "         Your version of '$THIS' is: '$HC_MANAGER_VERSION'"
             echo
             echo "Please run upgrade again setting the version with the -t option."
             echo
