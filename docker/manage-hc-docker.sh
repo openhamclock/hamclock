@@ -97,13 +97,13 @@ get_compose_opts() {
     while getopts ":a:b:r:s:t:w:" opt; do
         case $opt in
             a)
-                REQUESTED_DEFAULT_API_PORT="$OPTARG"
+                REQUESTED_API_PORT="$OPTARG"
                 ;;
             b)
                 REQUESTED_BACKEND_HOST="$OPTARG"
                 ;;
             r)
-                REQUESTED_DEFAULT_RO_PORT="$OPTARG"
+                REQUESTED_RO_PORT="$OPTARG"
                 ;;
             s)
                 REQUESTED_HC_SETTINGS="$OPTARG"
@@ -112,7 +112,7 @@ get_compose_opts() {
                 REQUESTED_TAG="$OPTARG"
                 ;;
             w)
-                REQUESTED_DEFAULT_LIVE_PORT="$OPTARG"
+                REQUESTED_LIVE_PORT="$OPTARG"
                 ;;
             \?) # Handle invalid options
                 echo "Command '$COMMAND': Invalid option: -$OPTARG" >&2
@@ -489,15 +489,18 @@ is_container_exists() {
 }
 
 get_current_live_port() {
-    DOCKER_LIVE_PORT=$(docker inspect $CONTAINER 2>/dev/null | jq -r '.[0].HostConfig.PortBindings."8081/tcp"[0].HostPort')
-    DOCKER_LIVE_IP=$(docker inspect $CONTAINER 2>/dev/null | jq -r '.[0].HostConfig.PortBindings."8081/tcp"[0].HostIp')
-    if [ "$DOCKER_LIVE_PORT" != 'null' ]; then
-        if [ "$DOCKER_LIVE_IP" != 'null' ]; then
-            CURRENT_LIVE_PORT=$DOCKER_LIVE_IP:$DOCKER_LIVE_PORT
+    PORTS=( $(docker inspect hamclock 2>/dev/null | jq -r '.[0].HostConfig.PortBindings."8081/tcp"[].HostPort' 2>/dev/null) )
+    IPS=( $(docker inspect hamclock 2>/dev/null | jq -r '.[0].HostConfig.PortBindings."8081/tcp"[].HostIp' 2>/dev/null) )
+    CURRENT_LIVE_PORT=
+    let i=0
+    while [ $i -lt ${#PORTS[@]} ]; do
+        if [ -z "$CURRENT_LIVE_PORT" ]; then
+            CURRENT_LIVE_PORT="${IPS[$i]}:${PORTS[$i]}"
         else
-            CURRENT_LIVE_PORT=:$DOCKER_LIVE_PORT
+            CURRENT_LIVE_PORT="${CURRENT_LIVE_PORT}|${IPS[$i]}:${PORTS[$i]}"
         fi
-    fi
+        i=$(($i+1))
+    done
 }
 
 get_current_image_tag() {
@@ -529,15 +532,17 @@ determine_live_port() {
 
     fi
 
-    # if there was a :, it was probably IP:PORT; otherwise make sure there's a colon for port only
-    [[ $LIVE_PORT =~ : ]] || LIVE_PORT=":$LIVE_PORT"
-
     if [ "$LIVE_PORT" == "-" ]; then
         LIVE_PORT_MAPPING=""
     else
-        # if there was a :, it was probably IP:PORT; otherwise make sure there's a colon for port only
-        [[ $LIVE_PORT =~ : ]] || LIVE_PORT=":$LIVE_PORT"
-        LIVE_PORT_MAPPING="- $LIVE_PORT:8081"
+		IFS='|' read -ra LIVE_PORT_ARRAY <<< "$LIVE_PORT"
+
+        LIVE_PORT_MAPPING=""
+		for p in "${LIVE_PORT_ARRAY[@]}"; do
+            # if there was a :, it was probably IP:PORT; otherwise make sure there's a colon for port only
+            [[ $p =~ : ]] || p=":$p"
+  			LIVE_PORT_MAPPING+="      - \"${p}:8081\""$'\n'
+		done
     fi
 }
 
@@ -662,10 +667,9 @@ services:
     networks:
       - hamclock
     ports:
-      $API_PORT_MAPPING
-      $LIVE_PORT_MAPPING
-      $RO_PORT_MAPPING
-      - "[2600:1700:3ec0:83d8::1]:8081:8081"
+$LIVE_PORT_MAPPING
+$API_PORT_MAPPING
+$RO_PORT_MAPPING
     volumes:
       - type: bind
         source: $HC_EEPROM
