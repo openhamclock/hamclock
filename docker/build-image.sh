@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Variables to set
-HC_SIZE=2440x1440  # my favorite, use -s to override
+HC_SIZE=2400x1440  # my favorite, use -s to override
 IMAGE_BASE=komacke/hamclock
 
 # Don't set anything past here
