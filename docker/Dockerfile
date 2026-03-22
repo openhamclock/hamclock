@@ -18,14 +18,14 @@ COPY hamclock-contrib/ hamclock-contrib/
 COPY docker/run.sh ./
 COPY docker/backend_host ./
 RUN addgroup -g $HC_GID hamclock && \
-    adduser  -u $HC_UID -G hamclock -h /opt -HD -s /sbin/nologin hamclock && \
+    adduser  -u $HC_UID -G hamclock -h /opt/hamclock -HD -s /sbin/nologin hamclock && \
     \
     cp hamclock-contrib/hceeprom.pl ESPHamClock/ && \
     chmod +x ESPHamClock/hceeprom.pl && \
     chmod +x run.sh && \
     \
-    mkdir /opt/.hamclock && \
-    chown -R hamclock:hamclock /opt/hamclock /opt/.hamclock && \
+    mkdir /opt/hamclock/.hamclock && \
+    chown -R hamclock:hamclock /opt/hamclock && \
     cd ESPHamClock && \
     \
     if [ -n "$HC_SIZE" ]; then \

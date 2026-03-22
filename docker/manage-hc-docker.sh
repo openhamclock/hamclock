@@ -889,7 +889,7 @@ services:
     volumes:
       - type: bind
         source: $HC_EEPROM
-        target: /opt/.hamclock/eeprom
+        target: /opt/hamclock/.hamclock/eeprom
         bind:
           selinux: Z
     healthcheck:
