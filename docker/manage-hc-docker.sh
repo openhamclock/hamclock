@@ -8,6 +8,7 @@ IMAGE_BASE=komacke/hamclock
 # Get our directory locations in order
 HERE="$(realpath -s "$(dirname "$0")" 2>/dev/null)"
 [ -z "$HERE" ] && HERE="$(realpath "$(dirname "$0")")"
+REL_HERE="$(dirname "$0")"
 THIS="$(basename "$0")"
 STARTED_FROM="$PWD"
 cd $HERE
@@ -24,6 +25,8 @@ DEFAULT_BACKEND_HOST=-
 DEFAULT_HC_SIZE=-
 # the following env is the lighttpd env file
 DEFAULT_HC_EEPROM=hc.settings
+HC_UID=1199
+HC_GID=1199
 
 # the following env is for sticky settings
 STICKY_ENV_FILE=$DOCKER_PROJECT.env
@@ -413,7 +416,7 @@ docker_compose_up() {
         docker_compose_yml && docker compose -f <(echo "$DOCKER_COMPOSE_YML") create
         RETVAL=$?
         [ $RETVAL -ne 0 ] && return $RETVAL
-        docker compose $INITIAL_CONFIG_FILE -f <(echo "$DOCKER_COMPOSE_YML") up -d
+        docker compose -f <(echo "$DOCKER_COMPOSE_YML") up -d
         RETVAL=$?
     fi
 
@@ -687,7 +690,75 @@ determine_eeprom_file() {
     if [ ! -e "$HC_EEPROM" ]; then
         touch "$HC_EEPROM"
         if [ -r "$HERE/config.env" ]; then
-            INITIAL_CONFIG_FILE="--env-file $HERE/config.env"
+            INITIAL_CONFIG_FILE="env_file:
+      - $HERE/config.env"
+        fi
+    fi
+
+    hc_settings_perms
+}
+
+# checking if the HC_EEPROM file is writable by the user in the container. If not the
+# container will crash and we need to fix it.
+hc_settings_perms() {
+    # hc.settings needs to be writable by user 1199:1199
+    HC_PERMS=$(stat -c '%a' "$HC_EEPROM")
+
+    # who owns it
+    HC_OWN=$(stat -c '%u' "$HC_EEPROM")
+    HC_GRP=$(stat -c '%g' "$HC_EEPROM")
+
+    CAN_ACCESS=false
+
+    # test for u+rw
+    if [[ "$HC_OWN" == "$HC_UID" && "$HC_PERMS" == [67]?? ]]; then
+        CAN_ACCESS=true
+
+    # test for g+rw
+    elif [[ "$HC_GRP" == "$HC_GID" && "$HC_PERMS" == ?[67]? ]]; then
+        CAN_ACCESS=true
+
+    # test for o+rw
+    elif [[ "$HC_PERMS" == ??[67] ]]; then
+        CAN_ACCESS=true
+
+    # otherwise try to fix it
+    else
+
+        # set o+rw
+        chmod o+rw "$HC_EEPROM" >/dev/null 2>&1
+        PERM_RETVAL=$?
+
+        # if we couldn't set it, we can copy it, delete the original and
+        # set the perms
+        if [ $PERM_RETVAL -ne 0 ]; then
+
+            # we can do it if the container isn't holding the fh
+            get_current_image_tag
+            if [ "$CURRENT_DOCKER_IMAGE" == null ]; then
+                cp "$HC_EEPROM" "$HC_EEPROM.tmp"
+                rm -f "$HC_EEPROM"
+                mv "$HC_EEPROM.tmp" "$HC_EEPROM"
+                chmod o+rw $HC_EEPROM >/dev/null 2>&1
+                PERM_RETVAL=$?
+                if [ $PERM_RETVAL -eq 0 ]; then
+                    CAN_ACCESS=true
+                else
+                    CAN_ACCESS=false
+                fi
+
+            # otherwise we need to take harsher measures.
+            else
+                CAN_ACCESS=false
+            fi
+        fi
+    fi
+
+    # take harsher measures - down the container and don't cause an infinite loop
+    if [ $CAN_ACCESS == false ]; then
+        if [ ${FUNCNAME[3]} != docker_compose_down ]; then
+            docker_compose_down
+            [ ${FUNCNAME[1]} != hc_settings_perms ] && hc_settings_perms
         fi
     fi
 }
@@ -808,6 +879,7 @@ services:
       - UTC_OFFSET=0
       $DC_BACKEND_HOST
       $DC_HC_SIZE
+    $INITIAL_CONFIG_FILE
     container_name: $CONTAINER
     image: $IMAGE
     restart: unless-stopped
@@ -817,7 +889,7 @@ services:
     volumes:
       - type: bind
         source: $HC_EEPROM
-        target: /root/.hamclock/eeprom
+        target: /opt/.hamclock/eeprom
         bind:
           selinux: Z
     healthcheck:

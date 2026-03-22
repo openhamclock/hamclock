@@ -2,9 +2,11 @@
 ## REFER TO THE DOCUMENTATION FOR CONFIGURATION OF YOUR HAMCLOCK!
 FROM alpine:3.23
 ARG HC_SIZE
+ARG HC_UID
+ARG HC_GID
 
 USER root
-WORKDIR /root/hamclock
+WORKDIR /opt/hamclock
 # Install prerequisites
 RUN apk update && \
     apk add curl make g++ libx11-dev openssl unzip perl && \
@@ -12,7 +14,20 @@ RUN apk update && \
 
 # Install Hamclock
 COPY ESPHamClock/ ESPHamClock/
-RUN cd ESPHamClock && \
+COPY hamclock-contrib/ hamclock-contrib/
+COPY docker/run.sh ./
+COPY docker/backend_host ./
+RUN addgroup -g $HC_GID hamclock && \
+    adduser  -u $HC_UID -G hamclock -h /opt -HD -s /sbin/nologin hamclock && \
+    \
+    cp hamclock-contrib/hceeprom.pl ESPHamClock/ && \
+    chmod +x ESPHamClock/hceeprom.pl && \
+    chmod +x run.sh && \
+    \
+    mkdir /opt/.hamclock && \
+    chown -R hamclock:hamclock /opt/hamclock /opt/.hamclock && \
+    cd ESPHamClock && \
+    \
     if [ -n "$HC_SIZE" ]; then \
         make -j 4 hamclock-web-${HC_SIZE} && \
         make install && \
@@ -23,19 +38,10 @@ RUN cd ESPHamClock && \
             cp hamclock-web-$size /usr/local/bin/ && \
             make clean; \
         done; \
-        chown root /usr/local/bin/hamclock-web-* && \
-        chmod u+s /usr/local/bin/hamclock-web-*; \
+        chown hamclock /usr/local/bin/hamclock-web-*; \
     fi
 
-COPY hamclock-contrib/ hamclock-contrib/
-# Install Hamclock Contrib and move hceeprom to hamclock directory
-RUN cp hamclock-contrib/hceeprom.pl /root/hamclock/ESPHamClock && \
-    chmod +x /root/hamclock/ESPHamClock/hceeprom.pl
+USER hamclock
 
-# Copy runfile
-COPY docker/run.sh ./
-COPY docker/backend_host ./
-RUN chmod +x run.sh
-
-WORKDIR /root/hamclock/ESPHamClock
-CMD ["/root/hamclock/run.sh"]
+WORKDIR /opt/hamclock/ESPHamClock
+CMD ["/opt/hamclock/run.sh"]

@@ -5,14 +5,14 @@ if [ -z "$HC_SIZE" ]; then
     HC_SIZE=2400x1440
 fi
 
-if [ -z "$BACKEND_HOST" -a -e /root/hamclock/backend_host ]; then
-    BACKEND_HOST="$(grep -v '^#' /root/hamclock/backend_host)"
+if [ -z "$BACKEND_HOST" -a -e /opt/hamclock/backend_host ]; then
+    BACKEND_HOST="$(grep -v '^#' /opt/hamclock/backend_host)"
 fi
 if [ -n "$BACKEND_HOST" ]; then
     BACKEND_ARG="-b $BACKEND_HOST"
 fi
 
-# these values only matter if there is not a /root/.hamclock/eeprom file.
+# these values only matter if there is not an /opt/.hamclock/eeprom file.
 perl hceeprom.pl NV_CALLSIGN $CALLSIGN && \
 perl hceeprom.pl NV_DE_GRID $LOCATOR && \
 perl hceeprom.pl NV_DE_LAT $LAT && \

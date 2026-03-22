@@ -2,6 +2,8 @@
 
 # Variables to set
 IMAGE_BASE=komacke/hamclock
+HC_UID=1199
+HC_GID=1199
 
 # Don't set anything past here
 TAG=$(git describe --exact-match --tags 2>/dev/null)
@@ -135,9 +137,9 @@ build_image() {
     pushd "$HERE/.." >/dev/null
     echo $GIT_VERSION > git.version
     if [ $MULTI_PLATFORM == true ]; then
-        docker buildx build $NOCACHE_ARG --pull $SET_HC_SIZE -t $IMAGE -f docker/Dockerfile --platform linux/amd64,linux/arm64 --push .
+        docker buildx build $NOCACHE_ARG --pull --build-arg HC_UID=$HC_UID --build-arg HC_GID=$HC_GID $SET_HC_SIZE -t $IMAGE -f docker/Dockerfile --platform linux/amd64,linux/arm64 --push .
     else
-        docker build $NOCACHE_ARG --pull $SET_HC_SIZE -t $IMAGE -f docker/Dockerfile .
+        docker build $NOCACHE_ARG --pull --build-arg HC_UID=$HC_UID --build-arg HC_GID=$HC_GID $SET_HC_SIZE -t $IMAGE -f docker/Dockerfile .
     fi
     rm -f git.version
     RETVAL=$?
