@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Tag name (e.g., v0.0.1)'
+        description: 'Tag name (e.g., 0.0.1)'
         required: true
-        default: 'v0.0.0'
+        default: '0.0.0'
 
 jobs:
   release:
@@ -29,6 +29,11 @@ jobs:
           sed "s/^\(HC_MANAGER_VERSION=\).*$/\1$TAG/" ./docker/manage-hc-docker.sh \
           > "./docker/$MGR_NAME"
 
+          # zip file for HamClock upgrades
+          zip -r "dist/ESPHamClock-$TAG.zip" ESPHamClock -x "dist/*"
+          cp "dist/ESPHamClock-$TAG.zip" "dist/ESPHamClock.zip" 
+          zip -r "dist/hamclock-contrib.zip" hamclock-contrib -x "dist/*"
+
           # add version artifact
           echo "TAG=$TAG" > VERSION.txt
 
@@ -44,7 +49,7 @@ jobs:
           # Grabs file from repo tree and uploads with a label
           gh release create ${{ github.event.inputs.tag_name }} \
             "./docker/manage-hc-docker-${{ github.event.inputs.tag_name }}.sh#Manage Hamclock Docker Installs" \
-            "dist/HC-${{ github.event.inputs.tag_name }}.tar.gz#Hamclock Source Tarball" \
-            "dist/HC-${{ github.event.inputs.tag_name }}.zip#Hamclock Source Zip" \
+            "dist/ESPHamClock.zip#Hamclock Source Zip" \
+            "dist/ESPHamClock-V${{ github.event.inputs.tag_name }}.zip#Hamclock Source Zip" \
             --title "Hamclock Release: ${{ github.event.inputs.tag_name }}" \
             --generate-notes
