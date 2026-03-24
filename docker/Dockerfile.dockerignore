@@ -4,3 +4,4 @@
 **/.git*
 **/eeprom
 **/hc.settings
+tmp/
