@@ -38,8 +38,8 @@ jobs:
           zip -r "dist/HC-$TAG.zip" . -x "dist/*"
 
           # zip file for HamClock upgrades
-          zip -r "dist/ESPHamClock-$TAG.zip" ESPHamClock -x "dist/*"
-          cp "dist/ESPHamClock-$TAG.zip" "dist/ESPHamClock.zip" 
+          zip -r "dist/ESPHamClock-V$TAG.zip" ESPHamClock -x "dist/*"
+          cp "dist/ESPHamClock-V$TAG.zip" "dist/ESPHamClock.zip" 
           zip -r "dist/hamclock-contrib.zip" hamclock-contrib -x "dist/*"
 
       - name: Create Release and Upload Asset
@@ -48,8 +48,9 @@ jobs:
         run: |
           # Grabs file from repo tree and uploads with a label
           gh release create ${{ github.event.inputs.tag_name }} \
-            "./docker/manage-hc-docker-${{ github.event.inputs.tag_name }}.sh#Manage Hamclock Docker Installs" \
-            "dist/ESPHamClock.zip#Hamclock Source Zip" \
-            "dist/ESPHamClock-V${{ github.event.inputs.tag_name }}.zip#Hamclock Source Zip" \
-            --title "Hamclock Release: ${{ github.event.inputs.tag_name }}" \
+            "./docker/manage-hc-docker-${{ github.event.inputs.tag_name }}.sh#Manage HamClock Docker Installs" \
+            "dist/ESPHamClock.zip#HamClock Source Zip" \
+            "dist/ESPHamClock-V${{ github.event.inputs.tag_name }}.zip#HamClock Source Zip" \
+            "dist/hamclock-contrib.zip#HamClock 3rd party contributions" \
+            --title "HamClock Release: ${{ github.event.inputs.tag_name }}" \
             --generate-notes
