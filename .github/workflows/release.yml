@@ -50,10 +50,10 @@ jobs:
           TAG="${{ github.event.inputs.tag_name }}"
           HC_TAG=V${TAG%.*}
           # Grabs file from repo tree and uploads with a label
-          gh release create ${{ github.event.inputs.tag_name }} \
-            "./docker/manage-hc-docker-${{ github.event.inputs.tag_name }}.sh#Manage HamClock Docker Installs" \
+          gh release create $TAG \
+            "./docker/manage-hc-docker-$TAG.sh#Manage HamClock Docker Installs" \
             "dist/ESPHamClock.zip#HamClock Source Zip" \
             "dist/ESPHamClock-$HC_TAG.zip#HamClock Source Zip with version" \
             "dist/hamclock-contrib.zip#HamClock 3rd party contributions" \
-            --title "HamClock Release: ${{ github.event.inputs.tag_name }}" \
+            --title "HamClock Release: $TAG" \
             --generate-notes
