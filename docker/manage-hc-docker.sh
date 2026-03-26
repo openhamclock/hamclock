@@ -1,7 +1,7 @@
 #!/bin/bash
 
 HC_MANAGER_VERSION=latest
-GITHUB_LATEST_RELEASE_URL="https://api.github.com/repos/komacke/hamclock/releases/latest"
+GITHUB_REPO="komacke/hamclock"
 
 IMAGE_BASE=komacke/hamclock
 
@@ -227,25 +227,35 @@ STICKY_HC_SIZE=$HC_SIZE
 EOF
 }
 
+find_latest_tag() {
+    ALL_TAGS_JSON=$(curl -s "https://api.github.com/repos/$GITHUB_REPO/tags")
+    STABLE_TAG=$(echo "$ALL_TAGS_JSON" | jq -r '.[].name' | grep -v "b" | sort -V | tail -n 1)
+    BETA_TAG=$(echo "$ALL_TAGS_JSON" | jq -r '.[].name' | grep "b" | sort -V | tail -n 1)
+
+    if [[ "$HC_MANAGER_VERSION" == *b* ]]; then
+        LATEST_TAG=$BETA_TAG
+    else
+        LATEST_TAG=$STABLE_TAG
+    fi
+}
+
 upgrade_this_script() {
-    CHECK_LATEST_JSON=$(curl -s "$GITHUB_LATEST_RELEASE_URL")
+    find_latest_tag
 
-    URL_LATEST_THIS=$(echo "$CHECK_LATEST_JSON" | jq -r ".assets[] | select(.browser_download_url | contains(\"$DOCKER_PROJECT\")) | .browser_download_url")
-    DIGEST_LATEST_THIS=$(echo "$CHECK_LATEST_JSON" | jq -r ".assets[] | select(.browser_download_url | contains(\"$DOCKER_PROJECT\")) | .digest")
+    URL_LATEST_THIS="https://github.com/$GITHUB_REPO/releases/download/$LATEST_TAG/manage-hc-docker-$LATEST_TAG.sh"
+    ALL_TAGS_JSON=$(curl -s "https://api.github.com/repos/$GITHUB_REPO/releases/tags/$LATEST_TAG")
+    DIGEST_LATEST_THIS=$(echo "$ALL_TAGS_JSON" | jq -r '.assets[] | select(.name | contains("manage-hc-docker")) | .digest')
 
-    URL_LATEST_RELEASE=$(echo "$CHECK_LATEST_JSON" | jq -r '.html_url')
-    AVAILABLE_VERSION=$(basename "$URL_LATEST_RELEASE")
-
-    if [ "$AVAILABLE_VERSION" == "$HC_MANAGER_VERSION" ]; then
+    if [ "$LATEST_TAG" == "$HC_MANAGER_VERSION" ]; then
         echo "$THIS is currently the latest version: '$HC_MANAGER_VERSION'"
         return $RETVAL
     fi
     cat <<EOF
-There is a new version: '$AVAILABLE_VERSION'. The version you have is '$HC_MANAGER_VERSION'.
+There is a new version: '$LATEST_TAG'. The version you have is '$HC_MANAGER_VERSION'.
 
 Source and release notes can be found at this URL:
 
-  $URL_LATEST_RELEASE
+  $URL_LATEST_THIS
 
 Would you like to download the latest version of $THIS and overwrite your current copy?
 EOF
@@ -324,8 +334,8 @@ is_hamclock_installed() {
     else
         echo "  git checkout not found."
     fi
-    TAG_FROM_GIT=$(curl -s --connect-timeout 2 "$GITHUB_LATEST_RELEASE_URL" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
-    echo "  Latest release available from GitHub: '$TAG_FROM_GIT'"
+    find_latest_tag
+    echo "  Latest release available from GitHub: '$LATEST_TAG'"
 
     echo
     echo "Checking for docker ..."
