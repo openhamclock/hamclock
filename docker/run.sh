@@ -40,10 +40,10 @@ cleanup() {
 # Trap the TERM signal
 trap cleanup SIGTERM
 
-if [ -x /usr/local/bin/hamclock-web-$HC_SIZE ]; then
-    HC_EXEC="/usr/local/bin/hamclock-web-$HC_SIZE"
-elif [ -x /usr/local/bin/hamclock ]; then
-    HC_EXEC="/usr/local/bin/hamclock"
+if [ -x /opt/hamclock/bin/hamclock-web-$HC_SIZE ]; then
+    HC_EXEC="/opt/hamclock/bin/hamclock-web-$HC_SIZE"
+elif [ -x /opt/hamclock/bin/hamclock ]; then
+    HC_EXEC="/opt/hamclock/bin/hamclock"
 else
     echo "ERROR: no hamclock executable for size '$HC_SIZE'"
     exit 1

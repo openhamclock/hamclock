@@ -24,23 +24,23 @@ RUN addgroup -g $HC_GID hamclock && \
     chmod +x ESPHamClock/hceeprom.pl && \
     chmod +x run.sh && \
     \
-    mkdir /opt/hamclock/.hamclock && \
-    chown -R hamclock:hamclock /opt/hamclock && \
-    chmod 700 /opt/hamclock && \
+    mkdir -p /opt/hamclock/.hamclock && \
+    mkdir -p /opt/hamclock/bin && \
     cd ESPHamClock && \
     \
     if [ -n "$HC_SIZE" ]; then \
         make -j 4 hamclock-web-${HC_SIZE} && \
-        make install && \
+        cp hamclock-web-${HC_SIZE} ../bin/hamclock && \
         make clean; \
     else \
-		for size in 800x480 1600x960 2400x1440 3200x1920; do \
+        for size in 800x480 1600x960 2400x1440 3200x1920; do \
             make -j 4 hamclock-web-$size && \
-            cp hamclock-web-$size /usr/local/bin/ && \
+            cp hamclock-web-$size ../bin && \
             make clean; \
         done; \
-        chown hamclock /usr/local/bin/hamclock-web-*; \
-    fi
+    fi && \
+    chown -R hamclock:hamclock /opt/hamclock && \
+    chmod 700 /opt/hamclock
 
 USER hamclock
 
