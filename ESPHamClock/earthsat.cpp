@@ -2340,7 +2340,7 @@ void drawDXSatMenu (const SCoord &s)
                     break;
                 case _SMI_PLAN1:
                     // restore DX pane and show tool for sat 0 then restore normal map
-                    dxpaneSat = 1;
+                    dxpaneSat = 0;
                     drawSatPass();
                     drawSatTool();
                     initEarthMap();
