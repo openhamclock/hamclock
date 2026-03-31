@@ -24,4 +24,4 @@ NOTE: you can select from the 4 possible sizes with the -s option: ```800x480 16
 The first time you run it, you can preconfigure some of your personal settings. Look for the [config.env.example](https://github.com/komacke/hamclock/blob/main/docker/config.env.example) file. Name it config.env and put it in the same folder with your manage-hc-docker.sh. Edit it as you like and it will pre-configure your hamclock. If you don't use the config.env, you'll get the usual setup screen for a fresh install.
 
 ## HamClock on Debian (such as Raspberry Pi OS)
-<coming soon to a folder near you!>
+Detail instructions in the [Debian README](debian/README.md).
