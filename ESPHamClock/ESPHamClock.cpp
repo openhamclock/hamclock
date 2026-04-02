@@ -1455,8 +1455,9 @@ static void drawRotatingMessage()
                 // Attempt to resolve the hostname
                 if (getaddrinfo(backend_host, NULL, &hints, &res) == 0) {
                     struct sockaddr_in *ipv4 = (struct sockaddr_in *)res->ai_addr;
-                    // Convert the binary IP to a human-readable string
-                    inet_ntop(AF_INET, &(ipv4->sin_addr), str, sizeof(str));
+                    char be_addr[INET_ADDRSTRLEN];
+                    inet_ntop(AF_INET, &(ipv4->sin_addr), be_addr, sizeof(be_addr));
+                    snprintf (str, sizeof(str), "BE-IP %s", be_addr);
                     freeaddrinfo(res);
                 } else {
                     strcpy(str, "Res Err");
