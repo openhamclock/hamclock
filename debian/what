@@ -1,0 +1,50 @@
+#!/bin/bash
+#
+# Copyright (c) 2026 Keith Maton G6NHU
+# https://qso365.co.uk
+#
+# Permission is granted to use, copy, modify and distribute this script,
+# provided that this notice is retained.
+# You may not misrepresent the original authorship of this work.
+#
+
+HOSTS_FILE="/etc/hosts"
+DOMAIN="clearskyinstitute.com"
+
+IP1="44.32.64.64"
+NAME1="Open HamClock Backend"
+
+IP2="3.128.20.228"
+NAME2="Hamclock.com backend"
+
+# Safety check
+if [ ! -f "$HOSTS_FILE" ]; then
+    echo "Error: $HOSTS_FILE not found."
+    exit 1
+fi
+
+# Find the first non-comment line containing the domain
+MATCH_LINE=$(grep -E "^[[:space:]]*[^#].*[[:space:]]$DOMAIN([[:space:]]|$)" "$HOSTS_FILE" | head -n 1)
+
+# No entry found
+if [ -z "$MATCH_LINE" ]; then
+    echo "You are connected to the default HamClock backend, be aware this will stop working in June 2026."
+    exit 0
+fi
+
+# Extract the first field as the IP
+FOUND_IP=$(echo "$MATCH_LINE" | awk '{print $1}')
+
+case "$FOUND_IP" in
+    "$IP1")
+        echo "Your HamClock is set to $NAME1."
+        ;;
+    "$IP2")
+        echo "Your HamClock is set to $NAME2."
+        ;;
+    *)
+        echo "Your HamClock is set to an unknown IP: $FOUND_IP"
+        ;;
+esac
+
+exit 0
