@@ -1,2 +1,4 @@
 Changes with latest release
-- no changes from 4.22. Just for testing beta process
+- fix only 1 sat crashes HamClock for Show planning tool
+- better support for posting diag files
+- show backend hostname and IP address in rotating status
