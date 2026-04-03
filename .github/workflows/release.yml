@@ -61,6 +61,7 @@ jobs:
           # Grabs file from repo tree and uploads with a label
           gh release create $TAG \
             "./docker/manage-hc-docker-$TAG.sh#Manage HamClock Docker Installs" \
+            "./debian/install-hc-rpi#Installer for RPi and other Debian distros" \
             "dist/ESPHamClock-V$HC_TAG.zip#HamClock Source Zip with version" \
             "dist/hamclock-contrib-V$HC_TAG.zip#HamClock 3rd party contributions" \
             --title "HamClock Release: $TAG" \

@@ -140,6 +140,7 @@ PKGS="\
     libgpiod-dev \
     curl \
     openssl \
+    unzip \
     xdg-utils"
 sudo apt-get -y update >> $LOGFN 2>&1
 sudo apt-get -y install $PKGS >> $LOGFN 2>&1
@@ -147,8 +148,8 @@ if (( $? != 0 )) ; then echo error loading packages; exit 1; fi
 
 
 # download fresh program source
-TBALL=ESPHamClock.tgz
-TBURL=https://qsl.net/g6nhu/hamclock/$TBALL
+TBALL=ESPHamClock.zip
+TBURL=https://ohb.hamclock.app/ham/HamClock/$TBALL
 rm -f $TBALL
 inform Downloading $TBURL ...
 if ! curl --silent --show-error --output $TBALL $TBURL >> $LOGFN 2>&1 ; then
@@ -161,7 +162,7 @@ fi
 XDIR=ESPHamClock
 rm -fr $XDIR
 inform Exploding $TBALL into $XDIR ...
-if ! tar xf $TBALL >> $LOGFN 2>&1 ; then inform Error exloding archive -- see $LOGFN; exit 1; fi
+if ! unzip $TBALL >> $LOGFN 2>&1 ; then inform Error exploding archive -- see $LOGFN; exit 1; fi
 rm $TBALL
 
 
