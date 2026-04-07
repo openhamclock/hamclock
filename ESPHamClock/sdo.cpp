@@ -264,7 +264,7 @@ static void showSDOmovie (void)
     char full_url[256];
 
     // Construct the URL dynamically using snprintf
-    snprintf(full_url, sizeof(full_url), "https://%s:%d/ham/HamClock/SDO/movies/%s",
+    snprintf(full_url, sizeof(full_url), "http://%s:%d/ham/HamClock/SDO/movies/%s",
              backend_host, backend_port, sdo_filenames[sdo_choice]);
 
     openURL(full_url);

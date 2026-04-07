@@ -113,7 +113,7 @@ bool checkMoonTouch (const SCoord &s, const SBox &box)
         }
         if (mitems[1].set) {
             char full_url[256];
-            snprintf(full_url, sizeof(full_url), "https://%s:%d/ham/HamClock/moon/movies/ap240602.html",
+            snprintf(full_url, sizeof(full_url), "http://%s:%d/ham/HamClock/moon/movies/ap240602.html",
                 backend_host, backend_port);
             openURL(full_url);
         }
