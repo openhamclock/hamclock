@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Tag name (e.g., v0.0.1)'
+        description: 'Tag name (e.g., v0.0.0 or v0.0b00.0)'
         required: true
         default: 'v0.0.0'
 
@@ -18,7 +18,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
         with:
-            ref: ${{ github.ref }}
+            ref: ${{ github.ref_name }}
             fetch-depth: 0
 
       - name: Prepare assets
@@ -51,7 +51,7 @@ jobs:
 
           # zip file for HamClock upgrades
           zip -r "dist/ESPHamClock-V$HC_TAG.zip" ESPHamClock -x "dist/*"
-          zip -r "dist/hamclock-contrib.zip" hamclock-contrib -x "dist/*"
+          zip -r "dist/hamclock-contrib-V$HC_TAG.zip" hamclock-contrib -x "dist/*"
 
       - name: Create Release and Upload Asset
         env:
@@ -68,6 +68,7 @@ jobs:
             "debian/install-hc-rpi#Install HamClock onto RPi and other debian distros" \
             "dist/ESPHamClock-V$HC_TAG.zip#HamClock Source Zip with version" \
             "old-versions/ESPHamClock-V3.10.zip#HamClock Source Zip for ESP devices" \
-            "dist/hamclock-contrib.zip#HamClock 3rd party contributions" \
+            "dist/hamclock-contrib-V$HC_TAG.zip#HamClock 3rd party contributions" \
             --title "HamClock Release: $TAG" \
+            --target ${{ github.ref_name }} \
             --generate-notes
