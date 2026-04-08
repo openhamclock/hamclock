@@ -17,9 +17,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
+        with:
+            ref: ${{ github.ref }}
 
       - name: Prepare assets
         run: |
+          echo "Running on branch: ${{ github.ref_name }}"
+
           # Define asset names with the tag
           TAG="${{ github.event.inputs.tag_name }}"
           HC_VER_PATTERN='^[0-9]+\.[0-9]+(b[0-9][0-9])?$'
@@ -30,7 +34,6 @@ jobs:
           # test if HC_TAG is the right format
           [[ $HC_TAG =~ $HC_VER_PATTERN ]] || exit 1
 
-          REF="${{ github.ref_name }}"
           MGR_NAME="manage-hc-docker-$TAG.sh"
 
           # create a manager with version in the name and file
@@ -66,6 +69,7 @@ jobs:
             "./docker/manage-hc-docker-$TAG.sh#Manage HamClock Docker Installs" \
             "./debian/install-hc-rpi#Installer for RPi and other Debian distros" \
             "dist/ESPHamClock-V$HC_TAG.zip#HamClock Source Zip with version" \
+            "old-versions/ESPHamClock-V3.10.zip#HamClock Source Zip for ESP devices" \
             "dist/hamclock-contrib-V$HC_TAG.zip#HamClock 3rd party contributions" \
             --title "HamClock Release: $TAG" \
             --generate-notes
