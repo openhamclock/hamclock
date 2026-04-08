@@ -62,6 +62,7 @@ jobs:
           gh release create $TAG \
             "./docker/manage-hc-docker-$TAG.sh#Manage HamClock Docker Installs" \
             "dist/ESPHamClock-V$HC_TAG.zip#HamClock Source Zip with version" \
+            "old-versions/ESPHamClock-V3.10.zip#HamClock Source Zip for ESP devices" \
             "dist/hamclock-contrib.zip#HamClock 3rd party contributions" \
             --title "HamClock Release: $TAG" \
             --generate-notes
