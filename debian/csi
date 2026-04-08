@@ -8,6 +8,9 @@
 # You may not misrepresent the original authorship of this work.
 #
 
+GITHUB_RAW_URL="https://raw.githubusercontent.com/komacke/hamclock/main/debian/csi"
+SELF_UPDATE_FLAG="CSI_SELF_UPDATED"
+
 HOSTS_FILE="/etc/hosts"
 DOMAIN="clearskyinstitute.com"
 BACKEND_PATTERN="[^[:space:]'\";)]+"
@@ -43,11 +46,87 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
+self_update() {
+    local script_path remote_tmp script_name
+
+    if [ -n "$CSI_SELF_UPDATED" ]; then
+        return 0
+    fi
+
+    script_path=$(readlink -f "$0" 2>/dev/null)
+    if [ -z "$script_path" ] || [ ! -f "$script_path" ] || [ ! -w "$script_path" ]; then
+        return 0
+    fi
+
+    remote_tmp=$(mktemp) || {
+        echo "Warning: could not create temporary file for update check. Continuing."
+        return 0
+    }
+
+    if command -v curl >/dev/null 2>&1; then
+        if ! curl -fsSL "$GITHUB_RAW_URL" -o "$remote_tmp"; then
+            rm -f "$remote_tmp"
+            echo "Warning: update check failed. Continuing with installed version."
+            return 0
+        fi
+    elif command -v wget >/dev/null 2>&1; then
+        if ! wget -qO "$remote_tmp" "$GITHUB_RAW_URL"; then
+            rm -f "$remote_tmp"
+            echo "Warning: update check failed. Continuing with installed version."
+            return 0
+        fi
+    else
+        rm -f "$remote_tmp"
+        echo "Warning: neither curl nor wget is available. Skipping update check."
+        return 0
+    fi
+
+    if ! head -n 1 "$remote_tmp" | grep -q '^#!/bin/bash'; then
+        rm -f "$remote_tmp"
+        echo "Warning: downloaded update does not look valid. Continuing with installed version."
+        return 0
+    fi
+
+    if cmp -s "$script_path" "$remote_tmp"; then
+        rm -f "$remote_tmp"
+        return 0
+    fi
+
+    chmod 755 "$remote_tmp"
+
+    if ! mv "$remote_tmp" "$script_path"; then
+        rm -f "$remote_tmp"
+        echo "Warning: failed to update $script_path. Continuing with installed version."
+        return 0
+    fi
+
+    script_name=$(basename "$script_path")
+    echo "A newer version of $script_name was found and installed."
+    echo "Restarting with the updated version..."
+
+    export CSI_SELF_UPDATED=1
+    exec "$script_path" "$@"
+}
+
+self_update "$@"
+
 # Safety check
 if [ ! -f "$HOSTS_FILE" ]; then
     echo "Error: $HOSTS_FILE not found."
     exit 1
 fi
+
+preserve_user_ownership() {
+    local file="$1"
+
+    if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
+        case "$file" in
+            "$USER_HOME"/*)
+                chown "$SUDO_USER:$SUDO_USER" "$file" 2>/dev/null || true
+                ;;
+        esac
+    fi
+}
 
 patch_file() {
     local file="$1"
@@ -124,6 +203,7 @@ patch_file() {
                 echo "Error: failed to update $file."
                 exit 1
             fi
+            preserve_user_ownership "$file"
             ;;
     esac
 
