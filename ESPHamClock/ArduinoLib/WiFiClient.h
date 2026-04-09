@@ -38,6 +38,7 @@ class WiFiClient {
 	WiFiClient();
 	WiFiClient(int fd);
 	bool connect (const char *host, int port);
+	bool connectCommand (const char *cmd);
 	bool connect (IPAddress ip, int port);
 	void stop (void);
 	int available(int pending_ms = 0);
@@ -74,6 +75,8 @@ class WiFiClient {
         int tout (int to_ms, int fd);
         bool pending(int ms);
         void logBuffer (const uint8_t *buf, int nbuf);
+	bool m_isPipe;
+    FILE* m_pipe;	
 
 };
 

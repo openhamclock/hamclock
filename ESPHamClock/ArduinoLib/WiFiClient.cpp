@@ -14,6 +14,8 @@ WiFiClient::WiFiClient()
 	n_peek = 0;
         next_peek = 0;
 		read_pending_ms = get_timeout_ms();
+	m_isPipe = false;
+    m_pipe = nullptr;						  
 }
 
 // constructor handed an open socket to use
@@ -26,6 +28,8 @@ WiFiClient::WiFiClient(int fd)
 	socket = fd;
 	n_peek = 0;
         next_peek = 0;
+	m_isPipe = false;
+    m_pipe = nullptr;	
 }
 
 // return whether this socket is active
@@ -98,13 +102,43 @@ int WiFiClient::tout (int to_ms, int fd)
         return (-1);
 }
 
+/* Add this new method to WiFiClient (e.g. in the .cpp file) */
+/* Call it instead of connect() when you want to run curl via a pipe */
+bool WiFiClient::connectCommand(const char* command)
+{
+    /* clean up any previous pipe */
+    if (m_pipe) {
+        pclose(m_pipe);
+        m_pipe = nullptr;
+    }
+    m_isPipe = false;
 
+    m_pipe = popen(command, "r");
+    if (!m_pipe) {
+        return false;
+    }
+
+    socket = fileno(m_pipe);   /* reuse the same "socket" member as the file descriptor */
+    if (socket < 0) {
+        pclose(m_pipe);
+        m_pipe = nullptr;
+        return false;
+    }
+
+    m_isPipe = true;
+    n_peek = 0;
+    next_peek = 0;
+
+    return true;
+}
 bool WiFiClient::connect(const char *host, int port)
 {
         struct addrinfo hints, *aip;
         char port_str[16];
         int sockfd;
-
+		/* connect is not a command pipe so clear pipe information */
+		m_isPipe = false;
+		m_pipe = nullptr;
         /* lookup host address.
          * N.B. must call freeaddrinfo(aip) after successful call before returning
          */
@@ -167,16 +201,23 @@ void WiFiClient::setNoDelay(bool on)
 
 void WiFiClient::stop()
 {
-	if (socket >= 0) {
-            if (debugLevel (DEBUG_NET, 1))
+	if (m_isPipe) {
+        if (m_pipe != nullptr) {
+            pclose(m_pipe);
+            m_pipe = nullptr;
+        }
+        m_isPipe = false;
+    } else if (socket >= 0) {
+              if (debugLevel (DEBUG_NET, 1))
                 printf ("WiFiCl: stopping fd %d\n", socket);
 	    shutdown (socket, SHUT_RDWR);
 	    close (socket);
 	    socket = -1;
-	    n_peek = 0;
-            next_peek = 0;
+
 	} else if (debugLevel (DEBUG_NET, 2))
             printf ("WiFiCl: fd %d already stopped\n", socket);
+	n_peek = 0;
+    next_peek = 0;		  
 }
 
 bool WiFiClient::connected()

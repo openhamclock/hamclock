@@ -3560,6 +3560,7 @@ extern bool getTCPLine (WiFiClient &client, char line[], uint16_t line_len, uint
 extern void sendUserAgent (WiFiClient &client);
 extern void httpHCGET (WiFiClient &client, const char *server, const char *hc_page);
 extern bool httpSkipHeader (WiFiClient &client);
+extern bool httpSkipHeader (WiFiClient &client);
 extern bool httpSkipHeader (WiFiClient &client, const char *header, char *value, int value_len);
 extern int getNTPServers (const NTPServer **listp);
 extern bool setRSSTitle (const char *title, int &n_titles, int &max_titles);

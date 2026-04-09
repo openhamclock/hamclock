@@ -59,18 +59,33 @@ bool newVersionIsAvailable (char *new_ver, uint16_t new_verl)
     WiFiClient v_client;
     char line[100];
     bool found_newer = false;
+    bool connected;
+    Serial.printf ("%s/%s\n", software_host, v_page);
+ if (version_https) {
+	 Serial.printf ("via https\n");
+ }	 
+ else {
+	 Serial.printf ("via port %d\n",backend_port);
+ }
 
-    Serial.printf ("%s/%s\n", backend_host, v_page);
-    if (v_client.connect (backend_host, backend_port)) {
+    if (version_https) {
+		connected = connecthttpsHCGET (v_client, software_host, v_page);
+	}
+	else {
+		connected = v_client.connect (backend_host, backend_port);
+	}
+		
+    if (connected) {
+        if (version_https == false) {
+			// query page
+            httpHCGET (v_client, backend_host, v_page);
 
-        // query page
-        httpHCGET (v_client, backend_host, v_page);
-
-        // skip header
-        if (!httpSkipHeader (v_client)) {
-            Serial.println ("Version query header is short");
-            goto out;
-        }
+					  
+			if (!httpSkipHeader (v_client)) {
+				Serial.println ("Version query header is short");
+				goto out;
+			}			
+		}
 
         // next line is new version number
         if (!getTCPLine (v_client, line, sizeof(line), NULL)) {
@@ -184,16 +199,23 @@ bool askOTAupdate(char *new_ver, bool show_pending, bool def_yes)
     WiFiClient v_client;
     char **lines = NULL;                        // malloced list of malloced strings -- N.B. free!
     int n_lines = 0;
-    if (v_client.connect (backend_host, backend_port)) {
-
-        // query page
-        httpHCGET (v_client, backend_host, v_page);
-
-        // skip header
-        if (!httpSkipHeader (v_client)) {
-            Serial.println ("Info header is short");
-            goto out;
-        }
+	bool connected;
+    if (version_https) {
+		connected = connecthttpsHCGET (v_client, software_host, v_page);
+	}
+	else {
+		connected = v_client.connect (backend_host, backend_port);
+	}
+		
+    if (connected) {
+        if (version_https == false) {
+			// query page
+            httpHCGET (v_client, backend_host, v_page);
+			if (!httpSkipHeader (v_client)) {
+				Serial.println ("Version query header is short");
+				goto out;
+			}			
+		}
 
         // skip next line which is new version number
         if (!getTCPLine (v_client, line, sizeof(line), NULL)) {
@@ -339,9 +361,9 @@ void doOTAupdate(const char *newver)
     WiFiClient client;
     char url[400];
     if (strchr(newver, 'b'))
-        snprintf (url, sizeof(url), "https://%s/ham/HamClock/ESPHamClock-V%s.zip", backend_host, newver);
+        snprintf (url, sizeof(url), "https://%s/ham/HamClock/ESPHamClock-V%s.zip", software_host, newver);
     else
-        snprintf (url, sizeof(url), "https://%s/ham/HamClock/ESPHamClock.zip", backend_host);
+        snprintf (url, sizeof(url), "https://%s/ham/HamClock/ESPHamClock.zip", software_host);
 
     // go
     t_httpUpdate_return ret = ESPhttpUpdate.update(client, url);
