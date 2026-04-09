@@ -71,7 +71,7 @@ jobs:
             "debian/install-hc-rpi#Installer for RPi and other Debian distros" \
             "dist/ESPHamClock-V$HC_TAG.zip#HamClock Source Zip with version" \
             "old-versions/ESPHamClock-V3.10.zip#HamClock Source Zip for ESP devices" \
-            "old-versions/ESPHamClock-V3.10.ino.bin#HamClock ino.bin for ESP devices" \
+            "old-versions/ESPHamClock-V3.10.ino.bin-ohb.hamclock.app#HamClock ino.bin for ESP devices on OHB" \
             "dist/hamclock-contrib-V$HC_TAG.zip#HamClock 3rd party contributions" \
             --title "HamClock Release: $TAG" \
             --target ${{ github.ref_name }} \
