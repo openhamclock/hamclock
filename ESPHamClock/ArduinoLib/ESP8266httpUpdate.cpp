@@ -264,7 +264,7 @@ t_httpUpdate_return ESPhttpUpdate::update(WiFiClient &client, const char *url)
 	    return (HTTP_UPDATE_FAILED);
 
 	// download url into tmp_dir naming it zip_file
-	if (!runCommand (false, 2, 8, 1, "curl --max-time 30 --retry 2 --silent --show-error --output '%s/%s' '%s'",
+	if (!runCommand (false, 2, 8, 1, "curl --max-time 15 --retry 2 --silent --show-error --output '%s/%s' '%s'",
                                                                 tmp_dir, zip_file, url)) {
             cleanupDir (tmp_dir);
 	    return (HTTP_UPDATE_FAILED);

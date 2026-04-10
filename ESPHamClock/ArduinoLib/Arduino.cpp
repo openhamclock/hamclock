@@ -39,7 +39,7 @@ const char *diag_files[N_DIAG_FILES] = {
 #define STRINGIFY(x) #x
 #define TOSTRING(x)  STRINGIFY(x)
 // how we were made
-char build_variables[64];
+char build_variables[128];
 char build_B[128];				  
 
 #if defined(_USE_FB0)

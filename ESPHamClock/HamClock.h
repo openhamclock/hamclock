@@ -3559,7 +3559,7 @@ extern void scheduleRSSNow(void);
 extern bool getTCPLine (WiFiClient &client, char line[], uint16_t line_len, uint16_t *ll);
 extern void sendUserAgent (WiFiClient &client);
 extern void httpHCGET (WiFiClient &client, const char *server, const char *hc_page);
-extern bool httpSkipHeader (WiFiClient &client);
+extern bool connecthttpsHCGET (WiFiClient &client, const char *server, const char *hc_page);
 extern bool httpSkipHeader (WiFiClient &client);
 extern bool httpSkipHeader (WiFiClient &client, const char *header, char *value, int value_len);
 extern int getNTPServers (const NTPServer **listp);

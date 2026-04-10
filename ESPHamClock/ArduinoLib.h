@@ -179,7 +179,7 @@ extern void setDemoMode(bool on);
 extern void setCenterLng (int16_t l);
 extern const char *backend_host;
 extern const char *software_host;
-xtern int backend_port;
+extern int backend_port;
 extern int liveweb_ro_port;
 extern int liveweb_rw_port;
 extern int liveweb_max;
