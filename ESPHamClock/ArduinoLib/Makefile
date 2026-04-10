@@ -21,7 +21,6 @@ OBJS = \
 	Serial.o \
         SPI.o \
 	Time.o \
-	timeout.o \
 	WiFiClient.o \
 	WiFiServer.o \
 	WiFiUdp.o \
