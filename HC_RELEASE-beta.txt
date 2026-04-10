@@ -3,3 +3,6 @@ Changes with latest release
 - better support for posting diag files
 - show backend hostname and IP address in rotating status
 - prevent OTA crashes due to long prefixes or suffixes
+- fix gpio pin doesn't work for alarm
+- add -T option to set http client timeout different from default of 10
+- add optionally-compiled T= enviornment variable for http client timeout
