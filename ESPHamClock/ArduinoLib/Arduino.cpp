@@ -581,6 +581,8 @@ static void crackArgs (int ac, char *av[])
 						if (ac < 2)
 							usage ("Missing timeout for -T");
 						uint8_t to = atoi(*++av);
+						if (to < 1 || to > 65)
+                            usage ("-T must be [1,65]");
 						ac--;
 						set_timeout_s(to);
 					}
