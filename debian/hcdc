@@ -17,7 +17,7 @@ DOMAIN="clearskyinstitute.com"
 HOSTS_IP="3.128.20.228"
 BACKEND_HOST="hamclock.com"
 BACKEND_PORT="80"
-IP_NAME="Hamclock.com backend"
+IP_NAME="hamclock.com backend"
 
 if [ -n "$BACKEND_PORT" ]; then
     BACKEND_TARGET="${BACKEND_HOST}:${BACKEND_PORT}"
@@ -27,7 +27,7 @@ fi
 
 BACKEND_PATTERN="[^[:space:]'\";)]+" 
 ENTRY="$HOSTS_IP $DOMAIN"
-DESKTOP_EXEC_LINE="Exec=/bin/sh -c 'while [ ! -S /tmp/.X11-unix/X0 ]; do sleep 1; done; sleep 5; exec /usr/local/bin/hamclock -b $BACKEND_TARGET'"
+DESKTOP_EXEC_LINE="Exec=sh -c 'until [ -n \"\$DISPLAY\" ] || [ -n \"\$WAYLAND_DISPLAY\" ]; do sleep 1; done; sleep 5; exec /usr/local/bin/hamclock -b $BACKEND_TARGET'"
 
 # Work out which user's home to use when run via sudo
 if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
@@ -61,9 +61,10 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 self_update() {
-    local script_path remote_tmp script_name
+    local script_path remote_tmp script_name flag_value
 
-    if [ -n "$OHB_SELF_UPDATED" ]; then
+    flag_value=$(printenv "$SELF_UPDATE_FLAG" 2>/dev/null || true)
+    if [ -n "$flag_value" ]; then
         return 0
     fi
 
@@ -118,7 +119,9 @@ self_update() {
     echo "A newer version of $script_name was found and installed."
     echo "Restarting with the updated version..."
 
-    export OHB_SELF_UPDATED=1
+    printf -v "$SELF_UPDATE_FLAG" '%s' 1
+    export "$SELF_UPDATE_FLAG"
+
     exec "$script_path" "$@"
 }
 
