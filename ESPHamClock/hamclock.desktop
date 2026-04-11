@@ -1,3 +1,9 @@
+#
+# Simple HamClock desktop file for the raspberry pi user
+#
+# see hamclock-autostart.desktop for a more comprehsive
+# configuration
+#
 [Desktop Entry]
 Name=HamClock
 Exec=/usr/local/bin/hamclock
