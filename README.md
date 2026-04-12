@@ -1,27 +1,27 @@
-# HamClock, Originally from Clear Sky Institute
+# HamClock Client
 
-This repo started with the source code for Clear Sky Institute's HamClock v4.22. It also includes the hamclock-contrib zip-file contents.
+This repo is the primary source for ongoing maintenance of the HamClock client.
 
-## <ins>HamClock Live Web - Docker</ins>
+It is primarily intended as a reference implementation for use with backend servers
+that are compatible with the original Clear Sky Institute service and the evolving backend standards
+being developed by the [Open Hamclock Standards](https://github.com/openhamclock/hamclock-standards) project.
 
-The main contribution is to create a dockerized deployment of the web version of HamClock.
+The HamClock client was originally created by Clear Sky Institute, and made available under an [MIT License](./LICENSE).
+This repository was started  with the source code for Clear Sky Institute's HamClock v4.22, the final version they created.
 
-### How to use it
+An archive of historical HamClock client releases up to 4.22 is available at <https://github.com/openhamclock/hamclock-client-archive>.
 
-Grab the ```manage-hc-docker.sh``` file from the releases page. That file has a version in the name. I recommend renaming it, or do it all at once with a curl:
-```
-curl -sLo manage-hc-docker.sh 'https://github.com/komacke/hamclock/releases/download/v4.22.0/manage-hc-docker-v4.22.0.sh'
-chmod +x manage-hc-docker.sh
-```
+## Documentation
 
-See the commands available with ```./manage-hc-docker.sh help``` and do an install with ```./manage-hc-docker.sh install```.
+See the [Open Hamclock Backend](https://ohb.works/) site for a general starting point.
 
-NOTE: you'll likely want to use the -b option to set the backend server.\
-NOTE: you can select from the 4 possible sizes with the -s option: ```800x480 1600x960 2400x1440 3200x1920```
+Specific documentation included here:
 
-### Preconfigure it on a first run
+* [Running the HamClock Client with Docker](./docker/)
+* [Running the HamClock Client on Raspberry Pi/Debian](./debian/)
+* [Additional HamClock Client Documentation (API, user manual etc)](./doc/)
 
-The first time you run it, you can preconfigure some of your personal settings. Look for the [config.env.example](https://github.com/komacke/hamclock/blob/main/docker/config.env.example) file. Name it config.env and put it in the same folder with your manage-hc-docker.sh. Edit it as you like and it will pre-configure your hamclock. If you don't use the config.env, you'll get the usual setup screen for a fresh install.
+## Contributing
 
-## <ins>HamClock on Raspberry Pi OS (Or any Debian-based distribution)</ins>
-Detailed instructions in the [Raspberry Pi OS Install](debian/README.md).
+Bug reports and pull requests are welcome on GitHub at
+<https://github.com/komacke/hamclock/issues>
