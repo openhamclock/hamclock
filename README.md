@@ -13,7 +13,7 @@ An archive of historical HamClock client releases up to 4.22 is available at <ht
 
 ## Documentation
 
-See the [Open Hamclock Backend](https://ohb.works/) site for a general starting point.
+See the [Open Hamclock Backend](https://ohb.works/) and [hamclock.com](https://hamclock.com) sites for a general starting point.
 
 Specific documentation included here:
 
