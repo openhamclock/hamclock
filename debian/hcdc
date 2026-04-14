@@ -28,6 +28,8 @@ fi
 BACKEND_PATTERN="[^[:space:]'\";)]+" 
 ENTRY="$HOSTS_IP $DOMAIN"
 DESKTOP_EXEC_LINE="Exec=sh -c 'until [ -n \"\$DISPLAY\" ] || [ -n \"\$WAYLAND_DISPLAY\" ]; do sleep 1; done; sleep 5; exec /usr/local/bin/hamclock -b $BACKEND_TARGET'"
+WRAPPER_WAIT_LINE_1='until [ -n "$DISPLAY" ] || [ -n "$WAYLAND_DISPLAY" ]; do sleep 1; done'
+WRAPPER_WAIT_LINE_2='sleep 5'
 
 # Work out which user's home to use when run via sudo
 if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
@@ -149,6 +151,7 @@ patch_file() {
     local file="$1"
     local mode="$2"
     local tmpfile
+    local tmpfile2
     local cleanfile
     local user
 
@@ -162,8 +165,12 @@ patch_file() {
     case "$mode" in
         desktop)
             sed -E "/^[[:space:]]*Exec=/ {
-                c\\
+                /hamclock-xrandr-wrapper/ b
+                /hamclock-runner/ b
+                /(^|[^[:alnum:]_/-])(\/usr\/local\/bin\/)?hamclock(-4k)?([[:space:]'\";)]|$)/ {
+                    c\\
 $DESKTOP_EXEC_LINE
+                }
             }" "$file" > "$tmpfile"
             ;;
         runner)
@@ -171,6 +178,38 @@ $DESKTOP_EXEC_LINE
                 s/[[:space:]]+-b[[:space:]]+$BACKEND_PATTERN//g
                 s#(^|[^[:alnum:]_/-])(/usr/local/bin/)?(hamclock|hamclock-4k)([[:space:]'\";)]|$)#\1\2\3 -b $BACKEND_TARGET\4#
             }" "$file" > "$tmpfile"
+            ;;
+        xrandr_wrapper)
+            tmpfile2=$(mktemp) || {
+                rm -f "$tmpfile"
+                echo "Error: could not create temporary file."
+                exit 1
+            }
+
+            if grep -Eq '\$DISPLAY|\$WAYLAND_DISPLAY' "$file"; then
+                cat "$file" > "$tmpfile2"
+            else
+                awk -v wait1="$WRAPPER_WAIT_LINE_1" -v wait2="$WRAPPER_WAIT_LINE_2" '
+                    NR == 1 && /^#!/ {
+                        print
+                        print wait1
+                        print wait2
+                        next
+                    }
+                    NR == 1 {
+                        print wait1
+                        print wait2
+                    }
+                    { print }
+                ' "$file" > "$tmpfile2"
+            fi
+
+            sed -E "/^[[:space:]]*exec=[[:space:]]*\\\$[[:space:]]*\\(/ {
+                s/[[:space:]]+-b[[:space:]]+$BACKEND_PATTERN//g
+                s#(^|[^[:alnum:]_/-])(/usr/local/bin/)?(hamclock|hamclock-4k)([[:space:]'\";)]|$)#\1\2\3 -b $BACKEND_TARGET\4#
+            }" "$tmpfile2" > "$tmpfile"
+
+            rm -f "$tmpfile2"
             ;;
         service)
             sed -E "/^[[:space:]]*ExecStart=/ {
@@ -274,7 +313,7 @@ fi
 patch_file "$DESKTOP_FILE" "desktop"
 patch_file "$AUTOSTART_FILE" "desktop"
 patch_file "$RUNNER_FILE" "runner"
-patch_file "$XRANDR_WRAPPER_FILE" "runner"
+patch_file "$XRANDR_WRAPPER_FILE" "xrandr_wrapper"
 
 if patch_file "$SERVICE_FILE" "service"; then
     service_changed=1
