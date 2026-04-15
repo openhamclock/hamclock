@@ -21,6 +21,37 @@ The HamClock Client has a number of public interfaces and file formats that are 
 * [HamClock Client EEPROM File Layout](./eeprom/)
 * [HamClock Client RESTful API](./client-api/)
 
+## HamClock System Architecture
+
+The following diagram illustrates the components of the classic HamClock architecture as developed by CSI.
+
+       ┌────────────────────────────────────────┐
+       │               HamClock                 │
+       │     (Frontend/Client Installation)     │───O RW Web Interface
+       │                              ┌─────┐   │
+       │   ┌──────────────────────┐   │ GUI │   │───O RO Web Interface
+       │   │ ~/.hamclock          │   └─────┘   │
+       │   │ (settings and cache) │   ┌─────┐   │───O RESTful API Web Interface
+       │   │ EEPROM file          │   │ CLI │   │   ┌────────────┐
+       │   └──────────────────────┘   └─────┘   │───│ GPIO (RPi) │
+       └────────────────────┬───────────────────┘   └────────────┘
+                            │
+                            │ HamClock Backend API
+                            │
+                            ▼
+           ┌──────────────────────────────────┐
+           │         HamClock Backend         │
+           │    (3rd party or self-hosted)    │
+           └────────────────┬─────────────────┘
+                            │
+                            │ External APIs
+                            │
+                            ▼
+      ┌─────────────────────────────────────────────┐
+      │           3rd party data services           │
+      │ (e.g. POTA park locations; solar flux data) │
+      └─────────────────────────────────────────────┘
+
 ## About the HamClock Project(s)
 
 For a general starting point to find out more about the ongoing development efforts related to HamClock, see:
