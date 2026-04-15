@@ -2,7 +2,7 @@
 
 All contributed scripts referred to below are available in [../hamclock-contrib/](../hamclock-contrib/)
 
-## 1.  Tips for Executing and Displaying HamClock on Windows 10
+## 1. Tips for Executing and Displaying HamClock on Windows 10
 
 Contributed by Joeri van Dooren, ON3URE
 
@@ -21,7 +21,7 @@ Contributed by Joeri van Dooren, ON3URE
         export DISPLAY=:0
         /usr/local/bin/hamclock
 
-## 2.  More tips for Executing and Displaying HamClock on Windows 10 and 11
+## 2. More tips for Executing and Displaying HamClock on Windows 10 and 11
 
 Install Ubuntu from the Microsoft Store, for example the one at this link: Ubuntu 20.04.6 LTS. Follow the prompts to create your user name and password.
 
@@ -54,19 +54,19 @@ In this example, suppose we want to use a web browser to access Hamclock with a 
 
 All set: to run hamclock as a service just type hamclock & and press enter.
 
-## 3.  Automating qrz page from spots
+## 3. Automating qrz page from spots
 
 Contributed by Hans Klausmann, DL5RAZ
 
 see dl5raz.py.
 
-## 4.  Script to simplify sending web commands from command line
+## 4. Script to simplify sending web commands from command line
 
 Script by Barry, N0NZ
 
 Documentation [here](../hamclock-contrib/hcmd.py.docx).
 
-## 5.  Script to read and write the eeprom config file
+## 5. Script to read and write the eeprom config file
 
 Contributed by Elwood Downey, <wb0oew@arrl.net>
 
@@ -103,13 +103,13 @@ Set the BME280 at I2C address 77 temperature correction:
     hceeprom.pl NV_TEMPCORR2 -0.23
     NV_TEMPCORR2 = -0.23
 
-## 6.  Script to query for any space weather datum
+## 6. Script to query for any space weather datum
 
 Contributed by Elwood Downey, <wb0oew@arrl.net>
 
 This script hcgetsw.sh queries HamClock for the most recent value of any space weather data it provides. Run the script with -help for a complete list.
 
-## 7.  Script to send any RSS feed to HamClock
+## 7. Script to send any RSS feed to HamClock
 
 Contributed by Elwood Downey, <wb0oew@arrl.net>
 
@@ -119,7 +119,7 @@ To use the script, just give it the host name (or IP) of your HamClock followed 
 
     hcrss.pl 192.168.7.117 https://www.arrl.org/news/rss
 
-## 8.  Instructions for macOS dual screen
+## 8. Instructions for macOS dual screen
 
 Contributed by AL7CR.
 
@@ -130,7 +130,7 @@ These settings allow a full screen Hamclock with no menu or borders on one displ
 * Autohide Dock and Menubar as for a single screen. Note that this setting is system wide and not per screen as you might expect.
 * And the key point, in XQuartz preferences disable full screen mode. If this is not done Hamclock will disappear when it's window loses the system focus. Command-Option-A will make it reappear however you will not be able to work in one screen with Hamclock in the other unless XQuartz full screen is disabled.
 
-## 9.  Arch User Repository
+## 9. Arch User Repository
 
 Contributed by KJ7RRV.
 
@@ -141,13 +141,13 @@ HamClock is available in the Arch User Repository here. The package names are:
 * hamclock-bigger (2400x1440)
 * hamclock-huge (3200x1920)
 
-## 10.  Running HamClock on ProxMox
+## 10. Running HamClock on ProxMox
 
 Contributed by NI2O.
 
 This [pdf](../hamclock-contrib/HamClock%20on%20ProxMox.pdf) shows how to configure HamClock to operate in an LXC container on a ProxMox server.
 
-## 11.  Compile HamClock statically so it will run on e.g. TrueNAS
+## 11. Compile HamClock statically so it will run on e.g. TrueNAS
 
 Contributed by M1JKL.
 
@@ -173,7 +173,7 @@ So this is what I did:
 
 I did this a few weeks ago so the description above is from memory. Anyone with a bit of linux knowledge (I have almost none!) will work out a more elegant approach to establish it as a true service by using things like init.d or /etc/rc.local.
 
-## 12.  Web proxy to control multiple independent web hamclocks from the same URL
+## 12. Web proxy to control multiple independent web hamclocks from the same URL
 
 Contributed by WB0OEW.
 
@@ -235,7 +235,7 @@ Further notes:
 
     The processes with status T are sTopped.
 
-## 13.  Script to simplify running curl
+## 13. Script to simplify running curl
 
 Contributed by WB0OEW.
 
@@ -261,7 +261,7 @@ Copy/paste the following into a file named hccurl and use it to send commands to
         fi
     fi
 
-## 14.  Install HamClock using Docker
+## 14. Install HamClock using Docker
 
 Contributed by Julius, DO7JZ.
 
@@ -274,13 +274,13 @@ I have not tested it on Windows, but potentially it'll run in WSL2. Works fine o
 Contributed by Chris, NZ6F
 A complete docker implementation with supporting information is at <https://github.com/ChrisRomp/hamclock-docker>.
 
-## 15.  Connect HamClock with N3FJP logger
+## 15. Connect HamClock with N3FJP logger
 
 Contributed by Chris, NZ6F
 
 [N3FJP2HamClock](https://github.com/ChrisRomp/n3fjp2hamclock) is a Windows application to synchronize HamClock with the call sign entry field in N3FJP logger applications. This application connects to the N3FJP API server, and when you tab out of the call sign field, it will update your HamClock(s) with the DX of the entered call.
 
-## 16.  How to install and run HamClock on Android
+## 16. How to install and run HamClock on Android
 
 Contributed by Todd, N9MWB
 
@@ -312,13 +312,13 @@ For Debian
 
 You can now either use hamclock via vnc or connect with a browser to ip-address:8081/live.html
 
-## 17.  Show weather station data as an RSS feed
+## 17. Show weather station data as an RSS feed
 
 Contributed by Mark, G7LTT/NI2O
 
 [Add WeeWX RSS feed to Hamclock.pdf](../hamclock-contrib/AddWeeWxRSSfeedtoHamclock.pdf)
 
-## 18.  Update local satellite TLE file
+## 18. Update local satellite TLE file
 
 Contributed by Burns Fisher, WB1FJ
 
@@ -326,7 +326,7 @@ This script will update the TLE file HamClock can use for local satellite elemen
 
 [updateTLE.py](../hamclock-contrib/updateTLE.py)
 
-## 19.  Install HamClock in a Proxmox LXC
+## 19. Install HamClock in a Proxmox LXC
 
 Contributed by Stuart, GM5DNA
 

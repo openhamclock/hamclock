@@ -25,11 +25,11 @@ The HamClock Client has a number of public interfaces and file formats that are 
 
 For a general starting point to find out more about the ongoing development efforts related to HamClock, see:
 
-* <https://ohb.works/> - Open Hamclock Backend
-* <https://hamclock.com> - hamclock.com Backend
+* [Open Hamclock Backend project](https://ohb.works/)
+* [hamclock.com](https://hamclock.com) backend
 
 For an historical appreciation of the HamClock project, see:
 
 * Original [October 2017 QST article](https://web.archive.org/web/20251130070310/https://clearskyinstitute.com/ham/HamClock/QST-HamClock.pdf)
 * <https://clearskyinstitute.com/ham/HamClock/> - the original home
-* <https://web.archive.org/web/20260123074655/https://www.clearskyinstitute.com/ham/HamClock/> a good archive.org entry point into the history of HamClock website
+* <https://web.archive.org/web/20260123074655/https://www.clearskyinstitute.com/ham/HamClock/> a good archive.org entry point into the history of the HamClock website
