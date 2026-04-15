@@ -1,27 +1,21 @@
 # HamClock Client
 
-This repo is the primary source for ongoing maintenance of the HamClock client.
+This repository is the primary source for ongoing maintenance of the HamClock Client,
+aka the HamClock "frontend", and often just referred to as "HamClock".
 
-It is primarily intended as a reference implementation for use with backend servers
+It is intended as a reference implementation for use with backend servers
 that are compatible with the original Clear Sky Institute service and the evolving backend standards
 being developed by the [Open Hamclock Standards](https://github.com/openhamclock/hamclock-standards) project.
 
-The HamClock client was originally created by Clear Sky Institute, and made available under an [MIT License](./LICENSE).
-This repository was started  with the source code for Clear Sky Institute's HamClock v4.22, the final version they created.
+See [doc](./doc/) for all the information and documentation related to installing, using, and developing HamClock.
 
-An archive of historical HamClock client releases up to 4.22 is available at <https://github.com/openhamclock/hamclock-client-archive>.
+The HamClock Client was originally created by Clear Sky Institute, and made available under an [MIT License](./LICENSE).
+This repository was started with the source code for Clear Sky Institute's HamClock v4.22, the final version they created.
 
-## Documentation
-
-See the [Open Hamclock Backend](https://ohb.works/) and [hamclock.com backend](https://hamclock.com) sites for a general starting point.
-
-Specific documentation included here:
-
-* [Running the HamClock Client with Docker](./docker/)
-* [Running the HamClock Client on Raspberry Pi/Debian](./debian/)
-* [Additional HamClock Client Documentation (API, user manual etc)](./doc/)
+An archive of historical HamClock Client releases up to 4.22 is available at <https://github.com/openhamclock/hamclock-client-archive>.
 
 ## Contributing
 
 Bug reports and pull requests are welcome on GitHub at
+
 <https://github.com/openhamclock/hamclock/issues>
