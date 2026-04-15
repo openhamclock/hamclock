@@ -1,7 +1,7 @@
 #!/bin/bash
 
 HC_MANAGER_VERSION=latest
-GITHUB_REPO="komacke/hamclock"
+GITHUB_REPO="openhamclock/hamclock"
 
 IMAGE_BASE=komacke/hamclock
 
