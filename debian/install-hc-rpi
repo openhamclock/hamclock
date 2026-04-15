@@ -90,7 +90,7 @@ get_hamclock_source_url() {
     fi
 
     # GitHub API endpoint for releases
-    local api_url="https://api.github.com/repos/komacke/hamclock/releases"
+    local api_url="https://api.github.com/repos/openhamclock/hamclock/releases"
 
     # Define the target filename we are looking for
     local target_asset="ESPHamClock-V${substring}.zip"
