@@ -8,7 +8,7 @@
 # You may not misrepresent the original authorship of this work.
 #
 
-GITHUB_RAW_URL="https://raw.githubusercontent.com/komacke/hamclock/main/debian/csi"
+GITHUB_RAW_URL="https://raw.githubusercontent.com/openhamclock/hamclock/main/debian/csi"
 SELF_UPDATE_FLAG="CSI_SELF_UPDATED"
 
 HOSTS_FILE="/etc/hosts"

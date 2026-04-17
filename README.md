@@ -24,4 +24,4 @@ Specific documentation included here:
 ## Contributing
 
 Bug reports and pull requests are welcome on GitHub at
-<https://github.com/komacke/hamclock/issues>
+<https://github.com/openhamclock/hamclock/issues>
