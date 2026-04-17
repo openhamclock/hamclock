@@ -1,2 +1,2 @@
 Changes with latest release:
-- no beta at this time
+- first beta baseline is 4.23
