@@ -17,12 +17,12 @@ An archive of historical HamClock Client releases up to 4.22 is available at <ht
 ## Contributing
 
 Bug reports and pull requests are welcome on GitHub at
-<https://github.com/komacke/hamclock/issues>
+<https://github.com/openhamclock/hamclock/issues>
 
 ## Related
 
 * [HamClock Standards](https://github.com/openhamclock/hamclock-standards) - specifications source
-* [HamClock Client](https://github.com/komacke/hamclock) - reference frontend implementation source
+* [HamClock Client](https://github.com/openhamclock/hamclock) - reference frontend implementation source
 * [HamClockLauncher](https://github.com/huberthickman/HamClockLauncher) - frontend installer/launcher source
 * Open Hamclock Backend project
     * <https://ohb.works/> - main site

@@ -1,11 +1,11 @@
 Changes with latest release
-- fix only 1 sat crashes HamClock for Show planning tool
-- better support for posting diag files
-- show backend hostname and IP address in rotating status
-- prevent OTA crashes due to long prefixes or suffixes
-- fix gpio pin doesn't work for alarm
-- add -T option to set http client timeout different from default of 10
-- add optionally-compiled T= enviornment variable for http client timeout
-- add -S option to get software from a different server; useful when running your own backend
-- add optionally-compiled _S= environment variable for software server above
-- add optionally-compiled _B= environment variable for backend server set and build time
+- fix 1-sat crash in Show planner
+- better diag file posting
+- show backend host/IP in status
+- prevent OTA crash on long pre/suffix
+- fix gpio pin for alarm
+- add -T for HTTP timeout
+- add T= env var for HTTP timeout
+- add -S for alt software server
+- add _S= env var for software server
+- add _B= env var for backend server
