@@ -1,11 +1,2 @@
-Changes with latest release
-- fix 1-sat crash in Show planner
-- better diag file posting
-- show backend host/IP in status
-- prevent OTA crash on long pre/suffix
-- fix gpio pin for alarm
-- add -T for HTTP timeout
-- add T= env var for HTTP timeout
-- add -S for alt software server
-- add _S= env var for software server
-- add _B= env var for backend server
+Changes with latest release:
+- no beta at this time
