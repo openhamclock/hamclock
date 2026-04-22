@@ -11,7 +11,7 @@
 #STABLE_TAG=v4.23.0
 #RLS_PATH=refs/tags/$STABLE_TAG
 RLS_PATH=main
-GITHUB_RAW_URL="https://raw.githubusercontent.com/openhamclock/hamclock/$RLS_PATH/debian/csi"
+GITHUB_RAW_URL="https://raw.githubusercontent.com/openhamclock/hamclock/$RLS_PATH/debian/hcdc"
 SELF_UPDATE_FLAG="HCDC_SELF_UPDATED"
 
 HOSTS_FILE="/etc/hosts"
