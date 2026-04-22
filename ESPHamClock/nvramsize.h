@@ -4,8 +4,8 @@
 /* number of bytes for each NV_Name.
  * N.B. must be in the same order.
  * Format of size lines must be contain the following columns
- *   size,  
- *   // 
+ *   size,
+ *   //
  *   NV_xxx
  * sizes that are not numbers must be of the form NV_xxx_LEN and be defined in nvramlen.h
  */
