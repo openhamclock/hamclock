@@ -32,7 +32,7 @@ Addr,Name,Len,Type,Description
 0x0A8,NV_LKSCRN_ON,1,i,whether screen lock is on
 0x0AA,NV_MAPPROJ,1,i,0: merc 1: azim 2: azim 1
 0x0AE,NV_WIFI_SSID,32,s,WIFI SSID
-0x0F0,NV_CALLSIGN,12,s,call 
+0x0F0,NV_CALLSIGN,12,s,call
 0x0FD,NV_SAT1NAME,9,s,satellite 1 name with underscore for each space
 0x107,NV_DE_SRSS,1,i,whether DE pane shows sun times 0=until or 1=at
 0x109,NV_DX_SRSS,1,i,whether DX pane shows sun times 0=until or 1=at or 2=DX prefix
