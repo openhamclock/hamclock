@@ -3,6 +3,11 @@
 
 /* number of bytes for each NV_Name.
  * N.B. must be in the same order.
+ * Format of size lines must be contain the following columns
+ *   size,
+ *   //
+ *   NV_xxx
+ * sizes that are not numbers must be of the form NV_xxx_LEN and be defined in nvramlen.h
  */
 static const uint8_t nv_sizes[NV_N] = {
 
@@ -344,6 +349,13 @@ static const uint8_t nv_sizes[NV_N] = {
 
     // 240
     1,                          // NV_SAT2FLAGS
+    2,                          // NV_ANT_DE_INDEX
+    2,                          // NV_ANT_DX_INDEX
+    1,                          // NV_ANT_DEDX_CONTROL
+    4,                          // NV_ANT_DE_AZ
+
+    // 245
+    4,                          // NV_ANT_DX_AZ
 
 };
 

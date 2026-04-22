@@ -205,3 +205,8 @@ Addr,Name,Len,Type,Description
 0xADA,NV_PSK_SHOWPATH,1,i,whether Live Spots show paths
 0xADC,NV_SAT1FLAGS,1,i,satellite 1 options
 0xADE,NV_SAT2FLAGS,1,i,satellite 2 options
+0xAE0,NV_ANT_DE_INDEX,2,i,Antenna index for TX
+0xAE3,NV_ANT_DX_INDEX,2,i,Antenna index for RX
+0xAE6,NV_ANT_DEDX_CONTROL,1,i,Antenna selection b0 DE b1 DX
+0xAE8,NV_ANT_DE_AZ,4,i,Antenna Azimuth for DE
+0xAED,NV_ANT_DX_AZ,4,i,Antenna Azimuth for DX
