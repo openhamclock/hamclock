@@ -1,2 +1,2 @@
 Changes with latest release:
-- first beta baseline is 4.23
+- fix maidenhead conversions in REST api
