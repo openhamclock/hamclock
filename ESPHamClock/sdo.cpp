@@ -27,14 +27,14 @@ static const char *sdo_menu[SDOT_N] = {
     "304A",
 };
 
-static const char *sdo_url[SDOT_N] = {
-    "https://sdo.gsfc.nasa.gov/assets/img/latest/mpeg/latest_1024_211193171.mp4",
-    "https://sdo.gsfc.nasa.gov/assets/img/latest/mpeg/latest_1024_HMIB.mp4",
-    "https://sdo.gsfc.nasa.gov/assets/img/latest/mpeg/latest_1024_HMIIC.mp4",
-    "https://sdo.gsfc.nasa.gov/assets/img/latest/mpeg/latest_1024_0131.mp4",
-    "https://sdo.gsfc.nasa.gov/assets/img/latest/mpeg/latest_1024_0193.mp4",
-    "https://sdo.gsfc.nasa.gov/assets/img/latest/mpeg/latest_1024_0211.mp4",
-    "https://sdo.gsfc.nasa.gov/assets/img/latest/mpeg/latest_1024_0304.mp4",
+static const char *sdo_filenames[SDOT_N] = {
+    "1024_211193171.mp4",
+    "1024_HMIB.mp4",
+    "1024_HMIIC.mp4",
+    "1024_0131.mp4",
+    "1024_0193.mp4",
+    "1024_0211.mp4",
+    "1024_0304.mp4",
 };
 
 static const char *sdo_file[SDOT_N] = {
@@ -261,7 +261,13 @@ bool updateSDOPane (const SBox &box)
  */
 static void showSDOmovie (void)
 {
-    openURL (sdo_url[sdo_choice]);
+    char full_url[256];
+
+    // Construct the URL dynamically using snprintf
+    snprintf(full_url, sizeof(full_url), "http://%s:%d/ham/HamClock/SDO/movies/%s",
+             backend_host, backend_port, sdo_filenames[sdo_choice]);
+
+    openURL(full_url);
 }
 
 /* check for our touch in the given pane box.
