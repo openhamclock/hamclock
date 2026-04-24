@@ -1,4 +1,4 @@
-j#ifndef _NVRAMENUM_H
+#ifndef _NVRAMENUM_H
 #define _NVRAMENUM_H
 
 
