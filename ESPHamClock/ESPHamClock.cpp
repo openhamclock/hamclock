@@ -602,7 +602,6 @@ void setup()
     rss_bnr_b.w = map_b.w;
     rss_bnr_b.h = 68;
     NVReadUInt8 (NV_RSS_ON, &rss_on);
-    initLightning();
     if (!NVReadUInt8 (NV_RSS_INTERVAL, &rss_interval) || rss_interval < RSS_MIN_INT) {
         rss_interval = RSS_DEF_INT;
         NVWriteUInt8 (NV_RSS_INTERVAL, rss_interval);
@@ -653,6 +652,17 @@ void setup()
     initScreen();
 }
 
+// mouseoverMap
+// Return true if the mouse is over the map area that requires rapid polling of cursor coordinates
+
+static bool mouseOverMap()
+{
+      SCoord s;
+      if (!tft.getMouse (&s.x, &s.y))
+              return (false);
+      return (overMap (s));
+}
+
 // called repeatedly forever
 void loop()
 {
@@ -695,6 +705,10 @@ void loop()
 
         // check for touch events
         checkTouch();
+
+		if (!mouseOverMap()) {
+			delay(10);
+		}
     }
 }
 
@@ -1702,7 +1716,6 @@ void drawAllSymbols()
     drawDEMarker(false);
     drawDXMarker(false);
     drawFarthestPSKSpots();
-    drawLightningOnMap();
     drawSanta ();
 
     updateClocks(false);
