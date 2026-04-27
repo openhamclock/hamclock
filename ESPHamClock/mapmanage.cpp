@@ -256,7 +256,7 @@ const float MHz, char query[], char dfn[], char nfn[], size_t qdn_len)
         snprintf (query, qdn_len, qfmt,
                     yr, mo, hr, de_ll.lat_d, de_ll.lng_d, show_lp, bc_power, ZOOM_W, ZOOM_H,
                     MHz, bc_toa, bc_modevalue, bc_toa);
-
+		antenna_addargs(query+strlen(query), qdn_len-strlen(query));   // add antenna selection arguments to query
         // by storing the entire query in the file name we easily know if a new download is needed.
         snprintf (dfn, qdn_len, "map-D-%s-%s-%010u.bmp", style, page, stringHash(query));
         snprintf (nfn, qdn_len, "map-N-%s-%s-%010u.bmp", style, page, stringHash(query));

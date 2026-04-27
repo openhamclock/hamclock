@@ -911,7 +911,23 @@ extern bool onADIFList (const DXSpot &spot, bool chk_dxcc, bool chk_grid, bool c
 
 extern int readADIFFile (GenReader &gr, DXSpot *&spots, bool use_wl, int &n_bad);
 
+/*********************************************************************************************
+ *
+ * antennas.cpp
+ *
+ */
 
+extern void initAntennas ();										//call during setup to initialize runtime data structures
+extern bool antenna_getline(char *buf, size_t size, int lineno);	//use to iterate through antenna index and description
+extern void antenna_addargs(char *buf, size_t size);				//add args to backend url
+extern bool antenna_validindex(uint16_t index);						//is index a valid antenna index
+
+// I could have done extern set and get functions for these, but existing code uses globals to set/read
+extern uint16_t antennas_de;
+extern uint16_t antennas_dx;
+extern uint8_t  antennas_dedx_control;
+extern float    antennas_de_az;
+extern float    antennas_dx_az;
 
 
 /*********************************************************************************************
@@ -1651,6 +1667,14 @@ extern void ll2KD3Node (const LatLong &ll, KD3Node *kp);
 extern void KD3Node2ll (const KD3Node &n, LatLong *llp);
 extern float nearestKD3Dist2Miles(float d);
 
+
+/*********************************************************************************************
+ *
+ * antennas-html.cpp
+ *
+ */
+
+extern const char antennas_html[];
 
 
 

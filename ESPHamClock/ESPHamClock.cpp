@@ -281,6 +281,9 @@ void setup()
     tft.PWM1config(true, RA8875_PWM_CLK_DIV1024); // PWM output for backlight
     initBrightness();
 
+    // initialize Antennas
+	initAntennas();
+	
 // #define _GFX_COORD_TEST                              // RBF
 #if defined(_GFX_COORD_TEST)
 
