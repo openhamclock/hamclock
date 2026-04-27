@@ -357,6 +357,10 @@ typedef enum {
     // 246
     NV_LIGHTNING_ON,            // whether to show lightning strikes overlay
 
+    // 247
+    NV_LTG_WORLDWIDE,           // lightning: 1=worldwide, 0=radius
+    NV_LTG_RADIUS,              // lightning: search radius in km
+
 	NV_N
 
 } NV_Name;

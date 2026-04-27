@@ -1233,7 +1233,7 @@ void doNCDXFBoxTouch (TouchType tt, const SCoord &s)
             break;
 
         case BRB_SHOW_LIGHTNING:
-            // lightning panel is display-only, no touch action
+            doLightningTouch();
             break;
 
         case BRB_N:
