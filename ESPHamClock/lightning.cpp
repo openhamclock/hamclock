@@ -4,20 +4,21 @@
  * pre-filtered strike data from the OHB backend every LIGHTNING_INTERVAL
  * seconds and renders age-coloured bolt icons on the map.
  *
- * The OHB backend (blitzortung_daemon.py + lightning/strikes) handles:
+ * Also provides:
+ *   drawLightningRings()       — concentric great-circle range rings from DE
+ *   drawNCDXFLightningStats()  — NCDXF-style panel showing strike counts
+ *
+ * The OHB backend (blitzortung_daemon.py + lightning/strikes.pl) handles:
  *   - Subscribing to the Blitzortung global MQTT feed
  *   - Maintaining a rolling 10-minute global strike buffer
- *   - Filtering to the DE lat/lon + radius on request
+ *   - Filtering to DE lat/lon + radius on request
  *   - Computing age in seconds at request time
  *
  * Response format — plain text, one strike per line:
  *   lat,lon,age_seconds
- *   51.2300,-0.4500,45
- *   34.1200,-84.3000,180
  *
- * Strikes age out naturally: OHB only returns strikes younger than
- * MAX_AGE, and HamClock replaces strikes[] entirely on each fetch.
- * No explicit age-out logic is needed on the client side.
+ * Strikes age out naturally: OHB only returns strikes younger than MAX_AGE
+ * and HamClock replaces strikes[] entirely on each fetch.
  */
 
 #include "HamClock.h"
@@ -26,9 +27,13 @@
 
 #define LIGHTNING_INTERVAL      (5*60)  // fetch interval, seconds
 #define LIGHTNING_RETRY_SECS    60      // retry after failed fetch
-#define LIGHTNING_RADIUS_KM     500     // search radius passed to OHB
-#define LIGHTNING_MAX_STRIKES   200     // heap guard for ESP8266
+#define LIGHTNING_MAX_STRIKES   5000    // worldwide coverage — ~3 min of global activity
 
+// Ring distances in km — frames the 500km search radius
+static const int ltg_ring_km[] = { 100, 200, 300, 400, 500 };
+#define LTG_N_RINGS  ((int)NARRAY(ltg_ring_km))
+
+// OHB endpoint
 static const char ltg_strikes[] = "/ham/HamClock/lightning/strikes.pl";
 
 // ---- types ---------------------------------------------------------------
@@ -49,7 +54,7 @@ uint8_t lightning_on;   // extern; saved to NV_LIGHTNING_ON
 
 // ---- bolt icon -----------------------------------------------------------
 //
-// 13-pixel-tall ⚡ shape:
+// 13-pixel-tall ⚡ shape, 2px thick lines:
 //   cx+2,cy-6  to  cx-2,cy-1   top stroke
 //   cx-4,cy    to  cx+4,cy     horizontal bar
 //   cx+2,cy+1  to  cx-2,cy+6   bottom stroke
@@ -65,10 +70,7 @@ static void drawBolt (int16_t cx, int16_t cy, uint16_t color)
 
 // ---- response parsing ----------------------------------------------------
 //
-// OHB returns plain text, one strike per line:
-//   lat,lon,age_seconds
-//
-// All filtering and age calculation is done server-side.
+// OHB returns plain text, one strike per line:   lat,lon,age_seconds
 
 static int parseStrikes (const char *buf, int buf_len)
 {
@@ -79,19 +81,16 @@ static int parseStrikes (const char *buf, int buf_len)
     while (p < end && count < LIGHTNING_MAX_STRIKES) {
         float lat, lon;
         int   age_s;
-
         if (sscanf (p, "%f,%f,%d", &lat, &lon, &age_s) == 3 && age_s >= 0) {
             strikes[count].lat   = lat;
             strikes[count].lng   = lon;
             strikes[count].age_s = age_s;
             count++;
         }
-
         const char *nl = (const char *) memchr (p, '\n', end - p);
         if (!nl) break;
         p = nl + 1;
     }
-
     return count;
 }
 
@@ -99,6 +98,8 @@ static int parseStrikes (const char *buf, int buf_len)
 
 static bool fetchLightning (void)
 {
+    Serial.printf ("LTG: requesting worldwide strikes\n");
+
     WiFiClient client;
     bool ok = false;
 
@@ -107,15 +108,8 @@ static bool fetchLightning (void)
         return false;
     }
 
-    // Build and send plain HTTP GET directly — httpHCGET is designed for
-    // the HamClock backend's custom protocol and doesn't work correctly
-    // with standard CGI responses from lighttpd.
-    client.print ("GET /ham/HamClock/lightning/strikes.pl?lat=");
-    client.print (de_ll.lat_d, 4);
-    client.print ("&lon=");
-    client.print (de_ll.lng_d, 4);
-    client.print ("&radius=");
-    client.print (LIGHTNING_RADIUS_KM);
+    // No radius param — fetch all strikes worldwide
+    client.print ("GET /ham/HamClock/lightning/strikes.pl");
     client.print (" HTTP/1.0\r\n");
     client.print ("Host: ");
     client.println (backend_host);
@@ -127,7 +121,8 @@ static bool fetchLightning (void)
     }
 
     {
-        const int BUFSZ = 16384;
+        // 128KB handles ~5000 strikes at ~20 bytes each with headroom
+        const int BUFSZ = 131072;
         char *buf = (char *) malloc (BUFSZ);
         if (!buf) {
             Serial.printf ("LTG: malloc %d failed\n", BUFSZ);
@@ -149,8 +144,7 @@ static bool fetchLightning (void)
         n_strikes = parseStrikes (buf, pos);
         free (buf);
 
-        Serial.printf ("LTG: %d strikes within %dkm\n",
-                       n_strikes, LIGHTNING_RADIUS_KM);
+        Serial.printf ("LTG: %d strikes worldwide\n", n_strikes);
         ok = true;     // empty response is valid — no storms nearby
     }
 
@@ -159,11 +153,133 @@ out:
     return ok;
 }
 
+// ---- range rings ---------------------------------------------------------
+//
+// Draws concentric dashed great-circle rings centred on DE.
+// Labels are staggered by using a slightly different azimuth for each ring
+// so they fan out rather than stacking on top of each other.
+// Each label gets a small black background for readability over any map.
+
+static void drawLightningRings (void)
+{
+    const uint16_t ring_color = RGB565(100, 140, 180);  // blue-grey
+    const float    step       = deg2rad (1.5F);          // step between ring points
+
+    for (int r = 0; r < LTG_N_RINGS; r++) {
+
+        // Angular radius in radians for this ring
+        float ang_r = ltg_ring_km[r] / (ERAD_M * KM_PER_MI);
+
+        // Draw dashed great circle — matches drawDXPath() pattern
+        SCoord s0 = {0, 0}, s1;
+        int dot = 0;
+
+        for (float az = 0; az < 2*M_PIF; az += step) {
+            float ca, B;
+            solveSphere (az, ang_r, sdelat, cdelat, &ca, &B);
+            ll2sRaw (asinf(ca),
+                     fmodf(de_ll.lng + B + 5*M_PIF, 2*M_PIF) - M_PIF,
+                     s1, 2);
+
+            if (s0.x) {
+                if (segmentSpanOkRaw (s0, s1, tft.SCALESZ)) {
+                    if (dot % 2 == 0)
+                        tft.drawLineRaw (s0.x, s0.y, s1.x, s1.y, 1, ring_color);
+                } else {
+                    s1.x = 0;   // reset on gap so next segment starts fresh
+                }
+            }
+
+            s0 = s1;
+            dot++;
+        }
+    }
+}
+
+// ---- NCDXF stats panel ---------------------------------------------------
+//
+// Draws strike counts into NCDXF_b using drawNCDXFStats() — the same
+// template used by the Space Weather and Weather panels.
+//
+// Four rows:
+//   Total strikes   white
+//   < 2 min         yellow  (fresh, RGB565(255,220,0))
+//   2 – 5 min       orange  (RGB565(255,140,0))
+//   5 – 10 min      red     (RGB565(220,40,40))
+
+void drawNCDXFLightningStats (void)
+{
+    // Erase panel
+    fillSBox (NCDXF_b, RA8875_BLACK);
+
+    if (n_strikes == 0) {
+        // Single centred "0" — no need for snprintf, no compiler warnings
+        selectFontStyle (LIGHT_FONT, SMALL_FONT);
+        tft.setTextColor (RA8875_WHITE);
+        uint16_t vw = getTextWidth ("0");
+        tft.setCursor (NCDXF_b.x + (NCDXF_b.w - vw)/2,
+                       NCDXF_b.y + NCDXF_b.h/2 - 8);
+        tft.print ("0");
+
+        selectFontStyle (LIGHT_FONT, FAST_FONT);
+        tft.setTextColor (RA8875_WHITE);
+        const char *lbl = "Strikes";
+        uint16_t lw = getTextWidth (lbl);
+        tft.setCursor (NCDXF_b.x + (NCDXF_b.w - lw)/2,
+                       NCDXF_b.y + NCDXF_b.h/2 + 6);
+        tft.print (lbl);
+        return;
+    }
+
+    // Count by age band
+    int fresh = 0, recent = 0, old = 0;
+    for (int i = 0; i < n_strikes; i++) {
+        if      (strikes[i].age_s < 120) fresh++;
+        else if (strikes[i].age_s < 300) recent++;
+        else                             old++;
+    }
+
+    // Build four rows using string literals for counts that fit known bounds.
+    // Use a lookup into a static string table rather than snprintf to avoid
+    // -Wformat-truncation entirely. Values are capped at 9999.
+    char     titles[NCDXF_B_NFIELDS][NCDXF_B_MAXLEN];
+    char     values[NCDXF_B_NFIELDS][NCDXF_B_MAXLEN];
+    uint16_t colors[NCDXF_B_NFIELDS];
+
+    // itoa-style helper: write decimal of n (0..9999) into dst[NCDXF_B_MAXLEN]
+    auto fmt = [](char *dst, int n) {
+        n = n < 9999 ? n : 9999;
+        // build digits right-to-left into a small local then copy
+        char tmp[5]; int pos = 4; tmp[pos] = '\0';
+        do { tmp[--pos] = '0' + (n % 10); n /= 10; } while (n > 0);
+        strncpy (dst, tmp + pos, NCDXF_B_MAXLEN - 1);
+        dst[NCDXF_B_MAXLEN - 1] = '\0';
+    };
+
+    strncpy (titles[0], "Strikes", NCDXF_B_MAXLEN-1); titles[0][NCDXF_B_MAXLEN-1] = '\0';
+    fmt (values[0], n_strikes);
+    colors[0] = RA8875_WHITE;
+
+    strncpy (titles[1], "< 2 min", NCDXF_B_MAXLEN-1); titles[1][NCDXF_B_MAXLEN-1] = '\0';
+    fmt (values[1], fresh);
+    colors[1] = RGB565(255, 220, 0);
+
+    strncpy (titles[2], "2-5 min", NCDXF_B_MAXLEN-1); titles[2][NCDXF_B_MAXLEN-1] = '\0';
+    fmt (values[2], recent);
+    colors[2] = RGB565(255, 140, 0);
+
+    strncpy (titles[3], "5-10min", NCDXF_B_MAXLEN-1); titles[3][NCDXF_B_MAXLEN-1] = '\0';
+    fmt (values[3], old);
+    colors[3] = RGB565(220, 40, 40);
+
+    drawNCDXFStats (RA8875_BLACK, titles, values, colors);
+}
+
 // ---- public API ----------------------------------------------------------
 
 /* Clear strikes and reset fetch timer.
- * Single function covers both toggle-on (immediate refetch) and
- * toggle-off (nothing to draw until re-enabled).
+ * Toggling on:  next updateLightning() fetches immediately.
+ * Toggling off: n_strikes=0 means drawLightningOnMap() draws nothing.
  */
 void resetLightning (void)
 {
@@ -197,19 +313,35 @@ void updateLightning (void)
         next_fetch = now + LIGHTNING_RETRY_SECS;
 }
 
-/* Draw current strikes on the map. Called from drawAllSymbols().
+/* Draw lightning overlay on the map. Called from drawAllSymbols().
+ *
+ * Rings and attribution: shown whenever overlay is enabled, Mercator only.
+ * Strike bolts: drawn on all projections when strikes are present.
  *
  * Colour encodes age at time of last fetch:
  *   < 2 min  — bright yellow
  *   < 5 min  — orange
  *   older    — red
- *
- * Also draws a "Blitzortung.org" attribution over Antarctica, centred
- * on the map, matching Blitzortung's data usage policy requirement.
  */
 void drawLightningOnMap (void)
 {
-    if (!lightning_on || n_strikes == 0)
+    if (!lightning_on)
+        return;
+
+    // Rings and attribution — Mercator only, always on when overlay enabled
+    if (map_proj == MAPP_MERCATOR) {
+        drawLightningRings();
+
+        static const char credit[] = "Blitzortung.org";
+        selectFontStyle (LIGHT_FONT, FAST_FONT);
+        uint16_t cw = getTextWidth (credit);
+        tft.setCursor (map_b.x + (map_b.w - cw)/2,
+                       map_b.y + map_b.h - 10);
+        tft.setTextColor (RGB565(180, 180, 180));
+        tft.print (credit);
+    }
+
+    if (n_strikes == 0)
         return;
 
     for (int i = 0; i < n_strikes; i++) {
@@ -229,13 +361,4 @@ void drawLightningOnMap (void)
 
         drawBolt ((int16_t)s.x, (int16_t)s.y, color);
     }
-
-    // Attribution label centred over Antarctica (bottom of Mercator map)
-    static const char credit[] = "Blitzortung.org";
-    selectFontStyle (LIGHT_FONT, FAST_FONT);
-    uint16_t cw = getTextWidth (credit);
-    tft.setCursor (map_b.x + (map_b.w - cw)/2,
-                   map_b.y + map_b.h - 10);
-    tft.setTextColor (RGB565(180, 180, 180));   // subtle grey
-    tft.print (credit);
 }

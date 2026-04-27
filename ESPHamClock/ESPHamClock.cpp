@@ -1098,6 +1098,9 @@ void newDE (LatLong &ll, const char grid[MAID_CHARLEN])
     char de_grid[MAID_CHARLEN];
     getNVMaidenhead (NV_DE_GRID, de_grid);
     Serial.printf ("New DE: %g %g %s\n", de_ll.lat_d, de_ll.lng_d, de_grid);
+
+    // lightning data was relative to old DE — force immediate refetch
+    resetLightning();
 }
  
 /* find long- or short-path angular distance and east-of-north bearing from_ll to_ll given helper

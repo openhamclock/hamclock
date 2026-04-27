@@ -1123,7 +1123,7 @@ static void runNCDXFMenu (void)
         // this list of each BRB is to avoid knowing their values, nice BUT must be in same order as mitems[]
         static uint8_t mi_brb_order[BRB_N] = {
             BRB_SHOW_BEACONS, BRB_SHOW_SWSTATS, BRB_SHOW_ONOFF, BRB_SHOW_PHOT, BRB_SHOW_BR,
-            BRB_SHOW_BME76, BRB_SHOW_BME77, BRB_SHOW_DXWX, BRB_SHOW_DEWX
+            BRB_SHOW_BME76, BRB_SHOW_BME77, BRB_SHOW_DXWX, BRB_SHOW_DEWX, BRB_SHOW_LIGHTNING
         };
 
         // don't show WX if already is already in a pane
@@ -1151,6 +1151,8 @@ static void runNCDXFMenu (void)
                         (bool)(brb_rotset & (1 << BRB_SHOW_DXWX)), 1, _MI_INDENT, brb_names[BRB_SHOW_DXWX],0},
              {de_anypane ? MENU_IGNORE : MENU_AL1OFN,
                         (bool)(brb_rotset & (1 << BRB_SHOW_DEWX)), 1, _MI_INDENT, brb_names[BRB_SHOW_DEWX],0},
+             {lightning_on ? MENU_AL1OFN : MENU_IGNORE,
+                        (bool)(brb_rotset & (1 << BRB_SHOW_LIGHTNING)), 1, _MI_INDENT, brb_names[BRB_SHOW_LIGHTNING], 0},
         };
 
         // boxes
@@ -1228,6 +1230,10 @@ void doNCDXFBoxTouch (TouchType tt, const SCoord &s)
         case BRB_SHOW_DEWX:
         case BRB_SHOW_DXWX:     // fallthru
             doNCDXFWXTouch ((BRB_MODE)brb_mode);
+            break;
+
+        case BRB_SHOW_LIGHTNING:
+            // lightning panel is display-only, no touch action
             break;
 
         case BRB_N:
