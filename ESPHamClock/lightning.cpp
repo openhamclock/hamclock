@@ -332,8 +332,11 @@ void drawLightningOnMap (void)
         static const char credit[] = "Blitzortung.org";
         selectFontStyle (LIGHT_FONT, FAST_FONT);
         uint16_t cw = getTextWidth (credit);
-        tft.setCursor (map_b.x + (map_b.w - cw)/2,
-                       map_b.y + map_b.h - 10);
+        // place above RSS banner if it's showing, otherwise at map bottom
+        uint16_t cy = rss_on
+                    ? rss_bnr_b.y - 10
+                    : map_b.y + map_b.h - 10;
+        tft.setCursor (map_b.x + (map_b.w - cw)/2, cy);
         tft.setTextColor (RGB565(180, 180, 180));
         tft.print (credit);
     }
@@ -349,6 +352,10 @@ void drawLightningOnMap (void)
                  s, 8);
 
         if (s.x == 0 && s.y == 0)
+            continue;
+
+        // Don't draw over the RSS banner
+        if (overRSS (raw2appSCoord (s)))
             continue;
 
         uint16_t color;
