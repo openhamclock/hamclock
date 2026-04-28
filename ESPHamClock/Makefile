@@ -12,15 +12,6 @@
 # always runs these non-file targets
 .PHONY: clean clobber help hclibs
 
-GEN_HDR  := antenna_data.h
-
-# Generate the C header from the CSV
-$(GEN_HDR): voacap.ant.csv
-	./gen_antenna_data.sh voacap.ant.csv $(GEN_HDR)
-
-# antenna_lookup and antennas need antenna_data.h
-antenna_lookup.o antennas_o: $(GEN_HDR)
-
 # build flags common to all options and architectures
 CXXFLAGS = -IArduinoLib -IwsServer/include -Izlib-hc -I. -g -O2 -Wall -pthread -std=c++17
 # CXXFLAGS += -Wextra -pedantic -Werror -Wno-attributes -Wno-unknown-pragmas
@@ -325,4 +316,3 @@ clean clobber:
 	$(MAKE) -C zlib-hc clean
 	touch x.o x.dSYM hamclock hamclock-
 	rm -rf *.o *.dSYM hamclock hamclock-*
-	rm -f $(GEN_HDR)
