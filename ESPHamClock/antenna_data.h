@@ -12,14 +12,14 @@
 #include <cstdint>
 
 struct AntennaEntry {
-	uint16_t    index;          // msb*256 + lsb
-	const char *path;
-	const char *description;
+    uint16_t    index;          // msb*256 + lsb
+    const char *path;
+    const char *description;
 };
 
 // clang-format off
 static const AntennaEntry ANTENNA_DATA[] = {
-	//  index    path                                    description
+    //  index    path                                    description
     {     0,  "default/isotrope",                  "ISOTROPE" },
     {   256,  "default/ccir.000",                  "ISOTROPE" },
     {   257,  "default/ccir.001",                  "HR 4/4/1" },
@@ -97,6 +97,6 @@ static const AntennaEntry ANTENNA_DATA[] = {
 // clang-format on
 
 static const std::size_t ANTENNA_DATA_COUNT =
-	sizeof(ANTENNA_DATA) / sizeof(ANTENNA_DATA[0]);
+    sizeof(ANTENNA_DATA) / sizeof(ANTENNA_DATA[0]);
 
 #endif // ANTENNA_DATA_H
