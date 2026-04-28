@@ -918,10 +918,10 @@ extern int readADIFFile (GenReader &gr, DXSpot *&spots, bool use_wl, int &n_bad)
  *
  */
 
-extern void initAntennas ();										//call during setup to initialize runtime data structures
-extern bool antenna_getline(char *buf, size_t size, int lineno);	//use to iterate through antenna index and description
-extern void antenna_addargs(char *buf, size_t size);				//add args to backend url
-extern bool antenna_validindex(uint16_t index);						//is index a valid antenna index
+extern void initAntennas ();                                        //call during setup to initialize runtime data structures
+extern bool antenna_getline(char *buf, size_t size, int lineno);    //use to iterate through antenna index and description
+extern void antenna_addargs(char *buf, size_t size);                //add args to backend url
+extern bool antenna_validindex(uint16_t index);                     //is index a valid antenna index
 
 // I could have done extern set and get functions for these, but existing code uses globals to set/read
 extern uint16_t antennas_de;
@@ -2003,7 +2003,7 @@ extern bool checkNMEAFilename (const char *fn, Message &ynot);
  * nvram.cpp
  *
  */
- 
+
  // see nvramlen.h for lengths
 
 
