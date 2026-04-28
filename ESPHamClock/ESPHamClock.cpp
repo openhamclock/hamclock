@@ -282,8 +282,8 @@ void setup()
     initBrightness();
 
     // initialize Antennas
-	initAntennas();
-	
+    initAntennas();
+
 // #define _GFX_COORD_TEST                              // RBF
 #if defined(_GFX_COORD_TEST)
 
@@ -1105,7 +1105,7 @@ void newDE (LatLong &ll, const char grid[MAID_CHARLEN])
     // lightning data was relative to old DE — force immediate refetch
     resetLightning();
 }
- 
+
 /* find long- or short-path angular distance and east-of-north bearing from_ll to_ll given helper
  * values for sin and cos of from lat. all values in radians in range 0..2pi.
  */
