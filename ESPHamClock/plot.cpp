@@ -544,6 +544,15 @@ void plotBandConditions (const SBox &box, int busy, const BandCdtnMatrix *bmp, c
         tft.drawLine (PLEFT_X, y, PRIGHT_X+1, y, GRID_COLOR);   // same y as box so extend to box edge
     }
 
+    // now-column: white border around each cell in column 0 (always the current hour).
+    // Much more visible than a single line, and matches the cell-based nature of the grid.
+    // Shown in both UTC and DE modes since the left edge is always "now" regardless.
+    for (int p_row = 0; p_row < PLOT_ROWS; p_row++) {
+        uint16_t cx = PLEFT_X;
+        uint16_t cy = PBOT_Y - PLOT_H*(p_row+1)/PLOT_ROWS;
+        tft.drawRect (cx, cy, PCOL_W, PROW_H, RA8875_WHITE);
+    }
+
 }
 
 /* print the NOAA RSG Space Weather Scales in the given box.
