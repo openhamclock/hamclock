@@ -794,6 +794,7 @@ static bool retrieveBandConditions (char *config)
         "%s?YEAR=%d&MONTH=%d&RXLAT=%.3f&RXLNG=%.3f&TXLAT=%.3f&TXLNG=%.3f&UTC=%d&PATH=%d&POW=%d&MODE=%d&TOA=%.1f",
         bc_page, year(t), month(t), dx_ll.lat_d, dx_ll.lng_d, de_ll.lat_d, de_ll.lng_d,
         hour(t), show_lp, bc_power, bc_modevalue, bc_toa);
+    antenna_addargs(query+strlen(query), sizeof(query)-strlen(query));   // add antenna selection arguments to query
 
     // build local cache file name
     char cache_fn[100];
