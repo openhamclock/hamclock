@@ -244,7 +244,7 @@ bool parseWebCommand (WebArgs &wa, char line[], size_t line_len)
         case PWC_LOOKING_4_NAME:
             if (*line == '=') {
                 if (name[0] == '\0') {
-                    strcpy (line, "missing name");
+                    quietStrncpy (line0, "missing name", line_len);
                     return (false);
                 }
                 *line = '\0';                                   // terminate name
@@ -279,7 +279,7 @@ bool parseWebCommand (WebArgs &wa, char line[], size_t line_len)
     }
 
     // should never get here
-    strcpy (line, "Bogus syntax");
+    quietStrncpy (line0, "Bogus syntax", line_len);
     return (false);
 }
 
@@ -2512,7 +2512,8 @@ void antennas_supported_values (
 		std::string    inval;
 		std::string    outval;
         // get lines 
-        while (1) {
+        int n_lines = 0;
+        while (n_lines++ < 1000) {
             if (!getTCPLine (compat_client, line, sizeof(line), NULL))
                 goto out;
             Serial.printf ("Fetched %s\n", line);
