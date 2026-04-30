@@ -491,6 +491,17 @@ void plotBandConditions (const SBox &box, int busy, const BandCdtnMatrix *bmp, c
         }
     }
 
+    // draw arrow on timeline at column 0 — same colour as the timeline label
+    {
+        uint16_t arrow_color = bc_utc_tl ? GRAY : DE_COLOR;
+        uint16_t ax = PLEFT_X + PCOL_W / 2;
+        uint16_t ay = timeline_y + PFONT_H / 2;
+        tft.drawLine (ax,   ay-3, ax,   ay-3, arrow_color);
+        tft.drawLine (ax-1, ay-2, ax+1, ay-2, arrow_color);
+        tft.drawLine (ax-2, ay-1, ax+2, ay-1, arrow_color);
+        tft.drawLine (ax-3, ay,   ax+3, ay,   arrow_color);
+    }
+
     // that's it unless drawing all
     if (!draw_all)
         return;
