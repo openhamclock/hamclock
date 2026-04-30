@@ -312,15 +312,21 @@ void resetLightning (void)
 /* Restore NV state at startup. */
 void initLightning (void)
 {
-    if (!NVReadUInt8 (NV_LIGHTNING_ON, &lightning_on))
+    if (!NVReadUInt8 (NV_LIGHTNING_ON, &lightning_on)) {
         lightning_on = 0;
+        NVWriteUInt8 (NV_LIGHTNING_ON, lightning_on);
+    }
 
-    if (!NVReadUInt8 (NV_LTG_WORLDWIDE, &ltg_worldwide))
+    if (!NVReadUInt8 (NV_LTG_WORLDWIDE, &ltg_worldwide)) {
         ltg_worldwide = 1;      // default worldwide
+	NVWriteUInt8 (NV_LTG_WORLDWIDE, ltg_worldwide);
+    }
 
     if (!NVReadUInt16 (NV_LTG_RADIUS, &ltg_radius_km) ||
-            ltg_radius_km < LTG_RADIUS_MIN || ltg_radius_km > LTG_RADIUS_MAX)
+            ltg_radius_km < LTG_RADIUS_MIN || ltg_radius_km > LTG_RADIUS_MAX) {
         ltg_radius_km = LTG_RADIUS_DEFAULT;
+        NVWriteUInt16 (NV_LTG_RADIUS, ltg_radius_km);
+    }
 
     n_strikes  = 0;
     next_fetch = 0;
