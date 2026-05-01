@@ -491,17 +491,6 @@ void plotBandConditions (const SBox &box, int busy, const BandCdtnMatrix *bmp, c
         }
     }
 
-    // draw arrow on timeline at column 0 — same colour as the timeline label
-    {
-        uint16_t arrow_color = bc_utc_tl ? GRAY : DE_COLOR;
-        uint16_t ax = PLEFT_X + PCOL_W / 2;
-        uint16_t ay = timeline_y + PFONT_H / 2;
-        tft.drawLine (ax,   ay-3, ax,   ay-3, arrow_color);
-        tft.drawLine (ax-1, ay-2, ax+1, ay-2, arrow_color);
-        tft.drawLine (ax-2, ay-1, ax+2, ay-1, arrow_color);
-        tft.drawLine (ax-3, ay,   ax+3, ay,   arrow_color);
-    }
-
     // that's it unless drawing all
     if (!draw_all)
         return;
@@ -553,15 +542,6 @@ void plotBandConditions (const SBox &box, int busy, const BandCdtnMatrix *bmp, c
     for (int p_row = 0; p_row <= PLOT_ROWS; p_row++) {
         uint16_t y = PTOP_Y + PLOT_H*p_row/PLOT_ROWS;
         tft.drawLine (PLEFT_X, y, PRIGHT_X+1, y, GRID_COLOR);   // same y as box so extend to box edge
-    }
-
-    // now-column: white border around each cell in column 0 (always the current hour).
-    // Much more visible than a single line, and matches the cell-based nature of the grid.
-    // Shown in both UTC and DE modes since the left edge is always "now" regardless.
-    for (int p_row = 0; p_row < PLOT_ROWS; p_row++) {
-        uint16_t cx = PLEFT_X;
-        uint16_t cy = PBOT_Y - PLOT_H*(p_row+1)/PLOT_ROWS;
-        tft.drawRect (cx, cy, PCOL_W, PROW_H, RA8875_WHITE);
     }
 
 }
