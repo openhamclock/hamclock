@@ -8,10 +8,7 @@
 # You may not misrepresent the original authorship of this work.
 #
 
-#STABLE_TAG=v4.23.0
-#RLS_PATH=refs/tags/$STABLE_TAG
-RLS_PATH=main
-GITHUB_RAW_URL="https://raw.githubusercontent.com/openhamclock/hamclock/$RLS_PATH/debian/fix-hosts"
+GITHUB_RAW_URL="https://raw.githubusercontent.com/openhamclock/hamclock/refs/heads/main/debian/fix-hosts"
 SELF_UPDATE_FLAG="FIX_HOSTS_SELF_UPDATED"
 
 OS_RELEASE="/etc/os-release"
