@@ -55,7 +55,7 @@ uint8_t  ltg_worldwide;     // extern; 1=worldwide, 0=radius mode
 uint16_t ltg_radius_km;     // extern; search radius in km when not worldwide
 
 #define LTG_RADIUS_DEFAULT  500
-#define LTG_RADIUS_MIN      100
+#define LTG_RADIUS_MIN      10
 #define LTG_RADIUS_MAX      9999
 
 // ---- bolt icon -----------------------------------------------------------
@@ -309,7 +309,9 @@ void resetLightning (void)
     next_fetch = 0;
 }
 
-/* Restore NV state at startup. */
+/* Restore NV state at startup.
+ * N.B. follows the HamClock pattern of writing the default if no cookie found.
+ */
 void initLightning (void)
 {
     if (!NVReadUInt8 (NV_LIGHTNING_ON, &lightning_on)) {
@@ -318,8 +320,8 @@ void initLightning (void)
     }
 
     if (!NVReadUInt8 (NV_LTG_WORLDWIDE, &ltg_worldwide)) {
-        ltg_worldwide = 1;      // default worldwide
-	NVWriteUInt8 (NV_LTG_WORLDWIDE, ltg_worldwide);
+        ltg_worldwide = 1;                              // default worldwide
+        NVWriteUInt8 (NV_LTG_WORLDWIDE, ltg_worldwide);
     }
 
     if (!NVReadUInt16 (NV_LTG_RADIUS, &ltg_radius_km) ||
@@ -360,7 +362,7 @@ void doLightningTouch (void)
 {
     // text field buffer for radius value  - must persist through runMenu
     char rad_buf[8];
-    char rad_lbl[] = "km";
+    char rad_lbl[] = "";           // no prefix label -- units shown in radio button
 
     // initialise text field with current radius
     char tmp[5]; int pos = 4; tmp[pos] = '\0';
@@ -383,18 +385,20 @@ void doLightningTouch (void)
     #define LTG_MI_N      3
 
     MenuItem mitems[LTG_MI_N] = {
-        {MENU_1OFN,  (bool) ltg_worldwide,  1, 2, "Worldwide", NULL},
-        {MENU_1OFN,  (bool)!ltg_worldwide,  1, 2, "Radius:",   NULL},
+        {MENU_1OFN,  (bool) ltg_worldwide,  1, 2, "Wldwide",  NULL},
+        {MENU_1OFN,  (bool)!ltg_worldwide,  1, 2, "r (km):",  NULL},
         {MENU_TEXT,  false,                 2, 4, NULL,        &mt},
     };
 
-    SBox menu_b = NCDXF_b;
-    menu_b.x += 1;
-    menu_b.y += NCDXF_b.h / 8;
-    menu_b.w  = 0;       // shrink wrap
+    SBox menu_b, ok_b;
+    menu_b.x = NCDXF_b.x + 2;
+    menu_b.y = NCDXF_b.y + 2;
+    menu_b.w = 0;
+    menu_b.h = 0;
 
-    SBox ok_b;
-    MenuInfo menu = {menu_b, ok_b, UF_CLOCKSOK, M_CANCELOK, 1, LTG_MI_N, mitems};
+    // erase panel so its borders don't show through the menu background
+    fillSBox (NCDXF_b, RA8875_BLACK);
+    MenuInfo menu = {menu_b, ok_b, UF_CLOCKSOK, M_NOCANCEL, 1, LTG_MI_N, mitems};
 
     if (runMenu (menu)) {
         // read radio button choice
