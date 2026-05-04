@@ -8,10 +8,7 @@
 # You may not misrepresent the original authorship of this work.
 #
 
-#STABLE_TAG=v4.23.0
-#RLS_PATH=refs/tags/$STABLE_TAG
-RLS_PATH=main
-GITHUB_RAW_URL="https://raw.githubusercontent.com/openhamclock/hamclock/$RLS_PATH/debian/csi"
+GITHUB_RAW_URL="https://raw.githubusercontent.com/openhamclock/hamclock/refs/heads/main/debian/csi"
 SELF_UPDATE_FLAG="CSI_SELF_UPDATED"
 
 HOSTS_FILE="/etc/hosts"
@@ -31,7 +28,6 @@ HAMCLOCK_DIR="$USER_HOME/.hamclock"
 
 DESKTOP_FILE="$USER_HOME/Desktop/hamclock.desktop"
 AUTOSTART_FILE="$USER_HOME/.config/autostart/hamclock.desktop"
-XFCE_PANEL_DIR="$USER_HOME/.config/xfce4/panel"
 RUNNER_FILE="/usr/local/bin/hamclock-runner"
 XRANDR_WRAPPER_FILE="/usr/local/bin/hamclock-xrandr-wrapper"
 SERVICE_FILE="/etc/systemd/system/hamclock.service"
@@ -237,61 +233,6 @@ patch_file() {
     return 0
 }
 
-patch_xfce_panel_launchers() {
-    local panel_file
-    local tmpfile
-
-    [ -d "$XFCE_PANEL_DIR" ] || return 0
-
-    while IFS= read -r panel_file; do
-        grep -Eq '^[[:space:]]*Exec=(/usr/local/bin/)?hamclock(-4k)?([[:space:]]|$)' "$panel_file" || continue
-        grep -Eq '^[[:space:]]*Exec=.*(hamclock-xrandr-wrapper|hamclock-runner)([[:space:]]|$)' "$panel_file" && continue
-
-        tmpfile=$(mktemp) || {
-            echo "Error: could not create temporary file."
-            exit 1
-        }
-
-        if ! awk '
-            {
-                line = $0
-
-                if (line ~ /^[[:space:]]*Exec=/) {
-                    gsub(/[[:space:]]+-b[[:space:]]+[^[:space:]'\''";)]+/, "", line)
-                }
-
-                print line
-            }
-        ' "$panel_file" > "$tmpfile"; then
-            rm -f "$tmpfile"
-            echo "Error: failed to process $panel_file."
-            exit 1
-        fi
-
-        if [ ! -s "$tmpfile" ]; then
-            rm -f "$tmpfile"
-            echo "Error: generated empty output for $panel_file, refusing to overwrite."
-            exit 1
-        fi
-
-        if cmp -s "$panel_file" "$tmpfile"; then
-            rm -f "$tmpfile"
-            continue
-        fi
-
-        if ! cat "$tmpfile" > "$panel_file"; then
-            rm -f "$tmpfile"
-            echo "Error: failed to update $panel_file."
-            exit 1
-        fi
-
-        rm -f "$tmpfile"
-        preserve_user_ownership "$panel_file"
-        changed_files+=("$panel_file")
-        anything_changed=1
-    done < <(find "$XFCE_PANEL_DIR" -type f -name '*.desktop')
-}
-
 # Count matching non-comment lines in /etc/hosts
 match_count=$(grep -E "^[[:space:]]*[^#].*[[:space:]]$DOMAIN([[:space:]]|$)" "$HOSTS_FILE" | wc -l)
 
@@ -330,7 +271,6 @@ patch_file "$DESKTOP_FILE" "desktop"
 patch_file "$AUTOSTART_FILE" "desktop"
 patch_file "$RUNNER_FILE" "runner"
 patch_file "$XRANDR_WRAPPER_FILE" "xrandr_wrapper"
-patch_xfce_panel_launchers
 
 if patch_file "$SERVICE_FILE" "service"; then
     service_changed=1
