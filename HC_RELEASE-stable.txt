@@ -5,7 +5,7 @@ Changes with latest release
 - prevent OTA crash on long pre/suffix
 - fix gpio pin for alarm
 - add -T for HTTP timeout
-- add T= env var for HTTP timeout
+- add T= build argument for HTTP timeout
 - add -S for alt software server
-- add _S= env var for software server
-- add _B= env var for backend server
+- add S= build argument for software server
+- add B= build argument for backend server:port
