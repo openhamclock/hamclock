@@ -656,6 +656,17 @@ void setup()
     initScreen();
 }
 
+// mouseoverMap
+// Return true if the mouse is over the map area that requires rapid polling of cursor coordinates
+
+static bool mouseOverMap()
+{
+      SCoord s;
+      if (!tft.getMouse (&s.x, &s.y))
+              return (false);
+      return (overMap (s));
+}
+
 // called repeatedly forever
 void loop()
 {
@@ -698,6 +709,10 @@ void loop()
 
         // check for touch events
         checkTouch();
+
+		if (!mouseOverMap()) {
+			delay(10);
+		}
     }
 }
 
