@@ -184,6 +184,8 @@ static bool fetchLightning (void)
 
 out:
     client.stop();
+    if (!ok)
+        n_strikes = 0;   // always reset on failure so panel shows clean zero
     return ok;
 }
 
@@ -276,6 +278,11 @@ void drawNCDXFLightningStats (void)
     char     titles[NCDXF_B_NFIELDS][NCDXF_B_MAXLEN];
     char     values[NCDXF_B_NFIELDS][NCDXF_B_MAXLEN];
     uint16_t colors[NCDXF_B_NFIELDS];
+
+    // zero-initialize to prevent any garbage from reaching drawNCDXFStats
+    memset (titles, 0, sizeof(titles));
+    memset (values, 0, sizeof(values));
+    memset (colors, 0, sizeof(colors));
 
     strncpy (titles[0], ltg_worldwide ? "Wldwide" : "Radius", NCDXF_B_MAXLEN-1);
     titles[0][NCDXF_B_MAXLEN-1] = '\0';
