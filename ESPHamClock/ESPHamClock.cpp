@@ -204,6 +204,10 @@ static void showDefines(void)
         _PR_MAC(_IS_APPLE);
     #endif
 
+    #if defined(_IS_IOS)
+        _PR_MAC(_IS_IOS);
+    #endif
+
     #if defined(_IS_FREEBSD)
         _PR_MAC(_IS_FREEBSD);
     #endif
@@ -2711,6 +2715,9 @@ void doReboot(bool minus_K, bool minus_0)
 #if defined(_IS_ANDROID)
     android_request_restart(minus_K);
     for(;;);
+#elif defined(_IS_IOS)
+    ios_request_restart(minus_K);
+    for(;;);
 #else
     ESP.restart (minus_K, minus_0);
     for(;;);
@@ -2729,6 +2736,9 @@ void doExit()
     #endif
 #if defined(_IS_ANDROID)
     android_request_exit();
+    for(;;);
+#elif defined(_IS_IOS)
+    ios_request_exit();
     for(;;);
 #else
     _exit(0);

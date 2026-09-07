@@ -34,11 +34,22 @@
 
 
 #if defined (__APPLE__)
-    #define _IS_APPLE
-    #if defined(__aarch64__) || defined(__arm64__)
-        #define _IS_APPLE_M
+    #if defined(__has_include)
+        #if __has_include(<TargetConditionals.h>)
+            #include <TargetConditionals.h>
+        #endif
+    #endif
+    #if defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
+        #define _IS_IOS
+    #elif defined(TARGET_OS_IOS) && TARGET_OS_IOS
+        #define _IS_IOS
     #else
-        #define _IS_APPLE_x86
+        #define _IS_APPLE
+        #if defined(__aarch64__) || defined(__arm64__)
+            #define _IS_APPLE_M
+        #else
+            #define _IS_APPLE_x86
+        #endif
     #endif
 #endif
 
@@ -205,6 +216,11 @@ extern "C" void android_request_restart(bool minus_K);
 extern "C" void android_request_exit(void);
 extern "C" void android_open_url(const char *url);
 extern "C" bool android_get_clipboard(char *buf, size_t buf_len);
+#elif defined(_IS_IOS)
+extern "C" void ios_request_restart(bool minus_K);
+extern "C" void ios_request_exit(void);
+extern "C" void ios_open_url(const char *url);
+extern "C" bool ios_get_clipboard(char *buf, size_t buf_len);
 #endif
 extern bool testPassword (const char *category, const char *candidate_pw);
 extern const char *pw_file;

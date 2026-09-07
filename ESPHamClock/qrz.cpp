@@ -168,6 +168,8 @@ void openURL (const char *url)
 
 #if defined (_IS_ANDROID)
         android_open_url (url);
+#elif defined (_IS_IOS)
+        ios_open_url (url);
 #else
         StackMalloc cmd_mem(strlen(url) + 50);
         char *cmd = (char *) cmd_mem.getMem();

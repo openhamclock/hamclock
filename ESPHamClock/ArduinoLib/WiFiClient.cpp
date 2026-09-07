@@ -106,6 +106,8 @@ int WiFiClient::tout (int to_ms, int fd)
 /* Call it instead of connect() when you want to run curl via a pipe */
 #if defined(_IS_ANDROID)
 extern "C" bool android_connect_http(const char *cmd, int *read_fd);
+#elif defined(_IS_IOS)
+extern "C" bool ios_connect_http(const char *cmd, int *read_fd);
 #endif
 
 bool WiFiClient::connectCommand(const char* command)
@@ -115,7 +117,7 @@ bool WiFiClient::connectCommand(const char* command)
         pclose(m_pipe);
         m_pipe = nullptr;
     }
-#if defined(_IS_ANDROID)
+#if defined(_IS_ANDROID) || defined(_IS_IOS)
     if (m_isPipe && socket >= 0) {
         close(socket);
         socket = -1;
@@ -126,6 +128,16 @@ bool WiFiClient::connectCommand(const char* command)
 #if defined(_IS_ANDROID)
     int rfd = -1;
     if (android_connect_http(command, &rfd)) {
+        socket = rfd;
+        m_isPipe = true;
+        n_peek = 0;
+        next_peek = 0;
+        return true;
+    }
+    return false;
+#elif defined(_IS_IOS)
+    int rfd = -1;
+    if (ios_connect_http(command, &rfd)) {
         socket = rfd;
         m_isPipe = true;
         n_peek = 0;
@@ -228,7 +240,7 @@ void WiFiClient::stop()
             pclose(m_pipe);
             m_pipe = nullptr;
         }
-#if defined(_IS_ANDROID)
+#if defined(_IS_ANDROID) || defined(_IS_IOS)
         if (socket >= 0) {
             close(socket);
             socket = -1;

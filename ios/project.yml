@@ -1,0 +1,59 @@
+name: HamClock
+options:
+  bundleIdPrefix: org.openhamclock
+  deploymentTarget:
+    iOS: "15.0"
+  xcodeVersion: "15.0"
+
+settings:
+  base:
+    PRODUCT_NAME: HamClock
+    PRODUCT_BUNDLE_IDENTIFIER: org.openhamclock.hamclock
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+    SWIFT_VERSION: "5.0"
+    CLANG_CXX_LANGUAGE_STANDARD: "c++17"
+    CLANG_CXX_LIBRARY: "libc++"
+    SWIFT_OBJC_BRIDGING_HEADER: "HamClock/HamClock-Bridging-Header.h"
+    GCC_PREPROCESSOR_DEFINITIONS:
+      - "_WEB_ONLY=1"
+      - "_CLOCK_1600x960=1"
+      - "NO_UPGRADE=1"
+      - "NO_SYSTEM_CONTROLS=1"
+      - "_IS_IOS=1"
+      - "$(inherited)"
+    HEADER_SEARCH_PATHS:
+      - "$(SRCROOT)/../ESPHamClock"
+      - "$(SRCROOT)/../ESPHamClock/ArduinoLib"
+      - "$(SRCROOT)/../ESPHamClock/wsServer/include"
+      - "$(SRCROOT)/../ESPHamClock/zlib-hc"
+      - "$(inherited)"
+    INFOPLIST_FILE: "HamClock/Info.plist"
+    ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+    TARGETED_DEVICE_FAMILY: "1,2" # iPhone & iPad
+
+targets:
+  HamClock:
+    type: application
+    platform: iOS
+    sources:
+      - path: HamClock
+      - path: ../ESPHamClock
+        includes:
+          - "*.cpp"
+      - path: ../ESPHamClock/ArduinoLib
+        includes:
+          - "*.cpp"
+      - path: ../ESPHamClock/wsServer/src
+        includes:
+          - "*.cpp"
+      - path: ../ESPHamClock/zlib-hc
+        includes:
+          - "*.cpp"
+    dependencies:
+      - framework: WebKit.framework
+      - framework: CoreLocation.framework
+      - framework: Network.framework
+      - framework: Security.framework
+      - sdk: libz.tbd

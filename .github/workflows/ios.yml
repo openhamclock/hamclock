@@ -1,0 +1,43 @@
+name: Build iOS
+
+on:
+  push:
+    paths:
+      - 'ios/**'
+      - 'ESPHamClock/**'
+      - '.github/workflows/ios.yml'
+  pull_request:
+    paths:
+      - 'ios/**'
+      - 'ESPHamClock/**'
+      - '.github/workflows/ios.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-ios:
+    name: Build iOS Target
+    runs-on: macos-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode Project
+        working-directory: ios
+        run: xcodegen generate
+
+      - name: Build HamClock iOS Scheme
+        working-directory: ios
+        run: |
+          xcodebuild -project HamClock.xcodeproj \
+                     -scheme HamClock \
+                     -destination 'generic/platform=iOS Simulator' \
+                     -configuration Release \
+                     CODE_SIGNING_ALLOWED=NO \
+                     build

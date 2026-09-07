@@ -841,6 +841,8 @@ static bool askConfigName (const char *title, const char *prompt, char name[], s
             bool got_clip = false;
 #if defined(_IS_ANDROID)
             got_clip = android_get_clipboard (paste_buf, sizeof(paste_buf));
+#elif defined(_IS_IOS)
+            got_clip = ios_get_clipboard (paste_buf, sizeof(paste_buf));
 #endif
             if (got_clip) {
                 strTrimAll (paste_buf);

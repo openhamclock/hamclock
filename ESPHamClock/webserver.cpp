@@ -11,6 +11,8 @@
 const char platform[] = "ESPHamClock";
 #elif defined(_IS_ANDROID) || defined(__ANDROID__)
 char platform[32] = "HamClock-android";
+#elif defined(_IS_IOS)
+char platform[32] = "HamClock-iOS";
 #elif defined(_IS_LINUX_ARMBIAN)
 const char platform[] = "HamClock-armbian";
 #elif defined(_IS_LINUX_RPI)
