@@ -313,6 +313,7 @@ static void logSys()
             printf ("  %s\n", env_sort[i]);
         free (env_sort);
 
+#if !defined(_IS_IOS)
         // host time
         if (system ("date -u"))
             printf ("can not run date??\n");
@@ -320,6 +321,7 @@ static void logSys()
         // disk
         if (system ("df -h ."))
             printf ("can not run df??\n");
+#endif
 }
 
 /* log easy OS info
@@ -336,8 +338,10 @@ static void logOS()
             fclose(fp);
         }
 
+#if !defined(_IS_IOS)
         if ((system ("uname -a") >> 8) != 0)
             printf ("uname failed\n");
+#endif
 
     #if defined (_IS_LINUX_RPI)
         // try to display model name
