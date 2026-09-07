@@ -40,10 +40,7 @@ static std::string cached_data_dir;
 static bool allow_external_access = false;
 static __weak HamClockBridge *g_bridge_instance = nil;
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wreturn-type-c-linkage"
-extern "C" std::string ios_get_mac_address() {
-#pragma clang diagnostic pop
+std::string ios_get_mac_address() {
     char mac_buf[32] = {0};
     std::string mac_file = cached_data_dir.empty() ? "" : (cached_data_dir + "/.mac_address");
 
