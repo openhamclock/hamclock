@@ -210,7 +210,7 @@ class HamClockViewController: UIViewController, WKNavigationDelegate, WKUIDelega
         exit(0)
     }
 
-    func hamclockRestartRequested(withMinusK minusK: Bool) {
+    func hamclockRestartRequested(minusK: Bool) {
         NSLog("[HamClockViewController] Restart requested (minusK=\(minusK))")
         startEngine(forceSetup: false, countdown: !minusK)
     }

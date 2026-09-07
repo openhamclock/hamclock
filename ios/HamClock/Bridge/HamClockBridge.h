@@ -11,10 +11,10 @@
 NS_ASSUME_NONNULL_BEGIN
 
 @protocol HamClockBridgeDelegate <NSObject>
-- (void)hamclockExitRequested;
-- (void)hamclockRestartRequestedWithMinusK:(BOOL)minusK;
-- (void)hamclockOpenURL:(NSURL *)url;
-- (NSString *)hamclockGetClipboardText;
+- (void)hamclockExitRequested NS_SWIFT_NAME(hamclockExitRequested());
+- (void)hamclockRestartRequestedWithMinusK:(BOOL)minusK NS_SWIFT_NAME(hamclockRestartRequested(minusK:));
+- (void)hamclockOpenURL:(NSURL *)url NS_SWIFT_NAME(hamclockOpenURL(_:));
+- (NSString *)hamclockGetClipboardText NS_SWIFT_NAME(hamclockGetClipboardText());
 @end
 
 @interface HamClockBridge : NSObject
