@@ -1,16 +1,6 @@
 name: Build iOS
 
 on:
-  push:
-    paths:
-      - 'ios/**'
-      - 'ESPHamClock/**'
-      - '.github/workflows/ios.yml'
-  pull_request:
-    paths:
-      - 'ios/**'
-      - 'ESPHamClock/**'
-      - '.github/workflows/ios.yml'
   workflow_dispatch:
 
 permissions:
