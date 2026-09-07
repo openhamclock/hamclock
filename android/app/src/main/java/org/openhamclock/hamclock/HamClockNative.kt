@@ -120,4 +120,14 @@ object HamClockNative {
 
     external fun isDaemonRunning(): Boolean
     external fun setAllowExternalAccess(allow: Boolean)
+    @JvmStatic
+    external fun generateQRCodePixels(text: String, scale: Int = 4, border: Int = 2): IntArray?
+
+    fun generateQRCodeBitmap(text: String, scale: Int = 4, border: Int = 2): android.graphics.Bitmap? {
+        val raw = generateQRCodePixels(text, scale, border) ?: return null
+        if (raw.isEmpty()) return null
+        val size = raw[0]
+        if (size <= 0 || raw.size < 1 + size * size) return null
+        return android.graphics.Bitmap.createBitmap(raw, 1, size, size, size, android.graphics.Bitmap.Config.ARGB_8888)
+    }
 }

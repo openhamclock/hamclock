@@ -153,68 +153,116 @@
         android:id="@+id/ll_local_access_details"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
         android:focusable="false"
         android:layout_marginTop="8dp"
         android:layout_marginStart="8dp"
         android:layout_marginEnd="8dp"
-        android:padding="8dp"
+        android:padding="10dp"
         android:background="#15FFFFFF"
         android:visibility="gone">
 
-        <TextView
-            android:layout_width="match_parent"
+        <LinearLayout
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="@string/mdns_name_label"
-            android:textColor="@color/hamclock_text"
-            android:textSize="12sp"
-            android:layout_marginBottom="4dp" />
-
-        <EditText
-            android:id="@+id/et_mdns_name"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="@string/mdns_name_hint"
-            android:importantForAutofill="no"
-            android:inputType="textNoSuggestions"
-            android:imeOptions="flagNoExtractUi|actionDone"
-            android:singleLine="true"
-            android:textSize="13sp"
-            android:textColor="@color/hamclock_text"
-            android:textColorHint="#888888"
-            android:focusable="true"
-            android:padding="8dp"
-            android:background="@drawable/item_focus_highlight" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/local_url_label"
-            android:textColor="@color/hamclock_text"
-            android:textSize="12sp"
-            android:layout_marginTop="8dp" />
-
-        <TextView
-            android:id="@+id/tv_local_url_value"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="http://hamclock.local:8081/live.html"
-            android:textColor="#80D8FF"
+            android:layout_weight="1"
+            android:orientation="vertical"
             android:focusable="false"
-            android:focusableInTouchMode="false"
-            android:textSize="13sp"
-            android:layout_marginTop="2dp"
-            android:layout_marginBottom="8dp" />
+            android:layout_marginEnd="12dp">
 
-        <Button
-            android:id="@+id/btn_copy_local_url"
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/mdns_name_label"
+                android:textColor="@color/hamclock_text"
+                android:textSize="12sp"
+                android:layout_marginBottom="4dp" />
+
+            <EditText
+                android:id="@+id/et_mdns_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/mdns_name_hint"
+                android:importantForAutofill="no"
+                android:inputType="textNoSuggestions"
+                android:imeOptions="flagNoExtractUi|actionDone"
+                android:singleLine="true"
+                android:textSize="13sp"
+                android:textColor="@color/hamclock_text"
+                android:textColorHint="#888888"
+                android:focusable="true"
+                android:padding="8dp"
+                android:background="@drawable/item_focus_highlight" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/local_url_label"
+                android:textColor="@color/hamclock_text"
+                android:textSize="12sp"
+                android:layout_marginTop="8dp" />
+
+            <TextView
+                android:id="@+id/tv_local_url_value"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="http://hamclock.local:8081/live.html"
+                android:textColor="#80D8FF"
+                android:focusable="false"
+                android:focusableInTouchMode="false"
+                android:textSize="13sp"
+                android:layout_marginTop="2dp"
+                android:layout_marginBottom="8dp" />
+
+            <Button
+                android:id="@+id/btn_copy_local_url"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/copy_url"
+                android:textColor="@color/hamclock_text"
+                android:textSize="12sp"
+                android:background="@drawable/btn_neutral_selector"
+                android:focusable="true" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/ll_qr_code_container"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/copy_url"
-            android:textColor="@color/hamclock_text"
-            android:textSize="12sp"
-            android:background="@drawable/btn_neutral_selector"
-            android:focusable="true" />
+            android:orientation="vertical"
+            android:gravity="center_horizontal"
+            android:focusable="false">
+
+            <TextView
+                android:id="@+id/tv_qr_code_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/scan_qr_to_open"
+                android:textColor="@color/hamclock_text"
+                android:textSize="11sp"
+                android:gravity="center_horizontal"
+                android:layout_marginBottom="6dp" />
+
+            <FrameLayout
+                android:id="@+id/fl_qr_code_frame"
+                android:layout_width="140dp"
+                android:layout_height="140dp"
+                android:background="@drawable/item_focus_highlight"
+                android:focusable="true"
+                android:clickable="true"
+                android:padding="4dp">
+
+                <ImageView
+                    android:id="@+id/iv_local_access_qr"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="@string/scan_qr_to_open"
+                    android:background="#FFFFFF"
+                    android:padding="4dp"
+                    android:scaleType="fitCenter" />
+            </FrameLayout>
+        </LinearLayout>
     </LinearLayout>
 
     <View

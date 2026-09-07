@@ -42,6 +42,7 @@ import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.net.wifi.WifiManager
 import android.content.ClipData
@@ -198,6 +199,8 @@ class MainActivity : AppCompatActivity() {
         val etMdnsName = dialogView.findViewById<EditText>(R.id.et_mdns_name)
         val tvLocalUrlValue = dialogView.findViewById<TextView>(R.id.tv_local_url_value)
         val btnCopyLocalUrl = dialogView.findViewById<Button>(R.id.btn_copy_local_url)
+        val ivLocalAccessQr = dialogView.findViewById<ImageView>(R.id.iv_local_access_qr)
+        val tvQrCodeLabel = dialogView.findViewById<TextView>(R.id.tv_qr_code_label)
 
         etBackendHost.setText(currentHost)
         etBackendHost.setSelection(etBackendHost.text.length)
@@ -205,6 +208,16 @@ class MainActivity : AppCompatActivity() {
 
         cbAllowExternal.isChecked = currentAllowExternal
         etMdnsName.setText(currentMdnsName)
+
+        fun getQrTargetUrl(): String {
+            val ip = getDeviceIpAddress()
+            return if (!ip.isNullOrEmpty()) {
+                "http://$ip:$RW_PORT/live.html"
+            } else {
+                val host = etMdnsName.text.toString().trim().ifEmpty { (registeredMdnsName ?: "hamclock") }
+                "http://$host.local:$RW_PORT/live.html"
+            }
+        }
 
         fun formatMdnsUrl(name: String): String {
             val trimmed = name.trim()
@@ -217,6 +230,12 @@ class MainActivity : AppCompatActivity() {
         fun updateLocalAccessVisibility(isChecked: Boolean) {
             llLocalAccessDetails.visibility = if (isChecked) View.VISIBLE else View.GONE
             tvLocalUrlValue.text = formatMdnsUrl(etMdnsName.text.toString())
+            if (isChecked) {
+                val qrUrl = getQrTargetUrl()
+                val qrBmp = HamClockNative.generateQRCodeBitmap(qrUrl, scale = 5, border = 2)
+                ivLocalAccessQr.setImageBitmap(qrBmp)
+                tvQrCodeLabel.text = getString(R.string.scan_qr_to_open_ip, qrUrl)
+            }
         }
 
         updateLocalAccessVisibility(currentAllowExternal)
@@ -228,14 +247,21 @@ class MainActivity : AppCompatActivity() {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 tvLocalUrlValue.text = formatMdnsUrl(s?.toString() ?: "")
+                if (cbAllowExternal.isChecked) {
+                    val qrUrl = getQrTargetUrl()
+                    val qrBmp = HamClockNative.generateQRCodeBitmap(qrUrl, scale = 5, border = 2)
+                    ivLocalAccessQr.setImageBitmap(qrBmp)
+                    tvQrCodeLabel.text = getString(R.string.scan_qr_to_open_ip, qrUrl)
+                }
             }
             override fun afterTextChanged(s: Editable?) {}
         })
 
         btnCopyLocalUrl.setOnClickListener {
-            val url = tvLocalUrlValue.text.toString()
+            val ip = getDeviceIpAddress()
+            val copyUrl = if (!ip.isNullOrEmpty()) "http://$ip:$RW_PORT/live.html" else tvLocalUrlValue.text.toString()
             val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-            val clip = ClipData.newPlainText("HamClock URL", url)
+            val clip = ClipData.newPlainText("HamClock URL", copyUrl)
             clipboard?.setPrimaryClip(clip)
             Toast.makeText(this, getString(R.string.copied_to_clipboard), Toast.LENGTH_SHORT).show()
         }
@@ -354,11 +380,53 @@ class MainActivity : AppCompatActivity() {
             btn.setPadding(32, 16, 32, 16)
         }
 
-        // Direct D-pad Down from Copy URL button to Save button
-        btnCopyLocalUrl.setOnKeyListener { _, keyCode, keyEvent ->
-            if (keyEvent.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-                btnSave?.requestFocus()
+        val flQrCodeFrame = dialogView.findViewById<View>(R.id.fl_qr_code_frame)
+
+        // D-pad Right from mDNS name or Copy URL to QR code frame
+        etMdnsName.setOnKeyListener { _, keyCode, keyEvent ->
+            if (keyEvent.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                flQrCodeFrame?.requestFocus()
                 true
+            } else {
+                false
+            }
+        }
+
+        btnCopyLocalUrl.setOnKeyListener { _, keyCode, keyEvent ->
+            if (keyEvent.action == KeyEvent.ACTION_DOWN) {
+                when (keyCode) {
+                    KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                        flQrCodeFrame?.requestFocus()
+                        true
+                    }
+                    KeyEvent.KEYCODE_DPAD_DOWN -> {
+                        btnSave?.requestFocus()
+                        true
+                    }
+                    else -> false
+                }
+            } else {
+                false
+            }
+        }
+
+        flQrCodeFrame?.setOnKeyListener { _, keyCode, keyEvent ->
+            if (keyEvent.action == KeyEvent.ACTION_DOWN) {
+                when (keyCode) {
+                    KeyEvent.KEYCODE_DPAD_LEFT -> {
+                        btnCopyLocalUrl.requestFocus()
+                        true
+                    }
+                    KeyEvent.KEYCODE_DPAD_UP -> {
+                        cbAllowExternal.requestFocus()
+                        true
+                    }
+                    KeyEvent.KEYCODE_DPAD_DOWN -> {
+                        btnSave?.requestFocus()
+                        true
+                    }
+                    else -> false
+                }
             } else {
                 false
             }
@@ -399,6 +467,11 @@ class MainActivity : AppCompatActivity() {
             WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN or
             WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
         )
+
+        val displayWidth = resources.displayMetrics.widthPixels
+        val targetWidth = (displayWidth * 0.75).toInt().coerceIn(600, 850)
+        dialog.window?.setLayout(targetWidth, WindowManager.LayoutParams.WRAP_CONTENT)
+
         dialogView.post {
             cbAllowExternal.requestFocus()
         }
