@@ -55,7 +55,7 @@ class HamClockViewController: UIViewController, WKNavigationDelegate, WKUIDelega
         let source = """
         var meta = document.createElement('meta');
         meta.name = 'viewport';
-        meta.content = 'width=1600, user-scalable=no, initial-scale=1.0, maximum-scale=1.0';
+        meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
         document.getElementsByTagName('head')[0].appendChild(meta);
         document.body.style.backgroundColor = '#000';
         document.body.style.margin = '0';
