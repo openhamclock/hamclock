@@ -45,8 +45,8 @@ jobs:
         run: |
           APP_PATH="$(pwd)/ios/build/Build/Products/Release-iphonesimulator/HamClock.app"
 
-          # Find available modern widescreen iPhone/iPad simulator
-          UDID=$(xcrun simctl list devices available | grep -E "iPhone 16|iPhone 15|iPhone 14|iPad" | head -1 | grep -o -E '[0-9A-F-]{36}')
+          # Prefer modern widescreen iPhone simulator (19.5:9), fallback to any
+          UDID=$(xcrun simctl list devices available | grep -E "iPhone 16|iPhone 15|iPhone 14" | head -1 | grep -o -E '[0-9A-F-]{36}')
           if [ -z "$UDID" ]; then
             UDID=$(xcrun simctl list devices available | grep -E "iPhone|iPad" | head -1 | grep -o -E '[0-9A-F-]{36}')
           fi

@@ -97,7 +97,15 @@ class HamClockViewController: UIViewController, WKNavigationDelegate, WKUIDelega
         settingsButton.layer.cornerRadius = 20
         settingsButton.translatesAutoresizingMaskIntoConstraints = false
         settingsButton.addTarget(self, action: #selector(settingsTapped), for: .touchUpInside)
+
+        let panGesture = UIPanGestureRecognizer(target: self, action: #selector(handleButtonPan(_:)))
+        settingsButton.addGestureRecognizer(panGesture)
         view.addSubview(settingsButton)
+
+        let twoFingerTap = UITapGestureRecognizer(target: self, action: #selector(settingsTapped))
+        twoFingerTap.numberOfTouchesRequired = 2
+        twoFingerTap.numberOfTapsRequired = 2
+        view.addGestureRecognizer(twoFingerTap)
 
         NSLayoutConstraint.activate([
             activityIndicator.centerXAnchor.constraint(equalTo: view.centerXAnchor),
@@ -111,6 +119,14 @@ class HamClockViewController: UIViewController, WKNavigationDelegate, WKUIDelega
             settingsButton.widthAnchor.constraint(equalToConstant: 40),
             settingsButton.heightAnchor.constraint(equalToConstant: 40)
         ])
+    }
+
+    @objc private func handleButtonPan(_ gesture: UIPanGestureRecognizer) {
+        let translation = gesture.translation(in: view)
+        if let btn = gesture.view {
+            btn.center = CGPoint(x: btn.center.x + translation.x, y: btn.center.y + translation.y)
+        }
+        gesture.setTranslation(.zero, in: view)
     }
 
     private func setupBridge() {
