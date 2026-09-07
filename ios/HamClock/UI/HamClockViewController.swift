@@ -91,8 +91,7 @@ class HamClockViewController: UIViewController, WKNavigationDelegate, WKUIDelega
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(statusLabel)
 
-        let toolIcon = UIImage(systemName: "wrench.and.screwdriver.fill") ?? UIImage(systemName: "gearshape.fill")
-        settingsButton.setImage(toolIcon, for: .normal)
+        settingsButton.setImage(UIImage(systemName: "gearshape.fill"), for: .normal)
         settingsButton.tintColor = .white
         settingsButton.backgroundColor = UIColor(white: 0.2, alpha: 0.6)
         settingsButton.layer.cornerRadius = 22
@@ -107,8 +106,8 @@ class HamClockViewController: UIViewController, WKNavigationDelegate, WKUIDelega
             statusLabel.topAnchor.constraint(equalTo: activityIndicator.bottomAnchor, constant: 16),
             statusLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
 
-            settingsButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -12),
-            settingsButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -12),
+            settingsButton.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -16),
+            settingsButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
             settingsButton.widthAnchor.constraint(equalToConstant: 44),
             settingsButton.heightAnchor.constraint(equalToConstant: 44)
         ])
