@@ -114,7 +114,7 @@ class HamClockViewController: UIViewController, WKNavigationDelegate, WKUIDelega
             statusLabel.topAnchor.constraint(equalTo: activityIndicator.bottomAnchor, constant: 16),
             statusLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
 
-            settingsButton.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -12),
+            settingsButton.centerYAnchor.constraint(equalTo: view.centerYAnchor),
             settingsButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -12),
             settingsButton.widthAnchor.constraint(equalToConstant: 40),
             settingsButton.heightAnchor.constraint(equalToConstant: 40)
