@@ -66,7 +66,7 @@ jobs:
 
           echo "Waiting for HamClock engine and web interface readiness..."
           for i in $(seq 1 45); do
-            if curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8081/liveweb-rw.html 2>/dev/null | grep -q "200"; then
+            if curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8081/live.html 2>/dev/null | grep -q "200"; then
               echo "HamClock web server is ready (attempt $i)!"
               break
             fi

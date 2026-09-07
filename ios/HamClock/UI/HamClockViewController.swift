@@ -165,10 +165,10 @@ class HamClockViewController: UIViewController, WKNavigationDelegate, WKUIDelega
     }
 
     private func checkEngineReadiness() {
-        guard let url = URL(string: "http://127.0.0.1:\(liveWebPort)/liveweb-rw.html") else { return }
+        guard let url = URL(string: "http://127.0.0.1:\(liveWebPort)/live.html") else { return }
 
         var request = URLRequest(url: url)
-        request.httpMethod = "HEAD"
+        request.httpMethod = "GET"
         request.timeoutInterval = 1.0
 
         let task = URLSession.shared.dataTask(with: request) { [weak self] (_, response, error) in

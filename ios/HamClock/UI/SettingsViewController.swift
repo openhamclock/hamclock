@@ -175,7 +175,7 @@ class SettingsViewController: UIViewController {
 
     private func updateQRCode() {
         let ip = getLocalIPAddress() ?? "127.0.0.1"
-        let webUrl = "http://\(ip):8081/liveweb-rw.html"
+        let webUrl = "http://\(ip):8081/live.html"
         qrInfoLabel.text = "Open on local network: \(webUrl)"
 
         if let qrImage = HamClockBridge.shared().generateQRCodeImage(forText: webUrl, scale: 6, border: 2) {
