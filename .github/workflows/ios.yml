@@ -80,6 +80,18 @@ jobs:
           xcrun simctl terminate "$UDID" org.openhamclock.hamclock || true
           xcrun simctl shutdown "$UDID" || true
 
+      - name: Package App Bundle
+        run: |
+          cd ios/build/Build/Products/Release-iphonesimulator
+          zip -r -y "${GITHUB_WORKSPACE}/HamClock-iOS-Simulator.app.zip" HamClock.app
+
+      - name: Upload HamClock App Bundle Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HamClock-iOS-Simulator-App
+          path: HamClock-iOS-Simulator.app.zip
+          if-no-files-found: error
+
       - name: Upload Simulator Screenshot
         uses: actions/upload-artifact@v4
         if: always()
