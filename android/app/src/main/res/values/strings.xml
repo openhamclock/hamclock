@@ -18,6 +18,9 @@
     <string name="exit_hamclock">Exit HamClock</string>
     <string name="cancel">Cancel</string>
 
+    <string name="tv_first_run_title">Welcome to HamClock on TV!</string>
+    <string name="tv_first_run_guidance">HamClock requires initial setup (Callsign). To configure it easily from your phone, tablet, or PC browser:\n\n1. Select \"Allow local network access\" below\n2. Scan the QR Code or open the URL in your browser\n3. Enter your Callsign and click Done</string>
+
     <string name="allow_external_label">Allow local network access (Wi-Fi / LAN)</string>
     <string name="mdns_name_label">Device Name for mDNS (.local):</string>
     <string name="mdns_name_hint">hamclock</string>

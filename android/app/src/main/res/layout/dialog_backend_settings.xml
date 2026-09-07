@@ -17,6 +17,37 @@
         android:paddingBottom="12dp">
 
     <LinearLayout
+        android:id="@+id/ll_tv_setup_guide"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:focusable="false"
+        android:background="#263238"
+        android:padding="12dp"
+        android:layout_marginBottom="12dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/tv_guide_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/tv_first_run_title"
+            android:textColor="#FFD54F"
+            android:textStyle="bold"
+            android:textSize="14sp"
+            android:layout_marginBottom="6dp" />
+
+        <TextView
+            android:id="@+id/tv_guide_body"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/tv_first_run_guidance"
+            android:textColor="@color/hamclock_text"
+            android:textSize="12sp"
+            android:lineSpacingExtra="2dp" />
+    </LinearLayout>
+
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
@@ -50,89 +81,6 @@
         android:layout_width="match_parent"
         android:layout_height="1dp"
         android:layout_marginTop="4dp"
-        android:layout_marginBottom="12dp"
-        android:background="#33FFFFFF" />
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="8dp"
-        android:text="@string/backend_server_label"
-        android:textColor="@color/hamclock_text"
-        android:textSize="14sp" />
-
-    <EditText
-        android:id="@+id/et_backend_host"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="@string/backend_hint"
-        android:importantForAutofill="no"
-        android:inputType="textUri"
-        android:imeOptions="flagNoExtractUi|actionDone"
-        android:singleLine="true"
-        android:textColor="@color/hamclock_text"
-        android:textColorHint="#888888"
-        android:focusable="true"
-        android:padding="8dp"
-        android:background="@drawable/item_focus_highlight" />
-
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:layout_marginTop="12dp"
-        android:layout_marginBottom="12dp"
-        android:background="#33FFFFFF" />
-
-    <CheckBox
-        android:id="@+id/cb_start_on_boot"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/start_on_boot_label"
-        android:textColor="@color/hamclock_text"
-        android:textSize="14sp"
-        android:buttonTint="@color/hamclock_accent"
-        android:focusable="true"
-        android:clickable="true"
-        android:padding="8dp"
-        android:background="@drawable/item_focus_highlight" />
-
-    <LinearLayout
-        android:id="@+id/ll_autostart_helper"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:focusable="false"
-        android:layout_marginTop="8dp"
-        android:layout_marginStart="8dp"
-        android:layout_marginEnd="8dp"
-        android:padding="8dp"
-        android:background="#22FFFFFF"
-        android:visibility="gone">
-
-        <TextView
-            android:id="@+id/tv_autostart_notice"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/autostart_oem_notice"
-            android:textColor="#FFB74D"
-            android:textSize="12sp"
-            android:layout_marginBottom="8dp" />
-
-        <Button
-            android:id="@+id/btn_open_autostart"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/open_autostart_settings"
-            android:textColor="@color/hamclock_text"
-            android:textSize="12sp"
-            android:background="@drawable/btn_neutral_selector"
-            android:focusable="true" />
-    </LinearLayout>
-
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:layout_marginTop="12dp"
         android:layout_marginBottom="12dp"
         android:background="#33FFFFFF" />
 
@@ -263,6 +211,89 @@
                     android:scaleType="fitCenter" />
             </FrameLayout>
         </LinearLayout>
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="12dp"
+        android:background="#33FFFFFF" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:text="@string/backend_server_label"
+        android:textColor="@color/hamclock_text"
+        android:textSize="14sp" />
+
+    <EditText
+        android:id="@+id/et_backend_host"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/backend_hint"
+        android:importantForAutofill="no"
+        android:inputType="textUri"
+        android:imeOptions="flagNoExtractUi|actionDone"
+        android:singleLine="true"
+        android:textColor="@color/hamclock_text"
+        android:textColorHint="#888888"
+        android:focusable="true"
+        android:padding="8dp"
+        android:background="@drawable/item_focus_highlight" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="12dp"
+        android:background="#33FFFFFF" />
+
+    <CheckBox
+        android:id="@+id/cb_start_on_boot"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/start_on_boot_label"
+        android:textColor="@color/hamclock_text"
+        android:textSize="14sp"
+        android:buttonTint="@color/hamclock_accent"
+        android:focusable="true"
+        android:clickable="true"
+        android:padding="8dp"
+        android:background="@drawable/item_focus_highlight" />
+
+    <LinearLayout
+        android:id="@+id/ll_autostart_helper"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:focusable="false"
+        android:layout_marginTop="8dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:padding="8dp"
+        android:background="#22FFFFFF"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/tv_autostart_notice"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/autostart_oem_notice"
+            android:textColor="#FFB74D"
+            android:textSize="12sp"
+            android:layout_marginBottom="8dp" />
+
+        <Button
+            android:id="@+id/btn_open_autostart"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/open_autostart_settings"
+            android:textColor="@color/hamclock_text"
+            android:textSize="12sp"
+            android:background="@drawable/btn_neutral_selector"
+            android:focusable="true" />
     </LinearLayout>
 
     <View
