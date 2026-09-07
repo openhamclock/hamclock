@@ -52,8 +52,8 @@ targets:
         includes:
           - "*.cpp"
     dependencies:
-      - framework: WebKit.framework
-      - framework: CoreLocation.framework
-      - framework: Network.framework
-      - framework: Security.framework
+      - sdk: WebKit.framework
+      - sdk: CoreLocation.framework
+      - sdk: Network.framework
+      - sdk: Security.framework
       - sdk: libz.tbd
