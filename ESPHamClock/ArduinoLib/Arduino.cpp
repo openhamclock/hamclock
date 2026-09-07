@@ -816,7 +816,7 @@ int hamclock_main (int ac, char *av[])
     return 0;
 }
 
-#if !defined(__ANDROID__)
+#if !defined(__ANDROID__) && !defined(_IS_IOS)
 /* Standard main entry point for standalone binaries */
 int main (int ac, char *av[])
 {
