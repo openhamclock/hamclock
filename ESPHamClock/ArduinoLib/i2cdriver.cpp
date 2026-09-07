@@ -39,7 +39,7 @@ static int openSerialPort(const char *portname)
         return -1;
     }
 
-#if defined(__APPLE__) && !defined(B1000000)
+#if defined(_IS_APPLE) && !defined(B1000000)
 #include <IOKit/serial/ioss.h>
 #else
     cfsetispeed(&Settings, B1000000);
@@ -54,7 +54,7 @@ static int openSerialPort(const char *portname)
         return -1;
     }
 
-#if defined(__APPLE__) && !defined(B1000000)
+#if defined(_IS_APPLE) && !defined(B1000000)
     speed_t speed = (speed_t)1000000;
     if (ioctl(fd, IOSSIOSPEED, &speed) < 0) {
         printf ("I2C: openSerialPort: IOSSIOSPEED(%s): %s\n", portname, strerror(errno));

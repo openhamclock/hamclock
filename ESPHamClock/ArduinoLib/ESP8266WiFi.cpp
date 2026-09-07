@@ -385,7 +385,7 @@ bool WiFi::RSSI(int &value, bool &is_dbm)
 
 
 
-#ifdef __APPLE__
+#ifdef _IS_APPLE
 
         static const char cmd[] =
             "/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I";
@@ -404,7 +404,7 @@ bool WiFi::RSSI(int &value, bool &is_dbm)
         if (debugLevel(DEBUG_WIFI, 1) && !ok)
             printf ("No RSSI from apple\n");
 
-#endif // __APPLE__
+#endif // _IS_APPLE
 
 
     return (ok);
@@ -450,6 +450,10 @@ int WiFi::mode (int m)
 
 std::string WiFi::macAddress(void)
 {
+#if defined(_IS_IOS)
+    extern "C" std::string ios_get_mac_address(void);
+    return ios_get_mac_address();
+#else
 	char line[128];
 
 	// try a few different variations, first two try to find the default interface
@@ -476,6 +480,7 @@ std::string WiFi::macAddress(void)
         }
 
 	return (std::string(line));
+#endif
 }
 
 std::string WiFi::hostname(void)
