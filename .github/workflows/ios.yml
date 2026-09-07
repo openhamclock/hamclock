@@ -39,5 +39,51 @@ jobs:
                      -scheme HamClock \
                      -destination 'generic/platform=iOS Simulator' \
                      -configuration Release \
+                     -derivedDataPath build \
                      CODE_SIGNING_ALLOWED=NO \
                      build
+
+      - name: Validate App Bundle
+        run: |
+          APP_PATH="ios/build/Build/Products/Release-iphonesimulator/HamClock.app"
+          echo "Checking app bundle at: $APP_PATH"
+          test -d "$APP_PATH" || { echo "App bundle not found!"; exit 1; }
+          plutil -lint "$APP_PATH/Info.plist"
+          file "$APP_PATH/HamClock"
+
+      - name: Run Simulator Smoke Test
+        run: |
+          APP_PATH="$(pwd)/ios/build/Build/Products/Release-iphonesimulator/HamClock.app"
+
+          # Find first available iPhone/iPad simulator
+          UDID=$(xcrun simctl list devices available | grep -E "iPhone|iPad" | head -1 | grep -o -E '[0-9A-F-]{36}')
+          if [ -z "$UDID" ]; then
+            echo "No simulator found!"
+            exit 1
+          fi
+          echo "Booting simulator: $UDID"
+          xcrun simctl boot "$UDID"
+
+          echo "Installing $APP_PATH..."
+          xcrun simctl install "$UDID" "$APP_PATH"
+
+          echo "Launching HamClock..."
+          xcrun simctl launch "$UDID" org.openhamclock.hamclock
+
+          # Allow app to start and render initial frame
+          sleep 10
+
+          echo "Taking screenshot..."
+          xcrun simctl io "$UDID" screenshot ios-simulator-screenshot.png
+
+          echo "Shutting down simulator..."
+          xcrun simctl terminate "$UDID" org.openhamclock.hamclock || true
+          xcrun simctl shutdown "$UDID" || true
+
+      - name: Upload Simulator Screenshot
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-simulator-screenshot
+          path: ios-simulator-screenshot.png
+          if-no-files-found: ignore
