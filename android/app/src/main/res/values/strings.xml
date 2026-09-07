@@ -24,6 +24,8 @@
     <string name="local_url_label">Access from browser on your local network:</string>
     <string name="copy_url">Copy URL</string>
     <string name="copied_to_clipboard">Copied URL to clipboard</string>
+    <string name="scan_qr_to_open">Scan with phone or tablet to open:</string>
+    <string name="scan_qr_to_open_ip">Scan with phone/tablet to open:\n%1$s</string>
     <string name="server_ports_label">Server Ports:</string>
     <string name="server_ports_format">Live Web (R/W): %1$d   •   Live Web (R/O): %2$d\nRESTful API: %3$s</string>
     <string name="rest_port_label">RESTful API Port:</string>

@@ -267,5 +267,5 @@ void scheduleRSSNow()
 void checkRSSTouch(void)
 {
     if (rss_tapurl)
-        openURL (rss_tapurl);
+        showQRCodeModal (rss_tapurl, "RSS News Story", "Scan with phone or open below", "Open Article");
 }

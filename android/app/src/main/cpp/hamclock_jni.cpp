@@ -13,6 +13,7 @@
 #include <android/log.h>
 
 #include "HamClock.h"
+#include "qrcodegen.h"
 
 #define TAG "HamClockNative"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
@@ -664,6 +665,54 @@ extern "C" bool android_connect_http(const char *cmd, int *read_fd) {
 
     *read_fd = pipefds[0];
     return true;
+}
+
+extern "C" JNIEXPORT jintArray JNICALL
+Java_org_openhamclock_hamclock_HamClockNative_generateQRCodePixels(
+        JNIEnv *env,
+        jclass /* clazz */,
+        jstring text,
+        jint scale,
+        jint border) {
+    if (!text) return nullptr;
+    const char *chars = env->GetStringUTFChars(text, nullptr);
+    if (!chars) return nullptr;
+
+    uint8_t qr0[qrcodegen_BUFFER_LEN_MAX];
+    uint8_t tempBuffer[qrcodegen_BUFFER_LEN_MAX];
+    bool ok = qrcodegen_encodeText(chars, tempBuffer, qr0,
+                                   qrcodegen_Ecc_LOW,
+                                   qrcodegen_VERSION_MIN, 10,
+                                   qrcodegen_Mask_AUTO, true);
+    env->ReleaseStringUTFChars(text, chars);
+    if (!ok) return nullptr;
+
+    int qr_size = qrcodegen_getSize(qr0);
+    int total_modules = qr_size + 2 * border;
+    int img_size = total_modules * scale;
+
+    std::vector<jint> pixels(img_size * img_size, (jint)0xFFFFFFFF); // White background
+
+    for (int y = 0; y < qr_size; y++) {
+        for (int x = 0; x < qr_size; x++) {
+            if (qrcodegen_getModule(qr0, x, y)) {
+                int px0 = (x + border) * scale;
+                int py0 = (y + border) * scale;
+                for (int dy = 0; dy < scale; dy++) {
+                    for (int dx = 0; dx < scale; dx++) {
+                        pixels[(py0 + dy) * img_size + (px0 + dx)] = (jint)0xFF000000; // Black
+                    }
+                }
+            }
+        }
+    }
+
+    jintArray result = env->NewIntArray((jsize)(pixels.size() + 1));
+    if (!result) return nullptr;
+    jint header = img_size;
+    env->SetIntArrayRegion(result, 0, 1, &header);
+    env->SetIntArrayRegion(result, 1, (jsize)pixels.size(), pixels.data());
+    return result;
 }
 
 
