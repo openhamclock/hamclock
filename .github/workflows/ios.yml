@@ -67,11 +67,15 @@ jobs:
           echo "Installing $APP_PATH..."
           xcrun simctl install "$UDID" "$APP_PATH"
 
+          echo "Granting location and privacy permissions..."
+          xcrun simctl privacy "$UDID" grant all org.openhamclock.hamclock || xcrun simctl privacy "$UDID" grant location org.openhamclock.hamclock || true
+          xcrun simctl location "$UDID" set 37.7749,-122.4194 || true
+
           echo "Launching HamClock..."
           xcrun simctl launch "$UDID" org.openhamclock.hamclock
 
-          # Allow app to start and render initial frame
-          sleep 10
+          # Allow app to start, load backend data and render display
+          sleep 15
 
           echo "Taking screenshot..."
           xcrun simctl io "$UDID" screenshot ios-simulator-screenshot.png
