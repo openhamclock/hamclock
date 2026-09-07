@@ -42,8 +42,8 @@ gh workflow run release.yml -f tag_name=v4.32.0 -f build_docker=false
 # Optional: skip uploading to Google Play Store:
 gh workflow run release.yml -f tag_name=v4.32.0 -f push_play_store=false
 
-# Optional: upload to Amazon Appstore (defaults to false):
-gh workflow run release.yml -f tag_name=v4.32.0 -f push_amazon_appstore=true
+# Optional: skip uploading to Amazon Appstore:
+gh workflow run release.yml -f tag_name=v4.32.0 -f push_amazon_appstore=false
 
 # Optional: draft release without Docker build or app store uploads:
 gh workflow run release.yml -f tag_name=v4.32.0 -f publish_release=false -f build_docker=false -f push_play_store=false -f push_amazon_appstore=false
@@ -70,7 +70,7 @@ gh workflow run
 | `publish_release` | choice (`true`, `false`) | `true` | When `true`, publishes the release immediately. Set to `false` to create as a draft. |
 | `build_docker` | choice (`true`, `false`) | `true` | When `true`, builds and pushes the multi-platform Docker image. |
 | `push_play_store` | choice (`true`, `false`) | `true` | When `true`, uploads the Android AAB to Google Play (Alpha track). |
-| `push_amazon_appstore` | choice (`true`, `false`) | `false` | When `true`, uploads the Android APK to the Amazon Appstore. |
+| `push_amazon_appstore` | choice (`true`, `false`) | `true` | When `true`, uploads the Android APK to the Amazon Appstore. |
 
 ### Monitoring the Workflow
 
