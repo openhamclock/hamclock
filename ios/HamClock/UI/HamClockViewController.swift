@@ -51,16 +51,15 @@ class HamClockViewController: UIViewController, WKNavigationDelegate, WKUIDelega
         config.mediaTypesRequiringUserActionForPlayback = []
         config.preferences.javaScriptCanOpenWindowsAutomatically = true
 
-        // Viewport and canvas auto-scaling script
+        // Viewport and canvas auto-scaling script with pinch-to-zoom enabled
         let source = """
         var meta = document.createElement('meta');
         meta.name = 'viewport';
-        meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
+        meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover';
         document.getElementsByTagName('head')[0].appendChild(meta);
         document.body.style.backgroundColor = '#000';
         document.body.style.margin = '0';
         document.body.style.padding = '0';
-        document.body.style.overflow = 'hidden';
         """
         let script = WKUserScript(source: source, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
         config.userContentController.addUserScript(script)
@@ -71,8 +70,10 @@ class HamClockViewController: UIViewController, WKNavigationDelegate, WKUIDelega
         webView.uiDelegate = self
         webView.isOpaque = false
         webView.backgroundColor = .black
-        webView.scrollView.isScrollEnabled = false
-        webView.scrollView.bounces = false
+        webView.scrollView.isScrollEnabled = true
+        webView.scrollView.bounces = true
+        webView.scrollView.minimumZoomScale = 1.0
+        webView.scrollView.maximumZoomScale = 5.0
         webView.scrollView.contentInsetAdjustmentBehavior = .never
         view.addSubview(webView)
     }
@@ -90,7 +91,8 @@ class HamClockViewController: UIViewController, WKNavigationDelegate, WKUIDelega
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(statusLabel)
 
-        settingsButton.setImage(UIImage(systemName: "gearshape.fill"), for: .normal)
+        let toolIcon = UIImage(systemName: "wrench.and.screwdriver.fill") ?? UIImage(systemName: "gearshape.fill")
+        settingsButton.setImage(toolIcon, for: .normal)
         settingsButton.tintColor = .white
         settingsButton.backgroundColor = UIColor(white: 0.2, alpha: 0.6)
         settingsButton.layer.cornerRadius = 22
@@ -105,8 +107,8 @@ class HamClockViewController: UIViewController, WKNavigationDelegate, WKUIDelega
             statusLabel.topAnchor.constraint(equalTo: activityIndicator.bottomAnchor, constant: 16),
             statusLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
 
-            settingsButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
-            settingsButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -16),
+            settingsButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -12),
+            settingsButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -12),
             settingsButton.widthAnchor.constraint(equalToConstant: 44),
             settingsButton.heightAnchor.constraint(equalToConstant: 44)
         ])
