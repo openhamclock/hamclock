@@ -221,6 +221,7 @@ extern "C" void ios_request_restart(bool minus_K);
 extern "C" void ios_request_exit(void);
 extern "C" void ios_open_url(const char *url);
 extern "C" bool ios_get_clipboard(char *buf, size_t buf_len);
+extern "C" std::string ios_get_mac_address(void);
 #endif
 extern bool testPassword (const char *category, const char *candidate_pw);
 extern const char *pw_file;

@@ -451,7 +451,6 @@ int WiFi::mode (int m)
 std::string WiFi::macAddress(void)
 {
 #if defined(_IS_IOS)
-    extern "C" std::string ios_get_mac_address(void);
     return ios_get_mac_address();
 #else
 	char line[128];
