@@ -38,7 +38,7 @@ on:
         options:
           - 'true'
           - 'false'
-        default: 'false'
+        default: 'true'
 
 jobs:
   release:
@@ -147,7 +147,7 @@ jobs:
 
       # Prepare release notes for Google Play Store upload
       - name: Prepare Play Store Release Notes
-        if: ${{ github.event_name == 'push' || inputs.push_play_store == true || inputs.push_play_store == 'true' }}
+        if: ${{ github.event_name == 'push' || github.event.inputs.push_play_store == 'true' || github.event.inputs.push_play_store == true || inputs.push_play_store == 'true' || inputs.push_play_store == true }}
         run: |
           mkdir -p dist/whatsnew
           rm -f dist/whatsnew/*
@@ -165,7 +165,7 @@ jobs:
 
       # Upload the signed .aab to Google Play console (Alpha track)
       - name: Upload to Google Play Alpha Track
-        if: ${{ github.event_name == 'push' || inputs.push_play_store == true || inputs.push_play_store == 'true' }}
+        if: ${{ github.event_name == 'push' || github.event.inputs.push_play_store == 'true' || github.event.inputs.push_play_store == true || inputs.push_play_store == 'true' || inputs.push_play_store == true }}
         uses: r0adkll/upload-google-play@v1
         env:
           NODE_OPTIONS: --no-deprecation
@@ -181,7 +181,7 @@ jobs:
 
       # Upload the signed .apk to Amazon Appstore
       - name: Upload to Amazon Appstore
-        if: ${{ inputs.push_amazon_appstore == true || inputs.push_amazon_appstore == 'true' }}
+        if: ${{ github.event.inputs.push_amazon_appstore == 'true' || github.event.inputs.push_amazon_appstore == true || inputs.push_amazon_appstore == 'true' || inputs.push_amazon_appstore == true }}
         uses: galonga/upload-amazon-appstore@v1.0.2
         with:
           clientId: ${{ secrets.AMAZON_APPSTORE_CLIENT_ID }}
@@ -192,7 +192,7 @@ jobs:
       - name: Create Release and Upload Asset
         env:
           GH_TOKEN: ${{ github.token }}
-          PUBLISH_RELEASE: ${{ inputs.publish_release }}
+          PUBLISH_RELEASE: ${{ github.event.inputs.publish_release != '' && github.event.inputs.publish_release || inputs.publish_release }}
         run: |
           TAG="${{ github.event.inputs.tag_name }}"
           HC_TAG=${TAG%.*}
@@ -237,7 +237,7 @@ jobs:
     name: Build and Push Docker Image
     needs: release
     runs-on: ubuntu-latest
-    if: ${{ needs.release.result == 'success' && (github.event_name == 'push' || inputs.build_docker == true || inputs.build_docker == 'true') }}
+    if: ${{ needs.release.result == 'success' && (github.event_name == 'push' || github.event.inputs.build_docker == 'true' || github.event.inputs.build_docker == true || inputs.build_docker == 'true' || inputs.build_docker == true) }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
