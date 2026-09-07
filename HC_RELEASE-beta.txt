@@ -10,6 +10,7 @@ Changes with latest release:
 - support HamQTH lookups
 - support open User Guide
 - support panels forward/back
+- ONTA selection improvements
 - touchscreen paste from OS
 - password visibility toggle
 - special chars in passwords
