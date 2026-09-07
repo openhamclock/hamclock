@@ -93,8 +93,8 @@ class HamClockViewController: UIViewController, WKNavigationDelegate, WKUIDelega
 
         settingsButton.setImage(UIImage(systemName: "gearshape.fill"), for: .normal)
         settingsButton.tintColor = .white
-        settingsButton.backgroundColor = UIColor(white: 0.2, alpha: 0.6)
-        settingsButton.layer.cornerRadius = 22
+        settingsButton.backgroundColor = UIColor(white: 0.2, alpha: 0.5)
+        settingsButton.layer.cornerRadius = 20
         settingsButton.translatesAutoresizingMaskIntoConstraints = false
         settingsButton.addTarget(self, action: #selector(settingsTapped), for: .touchUpInside)
         view.addSubview(settingsButton)
@@ -106,10 +106,10 @@ class HamClockViewController: UIViewController, WKNavigationDelegate, WKUIDelega
             statusLabel.topAnchor.constraint(equalTo: activityIndicator.bottomAnchor, constant: 16),
             statusLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
 
-            settingsButton.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -16),
-            settingsButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
-            settingsButton.widthAnchor.constraint(equalToConstant: 44),
-            settingsButton.heightAnchor.constraint(equalToConstant: 44)
+            settingsButton.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -12),
+            settingsButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -12),
+            settingsButton.widthAnchor.constraint(equalToConstant: 40),
+            settingsButton.heightAnchor.constraint(equalToConstant: 40)
         ])
     }
 

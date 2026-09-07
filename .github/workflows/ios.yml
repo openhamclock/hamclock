@@ -45,8 +45,11 @@ jobs:
         run: |
           APP_PATH="$(pwd)/ios/build/Build/Products/Release-iphonesimulator/HamClock.app"
 
-          # Find first available iPhone/iPad simulator
-          UDID=$(xcrun simctl list devices available | grep -E "iPhone|iPad" | head -1 | grep -o -E '[0-9A-F-]{36}')
+          # Find available modern widescreen iPhone/iPad simulator
+          UDID=$(xcrun simctl list devices available | grep -E "iPhone 16|iPhone 15|iPhone 14|iPad" | head -1 | grep -o -E '[0-9A-F-]{36}')
+          if [ -z "$UDID" ]; then
+            UDID=$(xcrun simctl list devices available | grep -E "iPhone|iPad" | head -1 | grep -o -E '[0-9A-F-]{36}')
+          fi
           if [ -z "$UDID" ]; then
             echo "No simulator found!"
             exit 1
