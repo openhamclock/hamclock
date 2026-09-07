@@ -13,23 +13,35 @@
 
 
 #if defined(ESP8266)
-  #define _IS_ESP8266
+  #ifndef _IS_ESP8266
+    #define _IS_ESP8266
+  #endif
 #else
-  #define _IS_UNIX
+  #ifndef _IS_UNIX
+    #define _IS_UNIX
+  #endif
 #endif
 
 #if defined(__ANDROID__)
-  #define _IS_ANDROID
+  #ifndef _IS_ANDROID
+    #define _IS_ANDROID
+  #endif
 #elif defined(__linux__)
-  #define _IS_LINUX
+  #ifndef _IS_LINUX
+    #define _IS_LINUX
+  #endif
 #endif
 
 #if defined(__FreeBSD__)
-  #define _IS_FREEBSD
+  #ifndef _IS_FREEBSD
+    #define _IS_FREEBSD
+  #endif
 #endif
 
 #if defined(__NetBSD__)
-  #define _IS_NETBSD
+  #ifndef _IS_NETBSD
+    #define _IS_NETBSD
+  #endif
 #endif
 
 
@@ -39,16 +51,22 @@
             #include <TargetConditionals.h>
         #endif
     #endif
-    #if defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
-        #define _IS_IOS
-    #elif defined(TARGET_OS_IOS) && TARGET_OS_IOS
-        #define _IS_IOS
+    #if (defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE) || (defined(TARGET_OS_IOS) && TARGET_OS_IOS)
+        #ifndef _IS_IOS
+            #define _IS_IOS
+        #endif
     #else
-        #define _IS_APPLE
+        #ifndef _IS_APPLE
+            #define _IS_APPLE
+        #endif
         #if defined(__aarch64__) || defined(__arm64__)
-            #define _IS_APPLE_M
+            #ifndef _IS_APPLE_M
+                #define _IS_APPLE_M
+            #endif
         #else
-            #define _IS_APPLE_x86
+            #ifndef _IS_APPLE_x86
+                #define _IS_APPLE_x86
+            #endif
         #endif
     #endif
 #endif

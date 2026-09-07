@@ -2490,6 +2490,7 @@ bool postDiags (void)
 }
 
 
+#if !defined(NO_SYSTEM_CONTROLS)
 /* fork then run execv(3) command without a shell to retain our rootiness.
  * return exit status from waitpid().
  * N.B. caller must end list with a NULL
@@ -2523,6 +2524,7 @@ static int runExecv (const char *path, ...)
         waitpid (pid, &status, 0);
         return (status);
 }
+#endif
 
 
 /* ask Are You Sure for the given question.
