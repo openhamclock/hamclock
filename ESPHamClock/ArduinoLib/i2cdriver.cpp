@@ -41,9 +41,15 @@ static int openSerialPort(const char *portname)
 
 #if defined(_IS_APPLE) && !defined(B1000000)
 #include <IOKit/serial/ioss.h>
-#else
+#elif defined(B1000000)
     cfsetispeed(&Settings, B1000000);
     cfsetospeed(&Settings, B1000000);
+#elif defined(B230400)
+    cfsetispeed(&Settings, B230400);
+    cfsetospeed(&Settings, B230400);
+#else
+    cfsetispeed(&Settings, B115200);
+    cfsetospeed(&Settings, B115200);
 #endif
 
     cfmakeraw(&Settings);
