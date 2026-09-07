@@ -174,13 +174,53 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun isCallsignSet(): Boolean {
+        val eepromFile = File(File(filesDir, "hamclock_data"), "eeprom")
+        if (!eepromFile.exists() || eepromFile.length() < 100) return false
+        return try {
+            val callsign = StringBuilder()
+            var cookieOk = false
+            eepromFile.useLines { lines ->
+                for (line in lines) {
+                    val parts = line.trim().split(" ")
+                    if (parts.size >= 2) {
+                        val addr = parts[0].toIntOrNull(16)
+                        val byteVal = parts[1].toIntOrNull(16)
+                        if (addr != null && byteVal != null) {
+                            if (addr == 0x0EF && byteVal == 0x5A) {
+                                cookieOk = true
+                            } else if (cookieOk && addr in 0x0F0..0x0FB && byteVal in 33..126) {
+                                callsign.append(byteVal.toChar())
+                            } else if (addr > 0x0FB) {
+                                break
+                            }
+                        }
+                    }
+                }
+            }
+            cookieOk && callsign.isNotEmpty()
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    private fun isFireTvOrTv(): Boolean {
+        val pm = packageManager
+        val isAmazonFireTv = pm.hasSystemFeature("amazon.hardware.fire_tv") ||
+                (Build.MANUFACTURER.equals("Amazon", ignoreCase = true) && Build.MODEL.startsWith("AFT"))
+        val isLeanback = pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
+        val uiModeManager = getSystemService(Context.UI_MODE_SERVICE) as? android.app.UiModeManager
+        val isUiTv = uiModeManager?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
+        return isAmazonFireTv || isLeanback || isUiTv
+    }
+
     private fun getSelectedBackendHost(): String {
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         return prefs.getString(PREF_BACKEND_HOST, getString(R.string.backend_default))
             ?: getString(R.string.backend_default)
     }
 
-    private fun showBackendSettingsDialog() {
+    private fun showBackendSettingsDialog(isFirstRunTv: Boolean = false) {
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val currentHost = getSelectedBackendHost()
         val currentStartOnBoot = prefs.getBoolean(PREF_START_ON_BOOT, false)
@@ -188,6 +228,7 @@ class MainActivity : AppCompatActivity() {
         val currentMdnsName = prefs.getString(PREF_MDNS_NAME, "") ?: ""
 
         val dialogView = layoutInflater.inflate(R.layout.dialog_backend_settings, null)
+        val llTvSetupGuide = dialogView.findViewById<LinearLayout>(R.id.ll_tv_setup_guide)
         val etBackendHost = dialogView.findViewById<EditText>(R.id.et_backend_host)
         val cbStartOnBoot = dialogView.findViewById<CheckBox>(R.id.cb_start_on_boot)
         val llAutostartHelper = dialogView.findViewById<LinearLayout>(R.id.ll_autostart_helper)
@@ -202,11 +243,14 @@ class MainActivity : AppCompatActivity() {
         val ivLocalAccessQr = dialogView.findViewById<ImageView>(R.id.iv_local_access_qr)
         val tvQrCodeLabel = dialogView.findViewById<TextView>(R.id.tv_qr_code_label)
 
+        if (isFirstRunTv) {
+            llTvSetupGuide.visibility = View.VISIBLE
+        }
+
         etBackendHost.setText(currentHost)
         etBackendHost.setSelection(etBackendHost.text.length)
         cbStartOnBoot.isChecked = currentStartOnBoot
 
-        cbAllowExternal.isChecked = currentAllowExternal
         etMdnsName.setText(currentMdnsName)
 
         fun getQrTargetUrl(): String {
@@ -238,9 +282,26 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        updateLocalAccessVisibility(currentAllowExternal)
+        // For first run TV guidance, auto-check local network access so QR and web access are immediately live
+        val initialCheckedState = if (isFirstRunTv) true else currentAllowExternal
+        updateLocalAccessVisibility(initialCheckedState)
+        cbAllowExternal.isChecked = initialCheckedState
+        if (initialCheckedState) {
+            HamClockNative.setAllowExternalAccess(true)
+            updateMdnsService(true, currentMdnsName)
+            acquireWifiLock()
+        }
+
         cbAllowExternal.setOnCheckedChangeListener { _, isChecked ->
             updateLocalAccessVisibility(isChecked)
+            // Immediately activate or deactivate network access in memory so phone/tablet can connect right away
+            HamClockNative.setAllowExternalAccess(isChecked)
+            updateMdnsService(isChecked, etMdnsName.text.toString().trim())
+            if (isChecked) {
+                acquireWifiLock()
+            } else {
+                releaseWifiLock()
+            }
         }
 
         etMdnsName.addTextChangedListener(object : TextWatcher {
@@ -252,6 +313,7 @@ class MainActivity : AppCompatActivity() {
                     val qrBmp = HamClockNative.generateQRCodeBitmap(qrUrl, scale = 5, border = 2)
                     ivLocalAccessQr.setImageBitmap(qrBmp)
                     tvQrCodeLabel.text = getString(R.string.scan_qr_to_open_ip, qrUrl)
+                    updateMdnsService(true, s?.toString()?.trim())
                 }
             }
             override fun afterTextChanged(s: Editable?) {}
@@ -306,10 +368,13 @@ class MainActivity : AppCompatActivity() {
             tvRestPortConflict.visibility = View.GONE
         }
 
+        var isSaved = false
+
         val dialog = AlertDialog.Builder(this, androidx.appcompat.R.style.Theme_AppCompat_Dialog_Alert)
             .setTitle(getString(R.string.settings_title))
             .setView(dialogView)
             .setPositiveButton(getString(R.string.save)) { _, _ ->
+                isSaved = true
                 val entered = etBackendHost.text.toString().trim()
                 val newHost = if (entered.isNotEmpty()) entered else getString(R.string.backend_default)
                 val newStartOnBoot = cbStartOnBoot.isChecked
@@ -318,7 +383,6 @@ class MainActivity : AppCompatActivity() {
 
                 Log.i(TAG, "Saving settings: backend=$newHost, startOnBoot=$newStartOnBoot, allowExternal=$newAllowExternal, mdnsName=$newMdnsName")
                 val hostChanged = newHost != currentHost
-                val externalChanged = (newAllowExternal != currentAllowExternal) || (newMdnsName != currentMdnsName)
 
                 prefs.edit()
                     .putString(PREF_BACKEND_HOST, newHost)
@@ -327,14 +391,12 @@ class MainActivity : AppCompatActivity() {
                     .putString(PREF_MDNS_NAME, newMdnsName)
                     .commit()
 
-                if (externalChanged) {
-                    HamClockNative.setAllowExternalAccess(newAllowExternal)
-                    updateMdnsService(newAllowExternal, newMdnsName)
-                    if (newAllowExternal) {
-                        acquireWifiLock()
-                    } else {
-                        releaseWifiLock()
-                    }
+                HamClockNative.setAllowExternalAccess(newAllowExternal)
+                updateMdnsService(newAllowExternal, newMdnsName)
+                if (newAllowExternal) {
+                    acquireWifiLock()
+                } else {
+                    releaseWifiLock()
                 }
 
                 if (hostChanged) {
@@ -347,6 +409,18 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             .setNegativeButton(getString(R.string.cancel), null)
+            .setOnDismissListener {
+                if (!isSaved) {
+                    // Revert in-memory network access to whatever was previously saved
+                    HamClockNative.setAllowExternalAccess(currentAllowExternal)
+                    updateMdnsService(currentAllowExternal, currentMdnsName)
+                    if (currentAllowExternal) {
+                        acquireWifiLock()
+                    } else {
+                        releaseWifiLock()
+                    }
+                }
+            }
             .create()
 
         val btnOpenSetup = dialogView.findViewById<Button>(R.id.btn_open_setup)
@@ -362,6 +436,32 @@ class MainActivity : AppCompatActivity() {
             Log.i(TAG, "User requested Exit HamClock from settings dialog")
             dialog.dismiss()
             finishAndRemoveTask()
+        }
+
+        var autoDismissRunnable: Runnable? = null
+        if (isFirstRunTv) {
+            autoDismissRunnable = object : Runnable {
+                override fun run() {
+                    if (dialog.isShowing) {
+                        if (isCallsignSet()) {
+                            Log.i(TAG, "Callsign configured via web setup! Automatically saving network settings and dismissing first-run TV guidance.")
+                            isSaved = true
+                            val enteredMdns = etMdnsName.text.toString().trim()
+                            prefs.edit()
+                                .putBoolean(PREF_ALLOW_EXTERNAL, true)
+                                .putString(PREF_MDNS_NAME, enteredMdns)
+                                .commit()
+                            HamClockNative.setAllowExternalAccess(true)
+                            updateMdnsService(true, enteredMdns)
+                            acquireWifiLock()
+                            dialog.dismiss()
+                        } else {
+                            mainHandler.postDelayed(this, 1000)
+                        }
+                    }
+                }
+            }
+            mainHandler.postDelayed(autoDismissRunnable, 1000)
         }
 
         dialog.show()
@@ -815,6 +915,11 @@ class MainActivity : AppCompatActivity() {
                 val targetUrl = "http://127.0.0.1:$RW_PORT/live.html"
                 Log.i(TAG, "Loading URL: $targetUrl")
                 webView.loadUrl(targetUrl)
+
+                if (isFireTvOrTv() && !isCallsignSet()) {
+                    Log.i(TAG, "Fire TV / TV detected with no callsign set: showing first-run setup guide")
+                    showBackendSettingsDialog(isFirstRunTv = true)
+                }
             } else {
                 statusText.text = getString(R.string.start_failed)
                 progressBar.visibility = View.GONE
