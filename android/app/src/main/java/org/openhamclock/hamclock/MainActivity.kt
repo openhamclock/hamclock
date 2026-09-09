@@ -66,6 +66,7 @@ class MainActivity : AppCompatActivity() {
     private val PREF_START_ON_BOOT = "start_on_boot"
     private val PREF_ALLOW_EXTERNAL = "allow_external_access"
     private val PREF_MDNS_NAME = "mdns_name"
+    private val PREF_RUN_IN_BACKGROUND = "run_in_background"
 
     private val REST_PORT = 8080
     private val RW_PORT = 8081
@@ -73,6 +74,7 @@ class MainActivity : AppCompatActivity() {
 
     private var actualRestPort = 8080
     private var restPortConflict = false
+    private var isExplicitExit = false
 
     private var wifiLock: WifiManager.WifiLock? = null
     private var nsdManager: NsdManager? = null
@@ -126,6 +128,7 @@ class MainActivity : AppCompatActivity() {
             override fun onExitRequested() {
                 mainHandler.post {
                     Log.i(TAG, "Exit requested by native HamClock engine")
+                    isExplicitExit = true
                     finishAndRemoveTask()
                 }
             }
@@ -237,11 +240,21 @@ class MainActivity : AppCompatActivity() {
 
         val cbAllowExternal = dialogView.findViewById<CheckBox>(R.id.cb_allow_external)
         val llLocalAccessDetails = dialogView.findViewById<LinearLayout>(R.id.ll_local_access_details)
+        val btnTabLive = dialogView.findViewById<Button>(R.id.btn_tab_live)
+        val btnTabAntennas = dialogView.findViewById<Button>(R.id.btn_tab_antennas)
+        val tvLocalUrlLabel = dialogView.findViewById<TextView>(R.id.tv_local_url_label)
         val etMdnsName = dialogView.findViewById<EditText>(R.id.et_mdns_name)
         val tvLocalUrlValue = dialogView.findViewById<TextView>(R.id.tv_local_url_value)
         val btnCopyLocalUrl = dialogView.findViewById<Button>(R.id.btn_copy_local_url)
         val ivLocalAccessQr = dialogView.findViewById<ImageView>(R.id.iv_local_access_qr)
         val tvQrCodeLabel = dialogView.findViewById<TextView>(R.id.tv_qr_code_label)
+        val tvQrUrlValue = dialogView.findViewById<TextView>(R.id.tv_qr_url_value)
+        val cbRunInBackground = dialogView.findViewById<CheckBox>(R.id.cb_run_in_background)
+
+        val currentRunInBackground = prefs.getBoolean(PREF_RUN_IN_BACKGROUND, false)
+        cbRunInBackground.isChecked = currentRunInBackground
+
+        var currentTab = 0 // 0 = Live Clock, 1 = Antennas
 
         if (isFirstRunTv) {
             llTvSetupGuide.visibility = View.VISIBLE
@@ -253,33 +266,65 @@ class MainActivity : AppCompatActivity() {
 
         etMdnsName.setText(currentMdnsName)
 
-        fun getQrTargetUrl(): String {
+        fun getEndpointTargetUrl(tab: Int): String {
             val ip = getDeviceIpAddress()
-            return if (!ip.isNullOrEmpty()) {
-                "http://$ip:$RW_PORT/live.html"
+            val host = if (!ip.isNullOrEmpty()) ip else {
+                val entered = etMdnsName.text.toString().trim()
+                if (entered.isNotEmpty()) "$entered.local" else (registeredMdnsName ?: "hamclock") + ".local"
+            }
+            return if (tab == 0) {
+                "http://$host:$RW_PORT/live.html"
             } else {
-                val host = etMdnsName.text.toString().trim().ifEmpty { (registeredMdnsName ?: "hamclock") }
-                "http://$host.local:$RW_PORT/live.html"
+                val port = if (actualRestPort > 0) actualRestPort else REST_PORT
+                "http://$host:$port/antennas.html"
             }
         }
 
-        fun formatMdnsUrl(name: String): String {
+        fun formatMdnsUrl(name: String, tab: Int): String {
             val trimmed = name.trim()
-            val host = if (trimmed.isNotEmpty()) trimmed else (registeredMdnsName ?: "hamclock")
-            val ip = getDeviceIpAddress()
-            val ipText = if (!ip.isNullOrEmpty()) "\nIP: http://$ip:$RW_PORT/live.html" else ""
-            return "http://$host.local:$RW_PORT/live.html$ipText"
+            val host = if (trimmed.isNotEmpty()) "$trimmed.local" else (registeredMdnsName ?: "hamclock") + ".local"
+            return if (tab == 0) {
+                "http://$host:$RW_PORT/live.html"
+            } else {
+                if (actualRestPort <= 0) {
+                    getString(R.string.rest_port_disabled)
+                } else {
+                    "http://$host:$actualRestPort/antennas.html"
+                }
+            }
         }
 
         fun updateLocalAccessVisibility(isChecked: Boolean) {
             llLocalAccessDetails.visibility = if (isChecked) View.VISIBLE else View.GONE
-            tvLocalUrlValue.text = formatMdnsUrl(etMdnsName.text.toString())
+
+            if (currentTab == 0) {
+                btnTabLive.setBackgroundResource(R.drawable.btn_setup_selector)
+                btnTabAntennas.setBackgroundResource(R.drawable.btn_neutral_selector)
+                tvLocalUrlLabel.text = getString(R.string.local_url_label)
+            } else {
+                btnTabLive.setBackgroundResource(R.drawable.btn_neutral_selector)
+                btnTabAntennas.setBackgroundResource(R.drawable.btn_setup_selector)
+                tvLocalUrlLabel.text = getString(R.string.antenna_url_label)
+            }
+
+            tvLocalUrlValue.text = formatMdnsUrl(etMdnsName.text.toString(), currentTab)
             if (isChecked) {
-                val qrUrl = getQrTargetUrl()
+                val qrUrl = getEndpointTargetUrl(currentTab)
                 val qrBmp = HamClockNative.generateQRCodeBitmap(qrUrl, scale = 5, border = 2)
                 ivLocalAccessQr.setImageBitmap(qrBmp)
-                tvQrCodeLabel.text = getString(R.string.scan_qr_to_open_ip, qrUrl)
+                tvQrCodeLabel.text = getString(R.string.scan_qr_to_open)
+                tvQrUrlValue.text = qrUrl
             }
+        }
+
+        btnTabLive.setOnClickListener {
+            currentTab = 0
+            updateLocalAccessVisibility(cbAllowExternal.isChecked)
+        }
+
+        btnTabAntennas.setOnClickListener {
+            currentTab = 1
+            updateLocalAccessVisibility(cbAllowExternal.isChecked)
         }
 
         // For first run TV guidance, auto-check local network access so QR and web access are immediately live
@@ -307,12 +352,13 @@ class MainActivity : AppCompatActivity() {
         etMdnsName.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                tvLocalUrlValue.text = formatMdnsUrl(s?.toString() ?: "")
+                tvLocalUrlValue.text = formatMdnsUrl(s?.toString() ?: "", currentTab)
                 if (cbAllowExternal.isChecked) {
-                    val qrUrl = getQrTargetUrl()
+                    val qrUrl = getEndpointTargetUrl(currentTab)
                     val qrBmp = HamClockNative.generateQRCodeBitmap(qrUrl, scale = 5, border = 2)
                     ivLocalAccessQr.setImageBitmap(qrBmp)
-                    tvQrCodeLabel.text = getString(R.string.scan_qr_to_open_ip, qrUrl)
+                    tvQrCodeLabel.text = getString(R.string.scan_qr_to_open)
+                    tvQrUrlValue.text = qrUrl
                     updateMdnsService(true, s?.toString()?.trim())
                 }
             }
@@ -320,8 +366,7 @@ class MainActivity : AppCompatActivity() {
         })
 
         btnCopyLocalUrl.setOnClickListener {
-            val ip = getDeviceIpAddress()
-            val copyUrl = if (!ip.isNullOrEmpty()) "http://$ip:$RW_PORT/live.html" else tvLocalUrlValue.text.toString()
+            val copyUrl = getEndpointTargetUrl(currentTab)
             val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
             val clip = ClipData.newPlainText("HamClock URL", copyUrl)
             clipboard?.setPrimaryClip(clip)
@@ -355,7 +400,7 @@ class MainActivity : AppCompatActivity() {
         val tvRestPortConflict = dialogView.findViewById<TextView>(R.id.tv_rest_port_conflict)
 
         val restText = if (actualRestPort > 0) "Port $actualRestPort" else getString(R.string.rest_port_disabled)
-        tvPortsInfo.text = getString(R.string.server_ports_format, RW_PORT, RO_PORT, restText)
+        tvPortsInfo.text = getString(R.string.server_ports_compact, RW_PORT, RO_PORT, restText)
 
         if (restPortConflict) {
             tvRestPortConflict.visibility = View.VISIBLE
@@ -380,8 +425,9 @@ class MainActivity : AppCompatActivity() {
                 val newStartOnBoot = cbStartOnBoot.isChecked
                 val newAllowExternal = cbAllowExternal.isChecked
                 val newMdnsName = etMdnsName.text.toString().trim()
+                val newRunInBackground = cbRunInBackground.isChecked
 
-                Log.i(TAG, "Saving settings: backend=$newHost, startOnBoot=$newStartOnBoot, allowExternal=$newAllowExternal, mdnsName=$newMdnsName")
+                Log.i(TAG, "Saving settings: backend=$newHost, startOnBoot=$newStartOnBoot, allowExternal=$newAllowExternal, mdnsName=$newMdnsName, runInBackground=$newRunInBackground")
                 val hostChanged = newHost != currentHost
 
                 prefs.edit()
@@ -389,6 +435,7 @@ class MainActivity : AppCompatActivity() {
                     .putBoolean(PREF_START_ON_BOOT, newStartOnBoot)
                     .putBoolean(PREF_ALLOW_EXTERNAL, newAllowExternal)
                     .putString(PREF_MDNS_NAME, newMdnsName)
+                    .putBoolean(PREF_RUN_IN_BACKGROUND, newRunInBackground)
                     .commit()
 
                 HamClockNative.setAllowExternalAccess(newAllowExternal)
@@ -434,6 +481,7 @@ class MainActivity : AppCompatActivity() {
         val btnExitApp = dialogView.findViewById<Button>(R.id.btn_exit_app)
         btnExitApp?.setOnClickListener {
             Log.i(TAG, "User requested Exit HamClock from settings dialog")
+            isExplicitExit = true
             dialog.dismiss()
             finishAndRemoveTask()
         }
@@ -1121,12 +1169,30 @@ class MainActivity : AppCompatActivity() {
         return super.onKeyLongPress(keyCode, event)
     }
 
+    override fun onBackPressed() {
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val runInBackground = prefs.getBoolean(PREF_RUN_IN_BACKGROUND, false)
+        if (runInBackground) {
+            Log.i(TAG, "Run in background enabled - moving task to back on Back press")
+            moveTaskToBack(true)
+        } else {
+            super.onBackPressed()
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val runInBackground = prefs.getBoolean(PREF_RUN_IN_BACKGROUND, false)
         HamClockNative.setAppControlListener(null)
-        unregisterMdnsService()
-        releaseWifiLock()
-        executor.shutdown()
-        android.os.Process.killProcess(android.os.Process.myPid())
+
+        if (isExplicitExit || !runInBackground) {
+            unregisterMdnsService()
+            releaseWifiLock()
+            executor.shutdown()
+            android.os.Process.killProcess(android.os.Process.myPid())
+        } else {
+            Log.i(TAG, "MainActivity destroyed with run_in_background=true; keeping daemon active in background")
+        }
     }
 }
