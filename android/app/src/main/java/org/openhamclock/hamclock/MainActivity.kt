@@ -1071,24 +1071,16 @@ class MainActivity : AppCompatActivity() {
                 return true
             }
 
-            // If settings button is currently focused on the main screen
+            // If settings button is explicitly focused
             if (btnSettings.isFocused) {
                 when (event.keyCode) {
                     KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> {
                         btnSettings.performClick()
                         return true
                     }
-                    KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_BACK -> {
+                    KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_BACK -> {
                         btnSettings.clearFocus()
                         webView.requestFocus()
-                        return true
-                    }
-                }
-            } else {
-                // If settings button is NOT focused, navigate to it on Down or Right
-                when (event.keyCode) {
-                    KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                        btnSettings.requestFocus()
                         return true
                     }
                 }
