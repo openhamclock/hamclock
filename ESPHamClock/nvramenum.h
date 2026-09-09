@@ -449,6 +449,11 @@ typedef enum {
                                      // list of every known org's full name can exceed
                                      // NV_ONTAORG_LEN (30 bytes) and silently truncate/corrupt
 
+    // 270
+    NV_PSK_SHOWONMAP,               // whether Live Spots are drawn on the map at all (paths, dots
+                                     // and farthest-spot targets); independent of NV_PSK_SHOWPATH,
+                                     // which only toggles the path lines within that map display
+
     NV_N
 
 } NV_Name;
