@@ -95,6 +95,7 @@ OBJS = \
     antenna_lookup.o \
 	antennas.o \
 	antennas-html.o \
+	askmodal.o \
 	asknewpos.o \
 	astro.o \
 	bandactivity.o \
