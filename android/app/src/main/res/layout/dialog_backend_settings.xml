@@ -140,8 +140,11 @@
                 android:textColor="@color/hamclock_text"
                 android:textColorHint="#888888"
                 android:focusable="true"
-                android:padding="8dp"
-                android:background="@drawable/item_focus_highlight" />
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp"
+                android:background="@drawable/edit_text_background" />
 
             <!-- Endpoint Switcher Tabs: Live Clock vs Antennas -->
             <LinearLayout
@@ -306,8 +309,11 @@
         android:textColor="@color/hamclock_text"
         android:textColorHint="#888888"
         android:focusable="true"
-        android:padding="8dp"
-        android:background="@drawable/item_focus_highlight" />
+        android:paddingStart="10dp"
+        android:paddingEnd="10dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:background="@drawable/edit_text_background" />
 
     <View
         android:layout_width="match_parent"
