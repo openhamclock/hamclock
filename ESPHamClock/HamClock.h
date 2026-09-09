@@ -2681,6 +2681,7 @@ extern uint32_t psk_bands;              // bitmask of 1 << PSKBandSetting
 extern uint16_t psk_maxage_mins;        // max age, minutes
 extern uint8_t psk_showdist;            // show distances, else counts
 extern uint8_t psk_showpath;            // whether to draw paths
+extern uint8_t psk_showonmap;           // whether to draw spots on the map at all
 
 extern bool updatePSKReporter (const SBox &box, bool force);
 extern bool checkPSKTouch (const SCoord &s, const SBox &box);
