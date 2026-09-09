@@ -184,8 +184,10 @@ bool askModalText (const char *title, const char *prompt, char text[], size_t ma
     FontSize saved_fs;
     getFontStyle (&saved_fw, &saved_fs);
 
-    // erase screen / draw dialog background container
-    eraseScreen();
+    bool saved_mainpage_up = mainpage_up;
+
+    // clear screen / draw dialog background container
+    tft.fillScreen (RA8875_BLACK);
     SBox screen_b = {0, 0, (uint16_t)tft.width(), (uint16_t)tft.height()};
     drawSBox (screen_b, GRAY);
 
@@ -224,6 +226,7 @@ bool askModalText (const char *title, const char *prompt, char text[], size_t ma
 
     // draw virtual keyboard
     drawModalKeyboard();
+    tft.drawPR();
 
     // event loop
     UserInput ui = {
@@ -364,6 +367,11 @@ bool askModalText (const char *title, const char *prompt, char text[], size_t ma
     if (!tft.setBackingStore (backing_store, 0, 0, tft.width(), tft.height()))
         fatalError ("mem pixel restore failed in askModalText");
     selectFontStyle (saved_fw, saved_fs);
+    mainpage_up = saved_mainpage_up;
+    if (saved_mainpage_up) {
+        showClocks();
+        tft.setPR (map_b.x, map_b.y, map_b.w, map_b.h);
+    }
     tft.drawPR();
 
     return ok;
