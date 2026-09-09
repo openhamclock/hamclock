@@ -613,16 +613,29 @@ static int tapNavigation (MenuInfo &menu, SBox *pick_boxes, int m_index, const S
                 // get start of text area -- N.B. must match menuDrawItem() position
                 uint16_t text_x = MENU_TX(pb,mi);
 
-                if (tap.x < text_x) {
+                if (tap.x < text_x && tfp->label_fp) {
                     // call label updater, if any
-                    if (tfp->label_fp)
-                        (*tfp->label_fp) (tfp);
-                } else {
-                    // set cursor at tap location but not passed end
-                    unsigned c_pos = tfp->w_pos + (tap.x - text_x)/MENU_FW;
-                    if (c_pos > strlen(tfp->text))
-                        c_pos = strlen(tfp->text);
-                    tfp->c_pos = c_pos;
+                    (*tfp->label_fp) (tfp);
+                } else if (tfp->t_mem > 1) {
+                    // tap in text area -> prompt with modal virtual keyboard
+                    char title[100];
+                    char prompt[100];
+                    if (mi.label && strlen(mi.label) > 0) {
+                        char clean_lbl[80];
+                        quietStrncpy (clean_lbl, mi.label, sizeof(clean_lbl));
+                        int cl = strlen(clean_lbl);
+                        while (cl > 0 && (clean_lbl[cl-1] == ':' || clean_lbl[cl-1] == ' '))
+                            clean_lbl[--cl] = '\0';
+                        snprintf (title, sizeof(title), "Edit %s", clean_lbl);
+                        snprintf (prompt, sizeof(prompt), "Enter %s:", clean_lbl);
+                    } else {
+                        strcpy (title, "Edit Text");
+                        strcpy (prompt, "Enter text:");
+                    }
+
+                    if (askModalText (title, prompt, tfp->text, tfp->t_mem, tfp->to_upper)) {
+                        tfp->c_pos = strlen(tfp->text);
+                    }
                 }
             }
 

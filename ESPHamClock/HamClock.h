@@ -1061,11 +1061,23 @@ extern float    antennas_dx_az;
 
 /*********************************************************************************************
  *
+ * askmodal.cpp
+ *
+ */
+
+extern bool askModalText (const char *title, const char *prompt, char text[], size_t max_len,
+                          bool to_upper = false, const char *disallow = NULL);
+
+
+
+/*********************************************************************************************
+ *
  * asknewpos.cpp
  *
  */
 
 extern bool askNewPos (const SBox &b, LatLong &ll, char grid[MAID_CHARLEN]);
+
 
 
 
