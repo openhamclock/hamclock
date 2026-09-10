@@ -680,6 +680,15 @@ static bool menuStateOk (MenuInfo &menu)
     return (true);
 }
 
+static const SBox *active_menu_box;
+
+/* return whether the currently active menu overlaps the given box
+ */
+bool menuOverlaps (const SBox &box)
+{
+    return active_menu_box != nullptr && boxesOverlap (*active_menu_box, box);
+}
+
 /* operate the given menu until ok, cancel or timeout.
  * caller passes a box we use for ok so they can use it later with menuRedrawOk if needed.
  * return true if op clicked ok or CR/NL else false for all other cases.
@@ -781,6 +790,8 @@ bool runMenu (MenuInfo &menu)
     }
 
     // menu_b is now properly positioned
+    const SBox *prev_menu_box = active_menu_box;
+    active_menu_box = &menu.menu_b;
 
     // capture what we are about to clobber
     uint8_t *backing_store;
@@ -961,6 +972,8 @@ bool runMenu (MenuInfo &menu)
         if (MENU_ACTIVE(mi.type))
             Serial.printf ("  %-15s g%d s%d\n", mi.label ? mi.label : "", mi.group, mi.set);
     }
+
+    active_menu_box = prev_menu_box;
 
     return (ok);
 }

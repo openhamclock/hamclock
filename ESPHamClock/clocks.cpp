@@ -1121,30 +1121,32 @@ void updateClocks(bool all)
     if (draw_other_times && !SHOWING_PANE_0()) {
 
         // DE pane
-        switch (de_time_fmt) {
-        case DETIME_CAL:
-            drawDECalTime(true);
-            drawCalendar(false);
-            break;
-        case DETIME_ANALOG:     // fallthru
-        case DETIME_ANALOG_DTTM:
-            drawAnalogClock (t_utc + getTZ (de_tz));
-            break;
-        case DETIME_INFO:
-            drawDECalTime(false);
-            drawDESunRiseSetInfo();
-            break;
-        case DETIME_DIGITAL_12: // fallthru
-        case DETIME_DIGITAL_24: // fallthru
-            drawDigitalClock (t_utc + getTZ (de_tz));
-            break;
-        default:
-            fatalError ("unknown de fmt %d", de_time_fmt);
-            break;
+        if (!menuOverlaps (de_info_b)) {
+            switch (de_time_fmt) {
+            case DETIME_CAL:
+                drawDECalTime(true);
+                drawCalendar(false);
+                break;
+            case DETIME_ANALOG:     // fallthru
+            case DETIME_ANALOG_DTTM:
+                drawAnalogClock (t_utc + getTZ (de_tz));
+                break;
+            case DETIME_INFO:
+                drawDECalTime(false);
+                drawDESunRiseSetInfo();
+                break;
+            case DETIME_DIGITAL_12: // fallthru
+            case DETIME_DIGITAL_24: // fallthru
+                drawDigitalClock (t_utc + getTZ (de_tz));
+                break;
+            default:
+                fatalError ("unknown de fmt %d", de_time_fmt);
+                break;
+            }
         }
 
         // DX pane
-        if (!dx_info_for_sat) {
+        if (!dx_info_for_sat && !menuOverlaps (dx_info_b)) {
             drawDXTime();
             drawDXSunRiseSetInfo();
         }

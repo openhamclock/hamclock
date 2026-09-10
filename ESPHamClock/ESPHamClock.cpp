@@ -2113,8 +2113,13 @@ void drawDEFormatMenu()
     // run menu
     SBox ok_b;
     MenuInfo menu = {menu_b, ok_b, UF_CLOCKSOK, M_CANCELOK, 1, NARRAY(mitems), mitems};
-    if (!runMenu (menu))
+    if (!runMenu (menu)) {
+        if (!SHOWING_PANE_0()) {
+            drawDEInfo();
+            drawDXInfo();
+        }
         return;
+    }
 
     if (mitems[0].set) {
 
