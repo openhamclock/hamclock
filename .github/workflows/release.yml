@@ -145,9 +145,9 @@ jobs:
             cp app/build/outputs/native-debug-symbols/release/native-debug-symbols.zip ../dist/native-debug-symbols.zip
           fi
 
-      # Prepare release notes for Google Play Store upload
-      - name: Prepare Play Store Release Notes
-        if: ${{ github.event_name == 'push' || github.event.inputs.push_play_store == 'true' || github.event.inputs.push_play_store == true || inputs.push_play_store == 'true' || inputs.push_play_store == true }}
+      # Prepare release notes for app store uploads (Google Play / Amazon Appstore)
+      - name: Prepare Store Release Notes
+        if: ${{ github.event_name == 'push' || github.event.inputs.push_play_store == 'true' || github.event.inputs.push_play_store == true || inputs.push_play_store == 'true' || inputs.push_play_store == true || github.event.inputs.push_amazon_appstore == 'true' || github.event.inputs.push_amazon_appstore == true || inputs.push_amazon_appstore == 'true' || inputs.push_amazon_appstore == true }}
         run: |
           mkdir -p dist/whatsnew
           rm -f dist/whatsnew/*
@@ -179,15 +179,16 @@ jobs:
           mappingFile: dist/mapping.txt
           debugSymbols: dist/native-debug-symbols.zip
 
-      # Upload the signed .apk to Amazon Appstore
+      # Upload the signed .apk and release notes to Amazon Appstore
       - name: Upload to Amazon Appstore
         if: ${{ github.event.inputs.push_amazon_appstore == 'true' || github.event.inputs.push_amazon_appstore == true || inputs.push_amazon_appstore == 'true' || inputs.push_amazon_appstore == true }}
-        uses: galonga/upload-amazon-appstore@v1.0.2
-        with:
-          clientId: ${{ secrets.AMAZON_APPSTORE_CLIENT_ID }}
-          clientSecret: ${{ secrets.AMAZON_APPSTORE_CLIENT_SECRET }}
-          appId: ${{ secrets.AMAZON_APPSTORE_APP_ID }}
-          releaseFile: dist/org.openhamclock*.apk
+        run: |
+          python3 .github/scripts/upload_amazon_appstore.py \
+            --client-id "${{ secrets.AMAZON_APPSTORE_CLIENT_ID }}" \
+            --client-secret "${{ secrets.AMAZON_APPSTORE_CLIENT_SECRET }}" \
+            --app-id "${{ secrets.AMAZON_APPSTORE_APP_ID }}" \
+            --apk "dist/org.openhamclock*.apk" \
+            --notes-file "dist/whatsnew/whatsnew-en-US"
 
       - name: Create Release and Upload Asset
         env:

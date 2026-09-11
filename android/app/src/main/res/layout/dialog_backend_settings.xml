@@ -140,16 +140,54 @@
                 android:textColor="@color/hamclock_text"
                 android:textColorHint="#888888"
                 android:focusable="true"
-                android:padding="8dp"
-                android:background="@drawable/item_focus_highlight" />
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp"
+                android:background="@drawable/edit_text_background" />
+
+            <!-- Endpoint Switcher Tabs: Live Clock vs Antennas -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:focusable="false"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="4dp">
+
+                <Button
+                    android:id="@+id/btn_tab_live"
+                    android:layout_width="0dp"
+                    android:layout_height="32dp"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="3dp"
+                    android:text="@string/endpoint_live_clock"
+                    android:textColor="@color/hamclock_text"
+                    android:textSize="11sp"
+                    android:background="@drawable/btn_setup_selector"
+                    android:focusable="true" />
+
+                <Button
+                    android:id="@+id/btn_tab_antennas"
+                    android:layout_width="0dp"
+                    android:layout_height="32dp"
+                    android:layout_weight="1"
+                    android:layout_marginStart="3dp"
+                    android:text="@string/endpoint_antennas"
+                    android:textColor="@color/hamclock_text"
+                    android:textSize="11sp"
+                    android:background="@drawable/btn_neutral_selector"
+                    android:focusable="true" />
+            </LinearLayout>
 
             <TextView
+                android:id="@+id/tv_local_url_label"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="@string/local_url_label"
                 android:textColor="@color/hamclock_text"
-                android:textSize="12sp"
-                android:layout_marginTop="8dp" />
+                android:textSize="11sp"
+                android:layout_marginTop="4dp" />
 
             <TextView
                 android:id="@+id/tv_local_url_value"
@@ -159,9 +197,9 @@
                 android:textColor="#80D8FF"
                 android:focusable="false"
                 android:focusableInTouchMode="false"
-                android:textSize="13sp"
+                android:textSize="12sp"
                 android:layout_marginTop="2dp"
-                android:layout_marginBottom="8dp" />
+                android:layout_marginBottom="6dp" />
 
             <Button
                 android:id="@+id/btn_copy_local_url"
@@ -171,12 +209,32 @@
                 android:textColor="@color/hamclock_text"
                 android:textSize="12sp"
                 android:background="@drawable/btn_neutral_selector"
-                android:focusable="true" />
+                android:focusable="true"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:id="@+id/tv_ports_info"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#AAAAAA"
+                android:textSize="11sp"
+                android:lineSpacingExtra="2dp"
+                android:layout_marginTop="2dp" />
+
+            <TextView
+                android:id="@+id/tv_rest_port_conflict"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/rest_port_conflict_warning"
+                android:textColor="#FFB74D"
+                android:textSize="11sp"
+                android:layout_marginTop="2dp"
+                android:visibility="gone" />
         </LinearLayout>
 
         <LinearLayout
             android:id="@+id/ll_qr_code_container"
-            android:layout_width="wrap_content"
+            android:layout_width="140dp"
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:gravity="center_horizontal"
@@ -184,18 +242,18 @@
 
             <TextView
                 android:id="@+id/tv_qr_code_label"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="@string/scan_qr_to_open"
                 android:textColor="@color/hamclock_text"
                 android:textSize="11sp"
-                android:gravity="center_horizontal"
+                android:gravity="center"
                 android:layout_marginBottom="6dp" />
 
             <FrameLayout
                 android:id="@+id/fl_qr_code_frame"
-                android:layout_width="140dp"
-                android:layout_height="140dp"
+                android:layout_width="130dp"
+                android:layout_height="130dp"
                 android:background="@drawable/item_focus_highlight"
                 android:focusable="true"
                 android:clickable="true"
@@ -210,6 +268,17 @@
                     android:padding="4dp"
                     android:scaleType="fitCenter" />
             </FrameLayout>
+
+            <TextView
+                android:id="@+id/tv_qr_url_value"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#80D8FF"
+                android:textSize="10sp"
+                android:gravity="center"
+                android:focusable="false"
+                android:focusableInTouchMode="false"
+                android:layout_marginTop="4dp" />
         </LinearLayout>
     </LinearLayout>
 
@@ -240,8 +309,11 @@
         android:textColor="@color/hamclock_text"
         android:textColorHint="#888888"
         android:focusable="true"
-        android:padding="8dp"
-        android:background="@drawable/item_focus_highlight" />
+        android:paddingStart="10dp"
+        android:paddingEnd="10dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:background="@drawable/edit_text_background" />
 
     <View
         android:layout_width="match_parent"
@@ -303,31 +375,29 @@
         android:layout_marginBottom="12dp"
         android:background="#33FFFFFF" />
 
-    <TextView
+    <CheckBox
+        android:id="@+id/cb_run_in_background"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/server_ports_label"
+        android:text="@string/run_in_background_label"
         android:textColor="@color/hamclock_text"
-        android:textSize="14sp" />
+        android:textSize="14sp"
+        android:buttonTint="@color/hamclock_accent"
+        android:focusable="true"
+        android:clickable="true"
+        android:padding="8dp"
+        android:background="@drawable/item_focus_highlight" />
 
     <TextView
-        android:id="@+id/tv_ports_info"
+        android:id="@+id/tv_run_in_background_subtext"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textColor="#80D8FF"
-        android:textSize="13sp"
-        android:lineSpacingExtra="3dp"
-        android:layout_marginTop="3dp" />
-
-    <TextView
-        android:id="@+id/tv_rest_port_conflict"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/rest_port_conflict_warning"
-        android:textColor="#FFB74D"
-        android:textSize="12sp"
-        android:layout_marginTop="3dp"
-        android:visibility="gone" />
+        android:text="@string/run_in_background_subtext"
+        android:textColor="#888888"
+        android:textSize="11sp"
+        android:layout_marginStart="32dp"
+        android:layout_marginTop="-4dp"
+        android:layout_marginBottom="8dp" />
 
 </LinearLayout>
 </ScrollView>
