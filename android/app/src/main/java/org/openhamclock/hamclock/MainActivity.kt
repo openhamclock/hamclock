@@ -1134,27 +1134,53 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-            when (event.keyCode) {
-                KeyEvent.KEYCODE_DPAD_UP -> {
-                    webView.evaluateJavascript("if (typeof sendKey === 'function') sendKey('ArrowUp');", null)
-                    return true
+            if (isFireTvOrTv()) {
+                when (event.keyCode) {
+                    KeyEvent.KEYCODE_DPAD_UP -> {
+                        webView.evaluateJavascript("if (typeof handleVirtualCursorMove === 'function') handleVirtualCursorMove('ArrowUp');", null)
+                        return true
+                    }
+                    KeyEvent.KEYCODE_DPAD_DOWN -> {
+                        webView.evaluateJavascript("if (typeof handleVirtualCursorMove === 'function') handleVirtualCursorMove('ArrowDown');", null)
+                        return true
+                    }
+                    KeyEvent.KEYCODE_DPAD_LEFT -> {
+                        webView.evaluateJavascript("if (typeof handleVirtualCursorMove === 'function') handleVirtualCursorMove('ArrowLeft');", null)
+                        return true
+                    }
+                    KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                        webView.evaluateJavascript("if (typeof handleVirtualCursorMove === 'function') handleVirtualCursorMove('ArrowRight');", null)
+                        return true
+                    }
+                    KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> {
+                        event.startTracking()
+                        webView.evaluateJavascript("if (typeof handleVirtualCursorClick === 'function') handleVirtualCursorClick();", null)
+                        return true
+                    }
                 }
-                KeyEvent.KEYCODE_DPAD_DOWN -> {
-                    webView.evaluateJavascript("if (typeof sendKey === 'function') sendKey('ArrowDown');", null)
-                    return true
-                }
-                KeyEvent.KEYCODE_DPAD_LEFT -> {
-                    webView.evaluateJavascript("if (typeof sendKey === 'function') sendKey('ArrowLeft');", null)
-                    return true
-                }
-                KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                    webView.evaluateJavascript("if (typeof sendKey === 'function') sendKey('ArrowRight');", null)
-                    return true
-                }
-                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> {
-                    event.startTracking()
-                    webView.evaluateJavascript("if (typeof sendKey === 'function') sendKey('Enter');", null)
-                    return true
+            } else {
+                when (event.keyCode) {
+                    KeyEvent.KEYCODE_DPAD_UP -> {
+                        webView.evaluateJavascript("if (typeof sendKey === 'function') sendKey('ArrowUp');", null)
+                        return true
+                    }
+                    KeyEvent.KEYCODE_DPAD_DOWN -> {
+                        webView.evaluateJavascript("if (typeof sendKey === 'function') sendKey('ArrowDown');", null)
+                        return true
+                    }
+                    KeyEvent.KEYCODE_DPAD_LEFT -> {
+                        webView.evaluateJavascript("if (typeof sendKey === 'function') sendKey('ArrowLeft');", null)
+                        return true
+                    }
+                    KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                        webView.evaluateJavascript("if (typeof sendKey === 'function') sendKey('ArrowRight');", null)
+                        return true
+                    }
+                    KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> {
+                        event.startTracking()
+                        webView.evaluateJavascript("if (typeof sendKey === 'function') sendKey('Enter');", null)
+                        return true
+                    }
                 }
             }
         }

@@ -413,20 +413,6 @@ char live_html[] =  R"_raw_html_(
         // send the given key and optionl control and shift modifier codes to the hamclock
         function sendKey (k, c, s) {
 
-            // handle D-pad arrow keys for virtual remote cursor
-            if (k === 'ArrowUp' || k === 'ArrowDown' || k === 'ArrowLeft' || k === 'ArrowRight') {
-                handleVirtualCursorMove (k);
-                return;
-            }
-
-            // handle Enter / Select for virtual remote cursor
-            if (k === 'Enter') {
-                if (vcursor_visible || (window.AndroidApp && window.AndroidApp.setEmbedVisible)) {
-                    handleVirtualCursorClick();
-                    return;
-                }
-            }
-
             // a real space would send 'char= ' which doesn't parse so we invent Space name
             if (k === ' ')
                 k = 'Space';
