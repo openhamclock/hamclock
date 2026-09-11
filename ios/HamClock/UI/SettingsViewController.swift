@@ -24,6 +24,7 @@ class SettingsViewController: UIViewController {
     private let hostTextField = UITextField()
     private let mdnsTextField = UITextField()
     private let allowExternalSwitch = UISwitch()
+    private let qrSegmentedControl = UISegmentedControl(items: ["Live Clock (:8081)", "Antennas (:8080)"])
     private let qrImageView = UIImageView()
     private let qrInfoLabel = UILabel()
 
@@ -71,6 +72,8 @@ class SettingsViewController: UIViewController {
         hostTextField.backgroundColor = UIColor(red: 0.2, green: 0.2, blue: 0.24, alpha: 1.0)
         hostTextField.textColor = .white
         hostTextField.layer.cornerRadius = 8
+        hostTextField.layer.borderWidth = 1.0
+        hostTextField.layer.borderColor = UIColor(white: 1.0, alpha: 0.2).cgColor
         hostTextField.placeholder = "e.g., https://hamclock.org (Leave empty for default)"
         hostTextField.autocapitalizationType = .none
         hostTextField.autocorrectionType = .no
@@ -104,6 +107,8 @@ class SettingsViewController: UIViewController {
         mdnsTextField.backgroundColor = UIColor(red: 0.2, green: 0.2, blue: 0.24, alpha: 1.0)
         mdnsTextField.textColor = .white
         mdnsTextField.layer.cornerRadius = 8
+        mdnsTextField.layer.borderWidth = 1.0
+        mdnsTextField.layer.borderColor = UIColor(white: 1.0, alpha: 0.2).cgColor
         mdnsTextField.placeholder = "HamClock"
         mdnsTextField.autocapitalizationType = .none
         mdnsTextField.autocorrectionType = .no
@@ -113,8 +118,16 @@ class SettingsViewController: UIViewController {
         contentView.addArrangedSubview(mdnsTextField)
 
         // QR Code Section
-        let qrHeader = createSectionHeader(text: "Live Web Browser QR Code")
+        let qrHeader = createSectionHeader(text: "Web & Antenna QR Code")
         contentView.addArrangedSubview(qrHeader)
+
+        qrSegmentedControl.selectedSegmentIndex = 0
+        qrSegmentedControl.backgroundColor = UIColor(red: 0.2, green: 0.2, blue: 0.24, alpha: 1.0)
+        qrSegmentedControl.selectedSegmentTintColor = .systemCyan
+        qrSegmentedControl.setTitleTextAttributes([.foregroundColor: UIColor.white], for: .selected)
+        qrSegmentedControl.setTitleTextAttributes([.foregroundColor: UIColor.lightGray], for: .normal)
+        qrSegmentedControl.addTarget(self, action: #selector(qrSegmentChanged), for: .valueChanged)
+        contentView.addArrangedSubview(qrSegmentedControl)
 
         qrImageView.contentMode = .scaleAspectFit
         qrImageView.layer.cornerRadius = 8
@@ -126,6 +139,9 @@ class SettingsViewController: UIViewController {
         qrInfoLabel.font = .systemFont(ofSize: 13)
         qrInfoLabel.textAlignment = .center
         qrInfoLabel.numberOfLines = 0
+        qrInfoLabel.isUserInteractionEnabled = true
+        let copyTap = UITapGestureRecognizer(target: self, action: #selector(copyQrUrlTapped))
+        qrInfoLabel.addGestureRecognizer(copyTap)
         contentView.addArrangedSubview(qrInfoLabel)
 
         // Actions Section
@@ -173,13 +189,35 @@ class SettingsViewController: UIViewController {
         updateQRCode()
     }
 
-    private func updateQRCode() {
-        let ip = getLocalIPAddress() ?? "127.0.0.1"
-        let webUrl = "http://\(ip):8081/live.html"
-        qrInfoLabel.text = "Open on local network: \(webUrl)"
+    @objc private func qrSegmentChanged() {
+        updateQRCode()
+    }
 
-        if let qrImage = HamClockBridge.shared().generateQRCodeImage(forText: webUrl, scale: 6, border: 2) {
+    private func getTargetUrl(isAntennas: Bool) -> String {
+        let ip = getLocalIPAddress() ?? "127.0.0.1"
+        return isAntennas ? "http://\(ip):8080/antennas.html" : "http://\(ip):8081/live.html"
+    }
+
+    private func updateQRCode() {
+        let isAntennas = qrSegmentedControl.selectedSegmentIndex == 1
+        let targetUrl = getTargetUrl(isAntennas: isAntennas)
+        let title = isAntennas ? "Antenna Controls" : "Live Clock"
+        qrInfoLabel.text = "\(title):\n\(targetUrl)\n(Tap to copy)"
+
+        if let qrImage = HamClockBridge.shared().generateQRCodeImage(forText: targetUrl, scale: 6, border: 2) {
             qrImageView.image = qrImage
+        }
+    }
+
+    @objc private func copyQrUrlTapped() {
+        let isAntennas = qrSegmentedControl.selectedSegmentIndex == 1
+        let targetUrl = getTargetUrl(isAntennas: isAntennas)
+        UIPasteboard.general.string = targetUrl
+
+        let alert = UIAlertController(title: nil, message: "URL copied to clipboard", preferredStyle: .alert)
+        present(alert, animated: true)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            alert.dismiss(animated: true)
         }
     }
 

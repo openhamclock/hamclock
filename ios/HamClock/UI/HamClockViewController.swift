@@ -93,8 +93,10 @@ class HamClockViewController: UIViewController, WKNavigationDelegate, WKUIDelega
 
         settingsButton.setImage(UIImage(systemName: "gearshape.fill"), for: .normal)
         settingsButton.tintColor = .white
-        settingsButton.backgroundColor = UIColor(white: 0.2, alpha: 0.5)
+        settingsButton.backgroundColor = UIColor(white: 0.0, alpha: 0.7)
         settingsButton.layer.cornerRadius = 20
+        settingsButton.layer.borderWidth = 1.0
+        settingsButton.layer.borderColor = UIColor(white: 1.0, alpha: 0.4).cgColor
         settingsButton.translatesAutoresizingMaskIntoConstraints = false
         settingsButton.addTarget(self, action: #selector(settingsTapped), for: .touchUpInside)
 

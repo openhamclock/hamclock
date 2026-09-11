@@ -180,11 +180,19 @@ static void *daemon_worker(void *arg) {
     argv.push_back(const_cast<char *>(restVal.c_str()));
     argv.push_back(const_cast<char *>(throtFlag.c_str()));
     argv.push_back(const_cast<char *>(throtVal.c_str()));
+    // Check if initial setup has been performed (callsign configured)
+    char callsign[NV_CALLSIGN_LEN] = {0};
+    bool isFirstSetup = !NVReadString(NV_CALLSIGN, callsign) || callsign[0] == '\0';
+
     if (!forceSetup && !countdownSetup) {
         argv.push_back(const_cast<char *>(skipFlag.c_str()));
         if (!hasLoc) {
-            argv.push_back(const_cast<char *>(geoFlag.c_str()));
-            NSLog(@"[HamClockBridge] Host GPS location not available: falling back to GeoIP (-g)");
+            if (isFirstSetup) {
+                argv.push_back(const_cast<char *>(geoFlag.c_str()));
+                NSLog(@"[HamClockBridge] Host GPS location not available on first setup: initializing location with GeoIP (-g)");
+            } else {
+                NSLog(@"[HamClockBridge] Host GPS location not available (already configured): preserving saved DE location");
+            }
         }
     }
     if (!bVal.empty()) {
