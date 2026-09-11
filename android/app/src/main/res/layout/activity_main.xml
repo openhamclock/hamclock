@@ -39,17 +39,19 @@
 
     <ImageButton
         android:id="@+id/btn_settings"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
         android:layout_gravity="bottom|end"
-        android:layout_margin="12dp"
+        android:layout_margin="10dp"
+        android:padding="6dp"
+        android:scaleType="fitCenter"
         android:background="@drawable/btn_settings_focus"
         android:focusable="true"
         android:focusableInTouchMode="false"
         android:contentDescription="@string/settings_title"
         android:src="@android:drawable/ic_menu_preferences"
         app:tint="@color/white"
-        android:alpha="0.6" />
+        android:alpha="0.8" />
 
 </FrameLayout>
 

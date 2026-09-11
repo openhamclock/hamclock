@@ -113,9 +113,9 @@ class MainActivity : AppCompatActivity() {
         btnSettings.setOnFocusChangeListener { _, hasFocus ->
             if (hasFocus) {
                 btnSettings.alpha = 1.0f
-                btnSettings.animate().scaleX(1.25f).scaleY(1.25f).setDuration(150).start()
+                btnSettings.animate().scaleX(1.15f).scaleY(1.15f).setDuration(150).start()
             } else {
-                btnSettings.alpha = 0.6f
+                btnSettings.alpha = 0.8f
                 btnSettings.animate().scaleX(1.0f).scaleY(1.0f).setDuration(150).start()
             }
         }
