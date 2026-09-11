@@ -1,18 +1,16 @@
 Changes with latest release:
 - new Android support
-- Amazon fire tablets and tv
-- new fire wx monitoring
-- new fires on maps
-- new marine warning monitoring
-- new earthquake monitoring
-- ADB and windy access changes
-- support spots for 4, 630, 2200
-- support HamQTH lookups
-- support open User Guide
-- support panels forward/back
-- ONTA selection improvements
+- Amazon fire tablets/tv
+- new fire wx/fires monitoring
+- new marine, quake monitoring
+- ADB/windy access changes
+- spots for 4, 630, 2200
+- HamQTH lookups
+- open User Guide
+- panels forward/back
+- ONTA improvements
 - disable spots on maps
-- touchscreen paste from OS
+- touchscreen paste
 - password visibility toggle
 - special chars in passwords
 - fix cancel button on de/dx
