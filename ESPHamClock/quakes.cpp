@@ -931,8 +931,15 @@ bool checkQuakesTouch (const SCoord &s, const SBox &box)
         return true;
     } else {
         int item = (s.y - box.y - QUAKE_START_DY) / (QUAKE_ROW_H + QUAKE_ROW_PAD);
-        int index;
-        if (quake_ss.findDataIndex (item, index) && index >= 0 && index < n_quake) {
+        // N.B. quake_ev[] is sorted by significance (local/magnitude), not chronologically, and
+        // drawQuakesPane() draws it directly in that order -- array index min_i at the top row down
+        // to max_i at the bottom row. quake_ss.findDataIndex() assumes the opposite (newest/top_vis
+        // at the top row), which is why it was returning the mirror-image row. Map display row to
+        // array index the same way drawQuakesPane() does instead of via findDataIndex().
+        int min_i, max_i;
+        quake_ss.getVisDataIndices (min_i, max_i);
+        int index = min_i + item;
+        if (index >= min_i && index <= max_i && index >= 0 && index < n_quake) {
 
             if (quake_pz_saved && index == quake_centered_idx) {
                 uint16_t row_y = (box.y + QUAKE_START_DY) + item * (QUAKE_ROW_H + QUAKE_ROW_PAD);

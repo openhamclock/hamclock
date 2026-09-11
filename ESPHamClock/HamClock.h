@@ -2576,8 +2576,10 @@ extern PlotMask plot_rotset[PANE_N];       // each pane's PlotChoice rotation ch
                                  PLOTBIT(PLOT_CH_LAUNCHES) | PLOTBIT(PLOT_CH_SATACT) | \
                                  PLOTBIT(PLOT_CH_APRSCLUSTER) | \
                                  PLOTBIT(PLOT_CH_BALLOONS) | PLOTBIT(PLOT_CH_BANDACT) | \
-                                 PLOTBIT(PLOT_CH_MARINE) | PLOTBIT(PLOT_CH_FIREWX) | \
-                                 PLOTBIT(PLOT_CH_QUAKES))
+                                 PLOTBIT(PLOT_CH_MARINE) | PLOTBIT(PLOT_CH_FIREWX))
+                                 // N.B. Quakes deliberately excluded -- its layout (icons, wrapped
+                                 // place-name text, severity bars) is sized for the wider PANE_1/2/3
+                                 // panes and doesn't fit PANE_0's narrow 139x332 DE/DX overlay geometry.
 
 // compute number of bits set in PANE_0_CH_MASK at compile time :-)
 // https://stackoverflow.com/questions/109023/count-the-number-of-set-bits-in-a-32-bit-integer
