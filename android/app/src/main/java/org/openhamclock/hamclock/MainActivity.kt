@@ -486,9 +486,8 @@ class MainActivity : AppCompatActivity() {
             finishAndRemoveTask()
         }
 
-        var autoDismissRunnable: Runnable? = null
         if (isFirstRunTv) {
-            autoDismissRunnable = object : Runnable {
+            val autoDismissRunnable = object : Runnable {
                 override fun run() {
                     if (dialog.isShowing) {
                         if (isCallsignSet()) {
@@ -1195,6 +1194,7 @@ class MainActivity : AppCompatActivity() {
         return super.onKeyLongPress(keyCode, event)
     }
 
+    @Suppress("DEPRECATION")
     override fun onBackPressed() {
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val runInBackground = prefs.getBoolean(PREF_RUN_IN_BACKGROUND, false)

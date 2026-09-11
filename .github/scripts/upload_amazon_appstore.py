@@ -25,7 +25,7 @@ def get_lwa_token(client_id: str, client_secret: str) -> str:
         "client_id": client_id,
         "client_secret": client_secret,
         "scope": "appstore::apps:readwrite",
-    }).encode("utf-8")
+    }, safe=":").encode("utf-8")
 
     req = urllib.request.Request(
         LWA_TOKEN_URL,
