@@ -11,7 +11,9 @@ Changes with latest release:
 - support open User Guide
 - support panels forward/back
 - ONTA selection improvements
+- disable spots on maps
 - touchscreen paste from OS
 - password visibility toggle
 - special chars in passwords
 - fix cancel button on de/dx
+- fix clock redraw over de/dx menus
