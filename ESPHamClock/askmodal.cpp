@@ -250,19 +250,29 @@ bool askModalText (const char *title, const char *prompt, char text[], size_t ma
         char kbc = ui.kb_char;
 
         // check cancel
-        if (kbc == CHAR_ESC || inBox (ui.tap, cancel_b)) {
+        if (kbc == CHAR_ESC) {
+            ok = false;
+            break;
+        }
+        if (inBox (ui.tap, cancel_b)) {
             selectFontStyle (BOLD_FONT, SMALL_FONT);
             drawStringInBox ("Cancel", cancel_b, true, RA8875_WHITE);
-            wdDelay (200);
+            wdDelay (100);
+            drainTouch();
             ok = false;
             break;
         }
 
         // check ok
-        if (kbc == CHAR_NL || kbc == CHAR_CR || inBox (ui.tap, ok_b)) {
+        if (kbc == CHAR_NL || kbc == CHAR_CR) {
+            ok = true;
+            break;
+        }
+        if (inBox (ui.tap, ok_b)) {
             selectFontStyle (BOLD_FONT, SMALL_FONT);
             drawStringInBox ("Ok", ok_b, true, RA8875_WHITE);
-            wdDelay (200);
+            wdDelay (100);
+            drainTouch();
             ok = true;
             break;
         }
@@ -319,7 +329,8 @@ bool askModalText (const char *title, const char *prompt, char text[], size_t ma
         if (kbc == CHAR_NONE && modalS2Char (ui.tap, kbc)) {
             if (kbc == CHAR_NL) {
                 drawStringInBox ("Done", modal_done_b, true, RA8875_GREEN);
-                wdDelay (200);
+                wdDelay (100);
+                drainTouch();
                 ok = true;
                 break;
             }
@@ -358,6 +369,8 @@ bool askModalText (const char *title, const char *prompt, char text[], size_t ma
             }
         }
     }
+
+    drainTouch();
 
     if (ok) {
         strTrimAll (edit_buf);
