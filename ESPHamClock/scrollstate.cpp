@@ -304,6 +304,21 @@ void ScrollState::scrollToNewest (void)
         top_vis = 0;
 }
 
+/* scroll to position the very first (array index 0) entry into the visible list, ie, the
+ * opposite of scrollToNewest(). handy for lists whose sort order isn't chronological (eg
+ * ONTA's Band or Org sort, ascending low to high) where "newest" doesn't mean anything and
+ * the desired initial view is simply the beginning of the array, not whichever end
+ * scrollToNewest() happens to land on.
+ */
+void ScrollState::scrollToOldest (void)
+{
+    top_vis = max_vis - 1;
+    if (top_vis > n_data - 1)
+        top_vis = n_data - 1;
+    if (top_vis < 0)
+        top_vis = 0;
+}
+
 /* given a display row index, which always start with 0 on top, find the corresponding data array index.
  * return whether actually within range.
  */

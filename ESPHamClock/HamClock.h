@@ -3025,6 +3025,7 @@ class ScrollState {
         bool atNewest (void) const;
 
         void scrollToNewest (void);
+        void scrollToOldest (void);
         bool findDataIndex (int display_row, int &array_index) const;
         int getVisDataIndices (int &min_i, int &max_i) const;
         int getDisplayRow (int array_index) const;
