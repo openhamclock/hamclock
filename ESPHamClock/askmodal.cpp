@@ -185,6 +185,7 @@ bool askModalText (const char *title, const char *prompt, char text[], size_t ma
     getFontStyle (&saved_fw, &saved_fs);
 
     bool saved_mainpage_up = mainpage_up;
+    mainpage_up = false;
 
     // clear screen / draw dialog background container
     tft.fillScreen (RA8875_BLACK);
