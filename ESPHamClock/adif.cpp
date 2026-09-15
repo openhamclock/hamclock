@@ -83,6 +83,7 @@ static DXSpot *adif_spots;                              // malloced
 static ScrollState adif_ss;                             // scroll controller, n_data is count
 static bool showing_set_adif;                           // set when not checking for local file
 static bool newfile_pending;                            // set when find new file while scrolled away
+static bool adif_ss_inited;                             // true once adif_ss.init() has run at least once
 static FileSignature fsig;                              // used to decide whether to read file again
 static int n_adif_bad;                                  // n bad spots found, global to maintain context
 static uint32_t adif_generation;                        // increment whenever adif_spots is reloaded
@@ -354,7 +355,7 @@ void freshenADIFFile (void)
 
         // update list if showing
         PlotPane pp = findPaneChoiceNow (PLOT_CH_ADIF);
-        if (pp != PANE_NONE)
+        if (pp != PANE_NONE && adif_ss_inited)
             drawADIFPane (plot_b[pp], getADIFilename());
 
         // caught up
@@ -411,6 +412,7 @@ void updateADIF (const SBox &box, bool refresh)
         adif_ss.scrollToNewest();
         showing_set_adif = false;
         newfile_pending = true;
+        adif_ss_inited = true;
     }
 
     // check for changed file

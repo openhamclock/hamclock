@@ -383,6 +383,8 @@ bool ScrollState::scrollT2B(void) const
         return (true);
     if (dir == DIR_BOTUP)
         return (false);
-    fatalError ("scrollT2B undefined");
-    return (false);
+     // defensive: called before init set dir -- don't take down the whole app over a
+    // scroll direction. Log it so it's still visible/traceable, then use a sane default.
+    Serial.printf ("SCROLL: scrollT2B() called with dir unset -- defaulting to top-to-bottom\n");
+    return (scrollTopToBottom());
 }
