@@ -244,9 +244,37 @@ def update_release_notes(app_id: str, edit_id: str, token: str, notes_file: str)
 
 def commit_edit(app_id: str, edit_id: str, token: str):
     """Commit the edit session to submit for review."""
-    print(f"Committing edit session {edit_id} for review...")
+    print(f"Retrieving current ETag for edit session {edit_id}...")
+    etag = None
+
+    # First try fetching edit by ID
+    status, headers, data = api_request(
+        f"{API_BASE_URL}/{app_id}/edits/{edit_id}", token, method="GET", allow_error_codes=[400, 404]
+    )
+    if status == 200:
+        etag = headers.get("ETag")
+
+    # If not found on specific edit URL, query the /edits endpoint
+    if not etag:
+        status, headers, data = api_request(
+            f"{API_BASE_URL}/{app_id}/edits", token, method="GET", allow_error_codes=[400, 404]
+        )
+        if status == 200:
+            etag = headers.get("ETag")
+            if not etag:
+                try:
+                    edit_json = json.loads(data.decode("utf-8"))
+                    etag = edit_json.get("etag") or edit_json.get("eTag")
+                except Exception:
+                    pass
+
+    print(f"Committing edit session {edit_id} for review (ETag: {etag})...")
     commit_url = f"{API_BASE_URL}/{app_id}/edits/{edit_id}/commit"
-    api_request(commit_url, token, method="POST")
+    commit_headers = {}
+    if etag:
+        commit_headers["If-Match"] = etag
+
+    api_request(commit_url, token, method="POST", headers=commit_headers)
     print("Edit committed successfully! Upcoming version submitted for review.")
 
 
