@@ -165,23 +165,61 @@ def update_release_notes(app_id: str, edit_id: str, token: str, notes_file: str)
 
     # Get available listings
     listings_url = f"{API_BASE_URL}/{app_id}/edits/{edit_id}/listings"
-    _, _, data = api_request(listings_url, token, method="GET")
-    listings = json.loads(data.decode("utf-8"))
+    status, _, data = api_request(listings_url, token, method="GET", allow_error_codes=[400, 404])
+    if status != 200:
+        print(f"Failed to fetch listings (HTTP {status}), skipping release notes update.")
+        return
+
+    try:
+        listings = json.loads(data.decode("utf-8"))
+    except Exception as e:
+        print(f"Failed to parse listings response: {e}, defaulting to ['en-US'].")
+        listings = {}
 
     target_languages = []
-    if isinstance(listings, list) and listings:
-        target_languages = [l.get("language") for l in listings if "language" in l]
-    elif isinstance(listings, dict):
-        target_languages = list(listings.keys())
+    if isinstance(listings, dict):
+        if "listings" in listings:
+            listings_data = listings["listings"]
+            if isinstance(listings_data, dict):
+                target_languages = list(listings_data.keys())
+            elif isinstance(listings_data, list):
+                target_languages = [
+                    l.get("language") for l in listings_data
+                    if isinstance(l, dict) and "language" in l
+                ]
+        elif "language" in listings:
+            target_languages = [listings["language"]]
+        else:
+            target_languages = list(listings.keys())
+    elif isinstance(listings, list):
+        target_languages = [
+            l.get("language") for l in listings
+            if isinstance(l, dict) and "language" in l
+        ]
+
+    # Filter out anything that is not a valid language code (e.g. 'listings' or non-strings)
+    target_languages = [
+        lang for lang in target_languages
+        if lang and isinstance(lang, str) and lang.lower() != "listings" and len(lang) <= 10
+    ]
 
     if not target_languages:
         target_languages = ["en-US"]
 
+    print(f"Found listing language(s): {target_languages}")
+
     for lang in target_languages:
         listing_url = f"{API_BASE_URL}/{app_id}/edits/{edit_id}/listings/{lang}"
-        _, headers, list_data = api_request(listing_url, token, method="GET")
+        status, headers, list_data = api_request(listing_url, token, method="GET", allow_error_codes=[400, 404])
+        if status != 200:
+            print(f"Listing for language '{lang}' not found or unavailable (HTTP {status}), skipping.")
+            continue
         etag = headers.get("ETag")
-        listing_json = json.loads(list_data.decode("utf-8"))
+        try:
+            listing_json = json.loads(list_data.decode("utf-8"))
+        except Exception as e:
+            print(f"Failed to parse listing JSON for language '{lang}': {e}, skipping.")
+            continue
 
         print(f"Updating recentChanges for language: {lang}")
         listing_json["recentChanges"] = notes_content
@@ -193,9 +231,15 @@ def update_release_notes(app_id: str, edit_id: str, token: str, notes_file: str)
             put_headers["If-Match"] = etag
 
         payload = json.dumps(listing_json).encode("utf-8")
-        api_request(listing_url, token, method="PUT", data=payload, headers=put_headers)
+        put_status, _, put_data = api_request(
+            listing_url, token, method="PUT", data=payload, headers=put_headers, allow_error_codes=[400, 404, 412]
+        )
+        if put_status in (200, 204):
+            print(f"Release notes updated successfully for language: {lang}")
+        else:
+            print(f"Warning: Failed to update release notes for language '{lang}' (HTTP {put_status}): {put_data.decode('utf-8', errors='replace')}", file=sys.stderr)
 
-    print("Release notes updated successfully.")
+    print("Release notes update step completed.")
 
 
 def commit_edit(app_id: str, edit_id: str, token: str):
