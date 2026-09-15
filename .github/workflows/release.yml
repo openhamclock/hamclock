@@ -39,6 +39,14 @@ on:
           - 'true'
           - 'false'
         default: 'true'
+      amazon_submit_for_review:
+        description: 'Submit Amazon upload directly for review (false leaves as draft for Live App Testing)'
+        required: true
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+        default: 'false'
 
 jobs:
   release:
@@ -182,13 +190,20 @@ jobs:
       # Upload the signed .apk and release notes to Amazon Appstore
       - name: Upload to Amazon Appstore
         if: ${{ github.event.inputs.push_amazon_appstore == 'true' || github.event.inputs.push_amazon_appstore == true || inputs.push_amazon_appstore == 'true' || inputs.push_amazon_appstore == true }}
+        env:
+          AMAZON_SUBMIT: ${{ github.event.inputs.amazon_submit_for_review != '' && github.event.inputs.amazon_submit_for_review || inputs.amazon_submit_for_review }}
         run: |
+          EXTRA_ARGS=()
+          if [ "$AMAZON_SUBMIT" != "true" ]; then
+            EXTRA_ARGS+=(--skip-commit)
+          fi
           python3 .github/scripts/upload_amazon_appstore.py \
             --client-id "${{ secrets.AMAZON_APPSTORE_CLIENT_ID }}" \
             --client-secret "${{ secrets.AMAZON_APPSTORE_CLIENT_SECRET }}" \
             --app-id "${{ secrets.AMAZON_APPSTORE_APP_ID }}" \
             --apk "dist/org.openhamclock*.apk" \
-            --notes-file "dist/whatsnew/whatsnew-en-US"
+            --notes-file "dist/whatsnew/whatsnew-en-US" \
+            "${EXTRA_ARGS[@]}"
 
       - name: Create Release and Upload Asset
         env:
