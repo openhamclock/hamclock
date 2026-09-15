@@ -293,6 +293,11 @@ def main():
     parser.add_argument("--app-id", required=True, help="Amazon Appstore App ID")
     parser.add_argument("--apk", required=True, help="Path or glob pattern for the release APK")
     parser.add_argument("--notes-file", default="", help="Path to release notes text file")
+    parser.add_argument(
+        "--skip-commit",
+        action="store_true",
+        help="Upload APK and update notes without committing edit session (leaves draft for Live App Testing)",
+    )
 
     args = parser.parse_args()
 
@@ -307,7 +312,12 @@ def main():
     if args.notes_file:
         update_release_notes(args.app_id, edit_id, token, args.notes_file)
 
-    commit_edit(args.app_id, edit_id, token)
+    if args.skip_commit:
+        print(f"Skipping edit commit (--skip-commit specified). Edit session {edit_id} remains active as a draft.")
+        print("You can now open the Amazon Developer Console -> Live App Testing -> Start a new test -> 'Copy from upcoming version'.")
+    else:
+        commit_edit(args.app_id, edit_id, token)
+
     print("Amazon Appstore upload and release notes update completed successfully.")
 
 
