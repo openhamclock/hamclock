@@ -8,7 +8,7 @@ Changes with latest release:
 - HamQTH lookups
 - open User Guide
 - panels forward/back
-- ONTA improvements
+- ONTA improvements and fixes
 - disable spots on maps
 - touchscreen paste
 - password visibility toggle

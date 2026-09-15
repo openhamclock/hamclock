@@ -43,7 +43,7 @@ def get_lwa_token(client_id: str, client_secret: str) -> str:
         sys.exit(1)
 
 
-def api_request(url: str, token: str, method: str = "GET", data: bytes = None, headers: dict = None) -> tuple:
+def api_request(url: str, token: str, method: str = "GET", data: bytes = None, headers: dict = None, allow_error_codes: list = None) -> tuple:
     """Perform an authenticated request to the Amazon App Submission API."""
     req_headers = {
         "Authorization": f"Bearer {token}",
@@ -58,20 +58,47 @@ def api_request(url: str, token: str, method: str = "GET", data: bytes = None, h
             resp_headers = resp.headers
             return resp.status, resp_headers, resp_data
     except urllib.error.HTTPError as e:
+        if allow_error_codes and e.code in allow_error_codes:
+            return e.code, e.headers, e.read()
         error_msg = e.read().decode("utf-8", errors="replace")
         print(f"API Error [{method} {url}]: HTTP {e.code}: {error_msg}", file=sys.stderr)
         sys.exit(1)
 
 
 def create_or_get_edit(app_id: str, token: str) -> str:
-    """Create a new edit session (upcoming version) for the application."""
-    print(f"Creating edit session for App ID: {app_id}...")
+    """Create a new edit session (upcoming version) or reuse existing active edit session."""
     url = f"{API_BASE_URL}/{app_id}/edits"
-    _, _, data = api_request(url, token, method="POST", headers={"Content-Type": "application/json"})
-    edit_info = json.loads(data.decode("utf-8"))
-    edit_id = edit_info.get("id")
-    print(f"Edit session created with ID: {edit_id}")
-    return edit_id
+
+    # First check if an edit session is already active
+    print(f"Checking for existing active edit session for App ID: {app_id}...")
+    status, _, data = api_request(url, token, method="GET", allow_error_codes=[400, 404])
+    if status == 200:
+        try:
+            edit_info = json.loads(data.decode("utf-8"))
+            edit_id = edit_info.get("id")
+            if edit_id:
+                print(f"Found active edit session with ID: {edit_id}")
+                return edit_id
+        except Exception:
+            pass
+
+    print(f"Creating edit session for App ID: {app_id}...")
+    status, _, data = api_request(url, token, method="POST", headers={"Content-Type": "application/json"}, allow_error_codes=[409])
+    if status == 200:
+        edit_info = json.loads(data.decode("utf-8"))
+        edit_id = edit_info.get("id")
+        print(f"Edit session created with ID: {edit_id}")
+        return edit_id
+    elif status == 409:
+        print("Edit session already exists (409 Conflict). Fetching active edit session...")
+        _, _, data = api_request(url, token, method="GET")
+        edit_info = json.loads(data.decode("utf-8"))
+        edit_id = edit_info.get("id")
+        print(f"Using active edit session with ID: {edit_id}")
+        return edit_id
+    else:
+        print(f"Failed to create or get edit session: HTTP {status}", file=sys.stderr)
+        sys.exit(1)
 
 
 def upload_apk(app_id: str, edit_id: str, token: str, apk_path: str):
@@ -93,9 +120,26 @@ def upload_apk(app_id: str, edit_id: str, token: str, apk_path: str):
 
     if existing_apks and len(existing_apks) > 0:
         apk_id = existing_apks[0].get("id")
-        print(f"Replacing existing APK (ID: {apk_id})...")
+        print(f"Fetching existing APK details and ETag (ID: {apk_id})...")
+        single_apk_url = f"{API_BASE_URL}/{app_id}/edits/{edit_id}/apks/{apk_id}"
+        _, apk_headers, apk_data = api_request(single_apk_url, token, method="GET")
+        etag = apk_headers.get("ETag")
+        if not etag:
+            try:
+                apk_json = json.loads(apk_data.decode("utf-8"))
+                etag = apk_json.get("etag") or apk_json.get("eTag")
+            except Exception:
+                pass
+
+        replace_headers = dict(headers)
+        if etag:
+            print(f"Replacing existing APK (ID: {apk_id}, ETag: {etag})...")
+            replace_headers["If-Match"] = etag
+        else:
+            print(f"Replacing existing APK (ID: {apk_id}, no ETag found)...")
+
         upload_url = f"{API_BASE_URL}/{app_id}/edits/{edit_id}/apks/{apk_id}/replace"
-        api_request(upload_url, token, method="PUT", data=apk_bytes, headers=headers)
+        api_request(upload_url, token, method="PUT", data=apk_bytes, headers=replace_headers)
     else:
         print("Uploading new APK...")
         upload_url = f"{API_BASE_URL}/{app_id}/edits/{edit_id}/apks/upload"
