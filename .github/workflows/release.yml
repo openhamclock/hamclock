@@ -24,13 +24,23 @@ on:
           - 'false'
         default: 'true'
       push_play_store:
-        description: 'Upload Android AAB to Google Play as draft'
+        description: 'Upload Android AAB to Google Play'
         required: true
         type: choice
         options:
           - 'true'
           - 'false'
         default: 'true'
+      play_store_track:
+        description: 'Google Play track (auto resolves beta vs production from tag)'
+        required: true
+        type: choice
+        options:
+          - 'auto'
+          - 'beta'
+          - 'production'
+          - 'internal'
+        default: 'auto'
       push_amazon_appstore:
         description: 'Upload Android APK to Amazon Appstore'
         required: true
@@ -40,13 +50,14 @@ on:
           - 'false'
         default: 'true'
       amazon_submit_for_review:
-        description: 'Submit Amazon upload directly for review (false leaves as draft for Live App Testing)'
+        description: 'Submit Amazon upload directly for review (auto: true for stable, false for beta)'
         required: true
         type: choice
         options:
-          - 'false'
+          - 'auto'
           - 'true'
-        default: 'false'
+          - 'false'
+        default: 'auto'
 
 jobs:
   release:
@@ -171,8 +182,27 @@ jobs:
             echo "Edge build or notes file not found - skipping release notes"
           fi
 
-      # Upload the signed .aab to Google Play console (Alpha track)
-      - name: Upload to Google Play Alpha Track
+      # Determine Google Play track (auto resolves beta vs production from tag)
+      - name: Determine Google Play Track
+        id: play_track
+        if: ${{ github.event_name == 'push' || github.event.inputs.push_play_store == 'true' || github.event.inputs.push_play_store == true || inputs.push_play_store == 'true' || inputs.push_play_store == true }}
+        run: |
+          TRACK_INPUT="${{ github.event.inputs.play_store_track || inputs.play_store_track || 'auto' }}"
+          TAG="${{ github.event.inputs.tag_name }}"
+
+          if [ "$TRACK_INPUT" != "auto" ] && [ -n "$TRACK_INPUT" ]; then
+            TARGET_TRACK="$TRACK_INPUT"
+          elif [[ "$TAG" =~ [bB][0-9]+ ]]; then
+            TARGET_TRACK="beta"
+          else
+            TARGET_TRACK="production"
+          fi
+
+          echo "Selected Google Play track: $TARGET_TRACK"
+          echo "track=$TARGET_TRACK" >> $GITHUB_OUTPUT
+
+      # Upload the signed .aab to Google Play console
+      - name: Upload to Google Play
         if: ${{ github.event_name == 'push' || github.event.inputs.push_play_store == 'true' || github.event.inputs.push_play_store == true || inputs.push_play_store == 'true' || inputs.push_play_store == true }}
         uses: r0adkll/upload-google-play@v1
         env:
@@ -181,7 +211,7 @@ jobs:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_STORE_JSON_KEY }}
           packageName: org.openhamclock.hamclock
           releaseFiles: dist/org.openhamclock*.aab
-          tracks: alpha
+          track: ${{ steps.play_track.outputs.track }}
           status: completed
           whatsNewDirectory: dist/whatsnew
           mappingFile: dist/mapping.txt
@@ -190,13 +220,26 @@ jobs:
       # Upload the signed .apk and release notes to Amazon Appstore
       - name: Upload to Amazon Appstore
         if: ${{ github.event.inputs.push_amazon_appstore == 'true' || github.event.inputs.push_amazon_appstore == true || inputs.push_amazon_appstore == 'true' || inputs.push_amazon_appstore == true }}
-        env:
-          AMAZON_SUBMIT: ${{ github.event.inputs.amazon_submit_for_review != '' && github.event.inputs.amazon_submit_for_review || inputs.amazon_submit_for_review }}
         run: |
+          AMAZON_SUBMIT="${{ github.event.inputs.amazon_submit_for_review || inputs.amazon_submit_for_review || 'auto' }}"
+          TAG="${{ github.event.inputs.tag_name }}"
+
+          if [ "$AMAZON_SUBMIT" = "auto" ]; then
+            if [[ "$TAG" =~ [bB][0-9]+ ]]; then
+              AMAZON_SUBMIT="false"
+            else
+              AMAZON_SUBMIT="true"
+            fi
+          fi
+
           EXTRA_ARGS=()
           if [ "$AMAZON_SUBMIT" != "true" ]; then
+            echo "Amazon release mode: Draft / Live App Testing (--skip-commit)"
             EXTRA_ARGS+=(--skip-commit)
+          else
+            echo "Amazon release mode: Submitting directly for review (Current Version)"
           fi
+
           python3 .github/scripts/upload_amazon_appstore.py \
             --client-id "${{ secrets.AMAZON_APPSTORE_CLIENT_ID }}" \
             --client-secret "${{ secrets.AMAZON_APPSTORE_CLIENT_SECRET }}" \
