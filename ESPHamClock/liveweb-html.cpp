@@ -187,18 +187,23 @@ char live_html[] =  R"_raw_html_(
 
         function handleVirtualCursorMove(direction) {
             const now = Date.now();
-            let step = 12;
-            if (now - last_arrow_ms < 180) {
+            let step = 6;
+            if (now - last_arrow_ms < 200) {
                 arrow_repeat_count++;
-                if (arrow_repeat_count > 12) step = 28;
-                else if (arrow_repeat_count > 5) step = 18;
+                if (arrow_repeat_count > 30) step = 24;
+                else if (arrow_repeat_count > 18) step = 16;
+                else if (arrow_repeat_count > 8) step = 10;
             } else {
                 arrow_repeat_count = 0;
             }
             last_arrow_ms = now;
 
+            // If cursor was hidden, wake it up in place on first press without moving
             if (!vcursor_visible) {
                 showVirtualCursor();
+                arrow_repeat_count = 0;
+                sendWSMsg('set_mouse?x=' + vcursor_x + '&y=' + vcursor_y);
+                return;
             }
 
             if (direction === 'ArrowLeft') vcursor_x -= step;
@@ -218,8 +223,10 @@ char live_html[] =  R"_raw_html_(
         }
 
         function handleVirtualCursorClick() {
+            // If cursor was hidden, wake it up in place to prevent accidental blind clicks
             if (!vcursor_visible) {
                 showVirtualCursor();
+                return;
             }
 
             // brief click feedback animation
