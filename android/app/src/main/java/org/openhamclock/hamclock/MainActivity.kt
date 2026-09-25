@@ -33,6 +33,7 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.widget.ProgressBar
 import android.widget.TextView
+import androidx.activity.addCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -123,6 +124,17 @@ class MainActivity : AppCompatActivity() {
         }
 
         setupWebView()
+
+        onBackPressedDispatcher.addCallback(this) {
+            val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val runInBackground = prefs.getBoolean(PREF_RUN_IN_BACKGROUND, false)
+            if (runInBackground) {
+                Log.i(TAG, "Run in background enabled - moving task to back on Back press")
+                moveTaskToBack(true)
+            } else {
+                finish()
+            }
+        }
 
         HamClockNative.setAppControlListener(object : HamClockNative.AppControlListener {
             override fun onExitRequested() {
@@ -1192,18 +1204,6 @@ class MainActivity : AppCompatActivity() {
             return true
         }
         return super.onKeyLongPress(keyCode, event)
-    }
-
-    @Suppress("DEPRECATION")
-    override fun onBackPressed() {
-        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val runInBackground = prefs.getBoolean(PREF_RUN_IN_BACKGROUND, false)
-        if (runInBackground) {
-            Log.i(TAG, "Run in background enabled - moving task to back on Back press")
-            moveTaskToBack(true)
-        } else {
-            super.onBackPressed()
-        }
     }
 
     override fun onDestroy() {
