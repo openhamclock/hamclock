@@ -211,7 +211,7 @@ jobs:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_STORE_JSON_KEY }}
           packageName: org.openhamclock.hamclock
           releaseFiles: dist/org.openhamclock*.aab
-          track: ${{ steps.play_track.outputs.track }}
+          tracks: ${{ steps.play_track.outputs.track }}
           status: completed
           whatsNewDirectory: dist/whatsnew
           mappingFile: dist/mapping.txt
