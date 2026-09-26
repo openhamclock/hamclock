@@ -387,6 +387,10 @@ static int processNPTap (char kbc, NPFieldName focus_fn, const SBox &b, const SC
         default:
             if (isalnum(kbc))
                 return (toupper(kbc));
+            if (kbc == '.' || kbc == ',')
+                return ('.');
+            if (kbc == '-' || kbc == '+')
+                return (kbc);
             return (NPKB_NONE);
         }
     }
