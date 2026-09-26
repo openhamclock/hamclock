@@ -123,7 +123,7 @@ char live_html[] =  R"_raw_html_(
         const LONGPRESS_MS = 500;       // press and hold duration in ms to trigger tooltip
         const APP_W = 800;              // app coord system width
         const nonan_chars =             // supported non-alnum chars
-          ['Tab', 'Enter', 'Space', 'Escape', 'Backspace', 'ArrowLeft', 'ArrowDown', 'ArrowUp', 'ArrowRight'];
+          ['Tab', 'Enter', 'Space', 'Escape', 'Backspace', 'ArrowLeft', 'ArrowDown', 'ArrowUp', 'ArrowRight', 'Delete'];
         const RELOAD_KEY = "reload";    // sessionStorage key to manage reloads
 
         // state
@@ -424,6 +424,10 @@ char live_html[] =  R"_raw_html_(
             if (k === ' ')
                 k = 'Space';
 
+            // map keypad Decimal/Separator key names to decimal point
+            if (k === 'Decimal' || k === 'Separator')
+                k = '.';
+
             // accept only certain non-alphanumeric keys
             if ((k.length == 1 && (k.charCodeAt(0) < 33 || k.charCodeAt(0) > 126))
                             || (k.length > 1 && !nonan_chars.find (e => { if (e == k) return true; }))) {
@@ -455,7 +459,9 @@ char live_html[] =  R"_raw_html_(
             checkFullScreen();
 
             // handy
-            const key = event.key;
+            var key = event.key;
+            if (event.code === "NumpadDecimal" && key === ",")
+                key = ".";
 
             // ignore meta
             if (event.metaKey) {

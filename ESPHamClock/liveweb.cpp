@@ -577,6 +577,8 @@ static void setLiveChar (ws_cli_conn_t *client, char args[], size_t args_len)
                 c = CHAR_UP;
             else if (strcmp (str, "ArrowRight") == 0)
                 c = CHAR_RIGHT;
+            else if (strcmp (str, "Decimal") == 0 || strcmp (str, "Separator") == 0)
+                c = '.';
             else if (strncasecmp (str, "0x", 2) == 0) {
                 unsigned int code = 0;
                 if (sscanf (str + 2, "%x", &code) == 1 && code > 0 && code < 256 && isprint((char)code))
