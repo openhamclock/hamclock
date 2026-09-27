@@ -414,5 +414,81 @@
         android:layout_marginTop="-4dp"
         android:layout_marginBottom="8dp" />
 
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="12dp"
+        android:background="#33FFFFFF" />
+
+    <LinearLayout
+        android:id="@+id/ll_tv_overscan"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:focusable="false"
+        android:layout_marginBottom="8dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/tv_overscan_label"
+            android:textColor="@color/hamclock_text"
+            android:textSize="14sp"
+            android:layout_marginBottom="2dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/tv_overscan_subtext"
+            android:textColor="#888888"
+            android:textSize="11sp"
+            android:layout_marginBottom="8dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:focusable="false">
+
+            <Button
+                android:id="@+id/btn_overscan_0"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:text="@string/overscan_none"
+                android:textColor="@color/hamclock_text"
+                android:textSize="12sp"
+                android:background="@drawable/btn_neutral_selector"
+                android:layout_marginEnd="4dp"
+                android:focusable="true" />
+
+            <Button
+                android:id="@+id/btn_overscan_3"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:text="@string/overscan_normal"
+                android:textColor="@color/hamclock_text"
+                android:textSize="12sp"
+                android:background="@drawable/btn_neutral_selector"
+                android:layout_marginStart="2dp"
+                android:layout_marginEnd="2dp"
+                android:focusable="true" />
+
+            <Button
+                android:id="@+id/btn_overscan_5"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:text="@string/overscan_large"
+                android:textColor="@color/hamclock_text"
+                android:textSize="12sp"
+                android:background="@drawable/btn_neutral_selector"
+                android:layout_marginStart="4dp"
+                android:focusable="true" />
+        </LinearLayout>
+    </LinearLayout>
+
 </LinearLayout>
 </ScrollView>
