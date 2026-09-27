@@ -687,8 +687,8 @@ extern void drawFiresOnMap(void);       // render flame glyphs; call from drawAl
 
 extern SBox adsbmap_btn_b;              // on-map "ADS-B" badge; slot floats right of whichever
                                          // of View/Borders/Fires is currently rightmost
-extern bool adsbBadgeVisible(void);     // whether that badge should currently be shown -- Clouds
-                                         // + Mercator/Robinson only
+extern bool adsbBadgeVisible(void);     // whether that badge should currently be shown -- always true, every map,
+                                         // any projection
 extern void drawADSBBadge(void);        // draw (or blank) the badge
 extern void adsbBadgeClicked(void);     // open ADS-B Exchange (or PiAware) centered on DE
 
