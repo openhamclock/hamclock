@@ -259,11 +259,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun applyOverscanMargin(percent: Int) {
+        val effectivePercent = if (isFireTvOrTv()) percent else 0
         val displayMetrics = resources.displayMetrics
         val widthPx = displayMetrics.widthPixels
         val heightPx = displayMetrics.heightPixels
-        val marginH = (widthPx * (percent / 100.0f)).toInt()
-        val marginV = (heightPx * (percent / 100.0f)).toInt()
+        val marginH = (widthPx * (effectivePercent / 100.0f)).toInt()
+        val marginV = (heightPx * (effectivePercent / 100.0f)).toInt()
 
         val params = webView.layoutParams as? FrameLayout.LayoutParams ?: return
         if (params.leftMargin != marginH || params.topMargin != marginV) {
@@ -318,6 +319,9 @@ class MainActivity : AppCompatActivity() {
 
         val currentOverscan = prefs.getInt(PREF_TV_OVERSCAN, 0)
         var selectedOverscan = currentOverscan
+
+        val llTvOverscan = dialogView.findViewById<LinearLayout>(R.id.ll_tv_overscan)
+        llTvOverscan?.visibility = if (isFireTvOrTv()) View.VISIBLE else View.GONE
 
         val btnOverscan0 = dialogView.findViewById<Button>(R.id.btn_overscan_0)
         val btnOverscan3 = dialogView.findViewById<Button>(R.id.btn_overscan_3)
