@@ -687,8 +687,8 @@ extern void drawFiresOnMap(void);       // render flame glyphs; call from drawAl
 
 extern SBox adsbmap_btn_b;              // on-map "ADS-B" badge; slot floats right of whichever
                                          // of View/Borders/Fires is currently rightmost
-extern bool adsbBadgeVisible(void);     // whether that badge should currently be shown -- Clouds
-                                         // + Mercator/Robinson only
+extern bool adsbBadgeVisible(void);     // whether that badge should currently be shown -- always true, every map,
+                                         // any projection
 extern void drawADSBBadge(void);        // draw (or blank) the badge
 extern void adsbBadgeClicked(void);     // open ADS-B Exchange (or PiAware) centered on DE
 
@@ -893,6 +893,7 @@ extern void drawTZ (TZInfo &tzi);
 extern bool inBox (const SCoord &s, const SBox &b);
 extern bool inCircle (const SCoord &s, const SCircle &c);
 extern bool boxesOverlap (const SBox &b1, const SBox &b2);
+extern bool menuOverlaps (const SBox &box);
 extern void doReboot (bool minus_K, bool minus_0);
 extern void printFreeHeap (const __FlashStringHelper *label);
 extern void getWorstMem (int *heap, int *stack);
@@ -1061,11 +1062,23 @@ extern float    antennas_dx_az;
 
 /*********************************************************************************************
  *
+ * askmodal.cpp
+ *
+ */
+
+extern bool askModalText (const char *title, const char *prompt, char text[], size_t max_len,
+                          bool to_upper = false, const char *disallow = NULL);
+
+
+
+/*********************************************************************************************
+ *
  * asknewpos.cpp
  *
  */
 
 extern bool askNewPos (const SBox &b, LatLong &ll, char grid[MAID_CHARLEN]);
+
 
 
 
@@ -2563,8 +2576,10 @@ extern PlotMask plot_rotset[PANE_N];       // each pane's PlotChoice rotation ch
                                  PLOTBIT(PLOT_CH_LAUNCHES) | PLOTBIT(PLOT_CH_SATACT) | \
                                  PLOTBIT(PLOT_CH_APRSCLUSTER) | \
                                  PLOTBIT(PLOT_CH_BALLOONS) | PLOTBIT(PLOT_CH_BANDACT) | \
-                                 PLOTBIT(PLOT_CH_MARINE) | PLOTBIT(PLOT_CH_FIREWX) | \
-                                 PLOTBIT(PLOT_CH_QUAKES))
+                                 PLOTBIT(PLOT_CH_MARINE) | PLOTBIT(PLOT_CH_FIREWX))
+                                 // N.B. Quakes deliberately excluded -- its layout (icons, wrapped
+                                 // place-name text, severity bars) is sized for the wider PANE_1/2/3
+                                 // panes and doesn't fit PANE_0's narrow 139x332 DE/DX overlay geometry.
 
 // compute number of bits set in PANE_0_CH_MASK at compile time :-)
 // https://stackoverflow.com/questions/109023/count-the-number-of-set-bits-in-a-32-bit-integer
@@ -2669,6 +2684,7 @@ extern uint32_t psk_bands;              // bitmask of 1 << PSKBandSetting
 extern uint16_t psk_maxage_mins;        // max age, minutes
 extern uint8_t psk_showdist;            // show distances, else counts
 extern uint8_t psk_showpath;            // whether to draw paths
+extern uint8_t psk_showonmap;           // whether to draw spots on the map at all
 
 extern bool updatePSKReporter (const SBox &box, bool force);
 extern bool checkPSKTouch (const SCoord &s, const SBox &box);
@@ -3009,6 +3025,7 @@ class ScrollState {
         bool atNewest (void) const;
 
         void scrollToNewest (void);
+        void scrollToOldest (void);
         bool findDataIndex (int display_row, int &array_index) const;
         int getVisDataIndices (int &min_i, int &max_i) const;
         int getDisplayRow (int array_index) const;

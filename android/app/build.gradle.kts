@@ -3,7 +3,6 @@ import java.io.InputStreamReader
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
 }
 
 fun getGitVersion(): Pair<String, Boolean> {
@@ -243,10 +242,6 @@ fun promptPlain(prompt: String): String? {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
     externalNativeBuild {
         cmake {
             path = file("src/main/cpp/CMakeLists.txt")
@@ -257,13 +252,10 @@ fun promptPlain(prompt: String): String? {
     buildFeatures {
         viewBinding = true
     }
+}
 
-    applicationVariants.all {
-        outputs.all {
-            val outputImpl = this as? com.android.build.gradle.internal.api.BaseVariantOutputImpl
-            outputImpl?.outputFileName = "org.openhamclock.hamclock-${versionName}-${name}.apk"
-        }
-    }
+base {
+    archivesName.set("org.openhamclock.hamclock-${appVersion}")
 }
 
 tasks.matching {

@@ -142,6 +142,33 @@ static void ontaMarkSpottedByMe (const DXSpot &s)
 
 
 // names and functions for each sort type
+
+/* qsort-style compare for ONTA's Band sort: ascending frequency (lowest to highest).
+ * N.B. this incidentally groups spots by band too, since band frequency ranges don't
+ * overlap -- deliberately separate from spots.cpp's qsDXCFreq (descending) so changing
+ * ONTA's order doesn't also affect the ADIF logbook's own Band sort.
+ */
+static int qsONTABand (const void *v1, const void *v2)
+{
+    DXSpot *s1 = (DXSpot *)v1;
+    DXSpot *s2 = (DXSpot *)v2;
+    return (roundf(s1->kHz - s2->kHz));
+}
+
+/* qsort-style compare for ONTA's Org sort: group by org (spot.rx_grid, repurposed --
+ * see header comment) ascending, then ascending frequency (lowest to highest) within
+ * each org group.
+ */
+static int qsONTAOrg (const void *v1, const void *v2)
+{
+    DXSpot *s1 = (DXSpot *)v1;
+    DXSpot *s2 = (DXSpot *)v2;
+    int c = strcasecmp (s1->rx_grid, s2->rx_grid);
+    if (c != 0)
+        return (c);
+    return (roundf(s1->kHz - s2->kHz));
+}
+
 typedef enum {
     ONTAS_BAND, 
     ONTAS_CALL,
@@ -155,9 +182,9 @@ typedef struct {
     PQSF qsf;                                           // matching qsort compare func
 } ONTASortInfo;
 static const ONTASortInfo onta_sorts[ONTAS_N] = {
-    {"Band", qsDXCFreq},
+    {"Band", qsONTABand},
     {"Call", qsDXCTXCall},
-    {"Org",  qsDXCRXGrid},
+    {"Org",  qsONTAOrg},
     {"Age",  qsDXCSpotted},
 };
 
@@ -1030,9 +1057,19 @@ static void rebuildONTAWatchList(void)
     Serial.printf ("ONTA: %d total - %d too-old - %d not-org - %d not-mode/band - %d not-WL = %d showing\n",
                     n_ontaspots, n_old, n_no_org, n_no_modeband, n_no_wl, onta_ss.n_data);
 
-    // sort as desired and scroll to newest with new n_data
+    // sort as desired
     qsort (ontawl_spots, onta_ss.n_data, sizeof(DXSpot), onta_sorts[onta_sortby].qsf);
-    onta_ss.scrollToNewest();
+
+    // Age is the one genuinely chronological sort, so "catch up to the newest spot" is the
+    // sensible initial view there. Band/Call/Org are ascending, non-chronological orderings
+    // (eg 14094 before 14300) -- for those, start the view at the beginning of the array
+    // (lowest frequency, first call/org alphabetically) rather than jumping to whichever end
+    // scrollToNewest() happens to land on, so scrolling further only ever reveals higher
+    // values, matching what the up/down arrows visually suggest.
+    if (onta_sortby == ONTAS_AGE)
+        onta_ss.scrollToNewest();
+    else
+        onta_ss.scrollToOldest();
 }
 
 

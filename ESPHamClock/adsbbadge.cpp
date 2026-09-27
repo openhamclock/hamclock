@@ -5,8 +5,8 @@
  * out instead of toggling an overlay). Tapping it opens ADS-B Exchange's live globe map, centered
  * on DE, via openURLPopupEmbed() -- see qrz.cpp.
  *
- * On-map presence, not buried in the map menu: shown on Countries, Terrain, Clouds (the maps
- * Borders/Fires can appear on) and Weather (the map WEFAX/Wind appear on), in any projection.
+ * On-map presence, not buried in the map menu: shown on every core map type (Countries, Terrain,
+ * DRAP, MUF-VOACAP, MUF-RT, Aurora, Weather, TOA, REL, Clouds, Tropo, User), in any projection.
  * Borders/Fires restrict themselves to the Mercator/Robinson projections because they toggle a
  * map overlay that only renders sensibly in those -- that restriction doesn't apply here, since
  * this badge doesn't draw anything on the map itself, just floats along the always-present View
@@ -18,15 +18,15 @@
 SBox adsbmap_btn_b;                    // extern; badge box, geometry set each draw (floats with Borders/Fires)
 
 /* return whether the on-map "ADS-B" badge should currently be shown.
- * Countries, Terrain, Clouds, or Weather -- any projection, since this badge draws nothing onto
- * the map and so has none of the rendering reasons Borders/Fires restrict themselves to Mercator/
- * Robinson. Hiding it has no other side effect: there's no persisted state to preserve, unlike
- * Borders/Fires, since this badge doesn't toggle anything -- it's just a link.
+ * Always true, on every core map, any projection -- this badge draws nothing onto the map itself
+ * and so has none of the rendering reasons Borders/Fires restrict themselves to Mercator/Robinson,
+ * or that keeps other badges confined to just a subset of maps. Hiding it has no other side
+ * effect: there's no persisted state to preserve, unlike Borders/Fires, since this badge doesn't
+ * toggle anything -- it's just a link.
  */
 bool adsbBadgeVisible(void)
 {
-    return (core_map == CM_COUNTRIES || core_map == CM_TERRAIN
-                || core_map == CM_CLOUDS || core_map == CM_WX);
+    return true;
 }
 
 /* draw (or blank) the on-map "ADS-B" badge.

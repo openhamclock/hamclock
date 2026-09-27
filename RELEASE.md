@@ -27,11 +27,17 @@ gh auth login
 Trigger the workflow by specifying the workflow file and the desired `tag_name`:
 
 ```bash
-# Beta release example (builds Docker and pushes to Play Store draft by default):
+# Beta release example (auto: Google Play Open Testing, Amazon draft for LAT):
 gh workflow run release.yml -f tag_name=v4.32b00.0
 
-# Stable release example:
+# Stable release example (auto: Google Play Production, Amazon direct submit for review):
 gh workflow run release.yml -f tag_name=v4.32.0
+
+# Optional: manually override Google Play track:
+gh workflow run release.yml -f tag_name=v4.32.0 -f play_store_track=beta
+
+# Optional: manually override Amazon submission behavior:
+gh workflow run release.yml -f tag_name=v4.32.0 -f amazon_submit_for_review=false
 
 # Optional: create as a draft release:
 gh workflow run release.yml -f tag_name=v4.32.0 -f publish_release=false
@@ -45,16 +51,13 @@ gh workflow run release.yml -f tag_name=v4.32.0 -f push_play_store=false
 # Optional: skip uploading to Amazon Appstore:
 gh workflow run release.yml -f tag_name=v4.32.0 -f push_amazon_appstore=false
 
-# Optional: draft release without Docker build or app store uploads:
-gh workflow run release.yml -f tag_name=v4.32.0 -f publish_release=false -f build_docker=false -f push_play_store=false -f push_amazon_appstore=false
-
 # Optional: target a specific branch (defaults to main)
 gh workflow run release.yml --ref main -f tag_name=v4.32.0
 ```
 
 #### Interactive Command
 
-To run interactively, run `gh workflow run` with no arguments. `gh` will prompt you to select the workflow, enter the `tag_name`, and configure the boolean options:
+To run interactively, run `gh workflow run` with no arguments. `gh` will prompt you to select the workflow, enter the `tag_name`, and configure the release options:
 
 ```bash
 gh workflow run
@@ -69,8 +72,10 @@ gh workflow run
 | `tag_name` | string | `v0.0.0` | Version tag to release (e.g., `v4.32.0` or `v4.32b00.0`). |
 | `publish_release` | choice (`true`, `false`) | `true` | When `true`, publishes the release immediately. Set to `false` to create as a draft. |
 | `build_docker` | choice (`true`, `false`) | `true` | When `true`, builds and pushes the multi-platform Docker image. |
-| `push_play_store` | choice (`true`, `false`) | `true` | When `true`, uploads the Android AAB to Google Play (Alpha track). |
+| `push_play_store` | choice (`true`, `false`) | `true` | When `true`, uploads the Android AAB to Google Play. |
+| `play_store_track` | choice (`auto`, `beta`, `production`, `internal`) | `auto` | Target Google Play track. `auto` sends beta tags (`*b*`) to Open testing (`beta`) and stable tags to Production (`production`). |
 | `push_amazon_appstore` | choice (`true`, `false`) | `true` | When `true`, uploads the Android APK to the Amazon Appstore. |
+| `amazon_submit_for_review` | choice (`auto`, `true`, `false`) | `auto` | When `auto`, stable tags submit directly for review (to become Current Version) and beta tags leave a draft upcoming version for Live App Testing (LAT). |
 
 ### Monitoring the Workflow
 
@@ -198,8 +203,18 @@ The release workflow executes two jobs sequentially: `release` followed by `dock
 3. **Android Build & App Store Uploads:**
    - Runs `./gradlew assembleRelease bundleRelease` with JDK 17.
    - Outputs release `.apk` (direct install) and `.aab` (Google Play Store bundle).
-   - *(Optional - enabled by default)* Prepares `whatsnew` notes and uploads the `.aab` to Google Play Console (Alpha track). With Managed Publishing enabled in Play Console, changes land in the Publishing Overview for review checks. Can be skipped by setting `-f push_play_store=false`.
-   - *(Optional - disabled by default)* Uploads the release `.apk` to the Amazon Appstore using the Amazon App Submission API. Can be enabled by setting `-f push_amazon_appstore=true`.
+   - **Google Play Store (`push_play_store`):**
+     - Automatically selects target track based on the release tag:
+       - **Beta tags** (`*b*`, e.g. `v4.32b00.0`) $\rightarrow$ **Open testing** (`beta` track).
+       - **Stable tags** (e.g. `v4.32.0`) $\rightarrow$ **Production** (`production` track).
+       - Can be overridden via `play_store_track` (`auto`, `beta`, `production`, `internal`).
+     - Submits with `status: completed` to immediately trigger Google's automated/manual review queue.
+     - **Managed Publishing:** Because Managed Publishing is turned ON in Google Play Console, approved releases do *not* go live automatically. Instead, they wait in Google Play Console under **Publishing Overview** -> **Ready to publish**, giving you the final manual control to send changes live to users.
+   - **Amazon Appstore (`push_amazon_appstore`):**
+     - Automatically selects submission mode based on the release tag (via `amazon_submit_for_review=auto`):
+       - **Beta tags** (`*b*`): Uploads APK and release notes to an "Upcoming Version" draft with `--skip-commit`. Because Amazon lacks a public REST API for Live App Testing (LAT), this prepares everything as a draft. In the Amazon Developer Console, go to **Live App Testing** $\rightarrow$ **Start a new test** $\rightarrow$ **Copy from upcoming version** and click **Start test**.
+       - **Stable tags**: Commits the edit session to submit directly for Amazon review to become the live "Current Version".
+       - Can be overridden via `amazon_submit_for_review` (`auto`, `true`, `false`).
 4. **GitHub Release Publication:**
    - Creates the GitHub Release via `gh release create`. By default creates an active, published release; can be created as a draft using `-f publish_release=false`.
    - Generates release notes automatically from commit log (`--generate-notes`).
@@ -234,6 +249,10 @@ The release workflow executes two jobs sequentially: `release` followed by `dock
 - [ ] Run `gh workflow run release.yml -f tag_name=<tag>`.
 - [ ] Monitor build and verify assets on GitHub Release page (`gh release view <tag>`).
 - [ ] Verify multi-arch images on Docker Hub.
+- [ ] **Google Play Console:** Once Google's review completes, open Google Play Console $\rightarrow$ **Publishing Overview** and click **Publish changes** to roll out the release to users (Open testing for beta, Production for stable).
+- [ ] **Amazon Developer Console:**
+  - **If Beta:** Open App $\rightarrow$ **Live App Testing** $\rightarrow$ **Start a new test** $\rightarrow$ **Copy from upcoming version** $\rightarrow$ select testers and start test.
+  - **If Stable:** Verify in Amazon Developer Console that the upcoming version shows as "Submitted for review" to become the Current Version.
 
 ---
 

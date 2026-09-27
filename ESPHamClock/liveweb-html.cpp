@@ -96,6 +96,23 @@ char live_html[] =  R"_raw_html_(
             border-bottom: 1px solid #888;
         }
 
+        #virtual-cursor {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 28px;
+            height: 28px;
+            pointer-events: none;
+            z-index: 9999;
+            transform: translate3d(-100px, -100px, 0);
+            transition: opacity 0.25s ease, transform 0.05s ease-out;
+            filter: drop-shadow(0 2px 5px rgba(0,0,0,0.85));
+        }
+        #virtual-cursor.clicking {
+            transform: scale(0.85);
+        }
+
     </style>
 
     <script>
@@ -106,7 +123,7 @@ char live_html[] =  R"_raw_html_(
         const LONGPRESS_MS = 500;       // press and hold duration in ms to trigger tooltip
         const APP_W = 800;              // app coord system width
         const nonan_chars =             // supported non-alnum chars
-          ['Tab', 'Enter', 'Space', 'Escape', 'Backspace', 'ArrowLeft', 'ArrowDown', 'ArrowUp', 'ArrowRight'];
+          ['Tab', 'Enter', 'Space', 'Escape', 'Backspace', 'ArrowLeft', 'ArrowDown', 'ArrowUp', 'ArrowRight', 'Delete'];
         const RELOAD_KEY = "reload";    // sessionStorage key to manage reloads
 
         // state
@@ -125,6 +142,105 @@ char live_html[] =  R"_raw_html_(
         var want_fs, tried_fs;          // whether user wants full screen and has succeeded once
         var wsclose_reload = 1;         // whether to reload if lose ws connection
         var cvs, ctx;                   // handy
+
+        // virtual cursor state for remote control / D-pad
+        var vcursor_el = null;
+        var vcursor_x = APP_W / 2;      // app coords x (init 400)
+        var vcursor_y = 240;            // app coords y (init 240)
+        var vcursor_visible = false;
+        var vcursor_hide_timer = null;
+        var last_arrow_ms = 0;
+        var arrow_repeat_count = 0;
+        const VCURSOR_HIDE_MS = 12000;  // auto-hide after 12s of inactivity
+
+        function updateVirtualCursorDom() {
+            if (!vcursor_el || !cvs || !app_scale) return;
+            const rect = cvs.getBoundingClientRect();
+            const domX = rect.left + vcursor_x * app_scale;
+            const domY = rect.top + vcursor_y * app_scale;
+            vcursor_el.style.transform = 'translate3d(' + Math.round(domX) + 'px, ' + Math.round(domY) + 'px, 0px)';
+        }
+
+        function showVirtualCursor() {
+            if (!vcursor_el) return;
+            vcursor_el.style.display = 'block';
+            vcursor_visible = true;
+            updateVirtualCursorDom();
+            resetVirtualCursorTimer();
+        }
+
+        function hideVirtualCursor() {
+            if (!vcursor_el) return;
+            vcursor_el.style.display = 'none';
+            vcursor_visible = false;
+            if (vcursor_hide_timer) {
+                clearTimeout(vcursor_hide_timer);
+                vcursor_hide_timer = null;
+            }
+        }
+
+        function resetVirtualCursorTimer() {
+            if (vcursor_hide_timer)
+                clearTimeout(vcursor_hide_timer);
+            vcursor_hide_timer = setTimeout(hideVirtualCursor, VCURSOR_HIDE_MS);
+        }
+
+        function handleVirtualCursorMove(direction) {
+            const now = Date.now();
+            let step = 6;
+            if (now - last_arrow_ms < 200) {
+                arrow_repeat_count++;
+                if (arrow_repeat_count > 30) step = 24;
+                else if (arrow_repeat_count > 18) step = 16;
+                else if (arrow_repeat_count > 8) step = 10;
+            } else {
+                arrow_repeat_count = 0;
+            }
+            last_arrow_ms = now;
+
+            // If cursor was hidden, wake it up in place on first press without moving
+            if (!vcursor_visible) {
+                showVirtualCursor();
+                arrow_repeat_count = 0;
+                sendWSMsg('set_mouse?x=' + vcursor_x + '&y=' + vcursor_y);
+                return;
+            }
+
+            if (direction === 'ArrowLeft') vcursor_x -= step;
+            else if (direction === 'ArrowRight') vcursor_x += step;
+            else if (direction === 'ArrowUp') vcursor_y -= step;
+            else if (direction === 'ArrowDown') vcursor_y += step;
+
+            // clamp to app bounds (0..799, 0..479)
+            vcursor_x = Math.max(0, Math.min(APP_W - 1, vcursor_x));
+            vcursor_y = Math.max(0, Math.min(479, vcursor_y));
+
+            updateVirtualCursorDom();
+            resetVirtualCursorTimer();
+
+            // update HamClock hover position
+            sendWSMsg('set_mouse?x=' + vcursor_x + '&y=' + vcursor_y);
+        }
+
+        function handleVirtualCursorClick() {
+            // If cursor was hidden, wake it up in place to prevent accidental blind clicks
+            if (!vcursor_visible) {
+                showVirtualCursor();
+                return;
+            }
+
+            // brief click feedback animation
+            if (vcursor_el) {
+                vcursor_el.classList.add('clicking');
+                setTimeout(function() {
+                    if (vcursor_el) vcursor_el.classList.remove('clicking');
+                }, 120);
+            }
+
+            // send touch to HamClock
+            sendWSMsg('set_touch?x=' + vcursor_x + '&y=' + vcursor_y + '&button=0');
+            resetVirtualCursorTimer();
+        }
 
         // define functions, onLoad follows near the bottom
 
@@ -182,6 +298,7 @@ char live_html[] =  R"_raw_html_(
             cvs.style.left = "50%";
             cvs.style.margin = (-hc_h/2) + "px" + " 0 0 " + (-hc_w/2) + "px"; // trbl
             app_scale = hc_w/APP_W;
+            updateVirtualCursorDom();
 
             if (drawing_verbose)
                 console.log ("canvas is " + hc_w + " x " + hc_h + " app_scale " + app_scale);
@@ -307,6 +424,10 @@ char live_html[] =  R"_raw_html_(
             if (k === ' ')
                 k = 'Space';
 
+            // map keypad Decimal/Separator key names to decimal point
+            if (k === 'Decimal' || k === 'Separator')
+                k = '.';
+
             // accept only certain non-alphanumeric keys
             if ((k.length == 1 && (k.charCodeAt(0) < 33 || k.charCodeAt(0) > 126))
                             || (k.length > 1 && !nonan_chars.find (e => { if (e == k) return true; }))) {
@@ -338,7 +459,9 @@ char live_html[] =  R"_raw_html_(
             checkFullScreen();
 
             // handy
-            const key = event.key;
+            var key = event.key;
+            if (event.code === "NumpadDecimal" && key === ",")
+                key = ".";
 
             // ignore meta
             if (event.metaKey) {
@@ -649,6 +772,11 @@ char live_html[] =  R"_raw_html_(
                 cancelLongPress();
                 longpress_fired = false;
 
+                // hide virtual cursor on real touch/pointer tap
+                if (event.pointerType !== 'mouse' || event.isPrimary) {
+                    hideVirtualCursor();
+                }
+
                 pointermove_ms = Date.now();
                 pointerdown_x = m.x;
                 pointerdown_y = m.y;
@@ -772,6 +900,9 @@ char live_html[] =  R"_raw_html_(
             });
 
 
+            // grab virtual cursor element
+            vcursor_el = document.getElementById('virtual-cursor');
+
             // all set. start things off with the full image, repeats from then on with updates forever.
             getFullImage();
 
@@ -785,6 +916,14 @@ char live_html[] =  R"_raw_html_(
 
     <!-- page is a single canvas, size will be set based on hamclock build size -->
     <canvas id='hamclock-cvs'></canvas>
+
+    <!-- on-screen virtual pointer for remote control navigation -->
+    <div id='virtual-cursor'>
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" style="position:absolute;top:0;left:0;" xmlns="http://www.w3.org/2000/svg">
+            <polygon points="1,1 1,23 6.8,17.2 12,27 15.5,25 10.3,15.5 18,15.5" fill="#000000"/>
+            <polygon points="2,3 2,20.5 6.5,16 11.2,24.8 13.5,23.5 8.8,14.8 15.5,14.8" fill="#FFFFFF"/>
+        </svg>
+    </div>
 
     <!-- in-page overlay for embedded links (e.g. ADS-B badge), toggled by showEmbed()/hideEmbed() -->
     <div id='embed-overlay'>

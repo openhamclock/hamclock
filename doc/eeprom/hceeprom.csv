@@ -255,3 +255,4 @@ Addr,Name,Len,Type,Description
 0xD9F,NV_QUAKE_RADIUS,2,i,"""any magnitude"" local radius, statute miles (scales up with mag)"
 0xDA2,NV_FIRES_ON,1,i,whether the active-fire hotspot overlay is enabled
 0xDA4,NV_ONTA_ORGMASK,4,i,"ONTA org filter bitmask, one bit per known org (see"
+0xDA9,NV_PSK_SHOWONMAP,1,i,"whether Live Spots are drawn on the map at all (paths, dots"

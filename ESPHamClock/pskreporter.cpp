@@ -11,6 +11,7 @@ uint32_t psk_bands;                             // bitmask of HamBandSetting
 uint16_t psk_maxage_mins;                       // query period, minutes
 uint8_t psk_showdist;                           // show max distances, else count
 uint8_t psk_showpath;                           // show paths, else not
+uint8_t psk_showonmap;                          // show spots on map at all, else suppress
 
 // query urls
 static const char psk_page[] PROGMEM = "/fetchPSKReporter.pl";
@@ -173,6 +174,10 @@ void initPSKState()
         psk_showpath = 1;                                       // default on
         NVWriteUInt8 (NV_PSK_SHOWPATH, psk_showpath);
     }
+    if (!NVReadUInt8 (NV_PSK_SHOWONMAP, &psk_showonmap)) {
+        psk_showonmap = 1;                                      // default on -- matches prior behavior
+        NVWriteUInt8 (NV_PSK_SHOWONMAP, psk_showonmap);
+    }
 }
 
 /* save NV settings related to PSK
@@ -184,14 +189,15 @@ void savePSKState()
     NVWriteUInt16 (NV_PSK_MAXAGE, psk_maxage_mins);
     NVWriteUInt8 (NV_PSK_SHOWDIST, psk_showdist);
     NVWriteUInt8 (NV_PSK_SHOWPATH, psk_showpath);
+    NVWriteUInt8 (NV_PSK_SHOWONMAP, psk_showonmap);
 }
 
 /* draw a target at the farthest spot in each active band as needed.
  */
 void drawFarthestPSKSpots ()
 {
-    // proceed unless not wanted or not in use`
-    if (getSpotLabelType() == LBL_NONE || findPaneForChoice(PLOT_CH_PSK) == PANE_NONE)
+    // proceed unless not wanted or not in use, or user has disabled spots on the map entirely
+    if (!psk_showonmap || getSpotLabelType() == LBL_NONE || findPaneForChoice(PLOT_CH_PSK) == PANE_NONE)
         return;
 
     // draw each that are enabled
@@ -607,7 +613,10 @@ bool checkPSKTouch (const SCoord &s, const SBox &box)
     // N.B. band checkboxes fill a dedicated 4-column x 4-row block (rows 7-10) instead of being
     // folded 1-per-row into the 3 control columns. Control rows above (0-6) still only use columns
     // 1-3, exactly as before -- column 4 is left MENU_BLANK there so no unrelated control row (eg
-    // "Age:", "Path:") ever gets a stray band checkbox tacked onto its end. Rows 7-9 hold the 12
+    // "Age:", "Path:") ever gets a stray band checkbox tacked onto its end -- except row 0, which
+    // now carries its own self-contained "Map:" On/Off control (group 9) entirely within column 4,
+    // so it still can't be mistaken for a trailing band checkbox on any column-1-3 row. Rows 1-6 of
+    // column 4 remain MENU_BLANK. Rows 7-9 hold the 12
     // ordinary MENU_AL1OFN bands (160 through 2); row 10 holds the 4-way mutually-exclusive
     // MENU_01OFN group -- 2200m, 630m, 4m and 23cm -- ordered left to right by increasing
     // frequency, same convention as every other ordered row in this menu (15m/30m/1hr/6hr/24hr
@@ -621,7 +630,7 @@ bool checkPSKTouch (const SCoord &s, const SBox &box)
         _M_RBN,  _M_SPOT, _M_WHAT, _M_SHOW, _M_PATH, _M_AGE, _M_1HR, _M_160, _M_30, _M_12, _M_2200,
         _M_PSK,  _M_OFDE, _M_CALL, _M_DIST, _M_PON,  _M_15M, _M_6HR, _M_80,  _M_20, _M_10, _M_630,
         _M_WSPR, _M_BYDE, _M_GRID, _M_CNT,  _M_POFF, _M_30M, _M_24H, _M_60,  _M_17, _M_6,  _M_4,
-        _M_PADC0,_M_PADC1,_M_PADC2,_M_PADC3,_M_PADC4,_M_PADC5,_M_PADC6,_M_40, _M_15, _M_2,  _M_23CM,
+        _M_MAP,  _M_MON,  _M_MOFF,_M_PADC3,_M_PADC4,_M_PADC5,_M_PADC6,_M_40, _M_15, _M_2,  _M_23CM,
         _M_N
     };
 
@@ -633,6 +642,7 @@ bool checkPSKTouch (const SCoord &s, const SBox &box)
     bool of_de = (psk_mask & PSKMB_OFDE) != 0;
     bool show_dist = psk_showdist != 0;
     bool show_path = psk_showpath != 0;
+    bool show_onmap = psk_showonmap != 0;
 
     // menu
     #define PRI_INDENT 2
@@ -704,12 +714,17 @@ bool checkPSKTouch (const SCoord &s, const SBox &box)
     mitems[_M_6]    = {MENU_AL1OFN, TST_PSKBAND(HAMBAND_6M),   4, SEC_INDENT, findBandName(HAMBAND_6M), 0};
     mitems[_M_4]    = {MENU_01OFN, TST_PSKBAND(HAMBAND_4M),   5, EXGRP_INDENT, findBandName(HAMBAND_4M), 0};
 
-    // 4th column: blank alongside the control rows (0-6) so no control row picks up a stray
-    // band checkbox, then real band entries fill every row from here down -- no blanks needed,
-    // see the enum comment above for why this column now comes out even (12+4 == HAMBAND_N)
-    mitems[_M_PADC0] = {MENU_BLANK, false,   0, PRI_INDENT, NULL, 0};
-    mitems[_M_PADC1] = {MENU_BLANK, false,   0, PRI_INDENT, NULL, 0};
-    mitems[_M_PADC2] = {MENU_BLANK, false,   0, PRI_INDENT, NULL, 0};
+    // 4th column: row 0 holds a self-contained "Map:" On/Off control -- group 9, new and unused by
+    // anything else in this menu -- that gates whether Live Spots are drawn on the map at all
+    // (paths, dot labels and farthest-spot targets), independently of the pane itself continuing
+    // to show band counts/distances above and of "Pth:" On/Off, which only toggles path lines
+    // within that map display. Rows 1-6 stay MENU_BLANK alongside the other control rows so no
+    // control row picks up a stray band checkbox, then real band entries fill every row from here
+    // down -- see the enum comment above for why this column still comes out even (12+4 ==
+    // HAMBAND_N) despite the 3 cells now spent on "Map:"/"On"/"Off".
+    mitems[_M_MAP]   = {MENU_LABEL, false,   0, PRI_INDENT, "Map:", 0};
+    mitems[_M_MON]   = {MENU_1OFN, show_onmap, 9, PRI_INDENT, "On", 0};
+    mitems[_M_MOFF]  = {MENU_1OFN, !show_onmap,9, PRI_INDENT, "Off", 0};
     mitems[_M_PADC3] = {MENU_BLANK, false,   0, PRI_INDENT, NULL, 0};
     mitems[_M_PADC4] = {MENU_BLANK, false,   0, PRI_INDENT, NULL, 0};
     mitems[_M_PADC5] = {MENU_BLANK, false,   0, PRI_INDENT, NULL, 0};
@@ -822,6 +837,9 @@ bool checkPSKTouch (const SCoord &s, const SBox &box)
             // get whether to show paths
             psk_showpath = mitems[_M_PON].set;
 
+            // get whether to show spots on the map at all
+            psk_showonmap = mitems[_M_MON].set;
+
             // persist
             savePSKState();
 
@@ -860,8 +878,8 @@ bool getPSKBandStats (PSKBandStats stats[HAMBAND_N], const char *names[HAMBAND_N
  */
 void drawPSKPaths ()
 {
-    // ignore if not in any rotation set
-    if (findPaneForChoice(PLOT_CH_PSK) == PANE_NONE)
+    // ignore if not in any rotation set, or user has disabled spots on the map entirely
+    if (!psk_showonmap || findPaneForChoice(PLOT_CH_PSK) == PANE_NONE)
         return;
 
     // which end to mark

@@ -33,25 +33,29 @@ void drawUserGuideIcon (void)
     uint16_t x = userguide_btn_b.x;
     uint16_t y = userguide_btn_b.y;
 
-    // Open book drawing:
-    // Center vertical spine
-    tft.drawLine (x + 7, y + 2, x + 7, y + 10, icon_col);
+    // Open book drawing (laying open on desk with dual-arched pages):
+    // Center vertical spine resting on the desk
+    tft.drawLine (x + 7, y + 3, x + 7, y + 11, icon_col);
 
-    // Left page: top slope up-left, left edge down, bottom slope down-right
-    tft.drawLine (x + 7, y + 2, x + 2, y + 4, icon_col);
-    tft.drawLine (x + 2, y + 4, x + 2, y + 10, icon_col);
-    tft.drawLine (x + 2, y + 11, x + 7, y + 10, icon_col);
+    // Left page: top arch up from spine then down to edge, left edge down, bottom arch
+    tft.drawLine (x + 7, y + 3, x + 5, y + 2, icon_col);
+    tft.drawLine (x + 5, y + 2, x + 2, y + 3, icon_col);
+    tft.drawLine (x + 2, y + 3, x + 2, y + 10, icon_col);
+    tft.drawLine (x + 2, y + 10, x + 5, y + 9, icon_col);
+    tft.drawLine (x + 5, y + 9, x + 7, y + 10, icon_col);
 
-    // Right page: top slope up-right, right edge down, bottom slope down-left
-    tft.drawLine (x + 7, y + 2, x + 12, y + 4, icon_col);
-    tft.drawLine (x + 12, y + 4, x + 12, y + 10, icon_col);
-    tft.drawLine (x + 12, y + 11, x + 7, y + 10, icon_col);
+    // Right page: top arch up from spine then down to edge, right edge down, bottom arch
+    tft.drawLine (x + 7, y + 3, x + 9, y + 2, icon_col);
+    tft.drawLine (x + 9, y + 2, x + 12, y + 3, icon_col);
+    tft.drawLine (x + 12, y + 3, x + 12, y + 10, icon_col);
+    tft.drawLine (x + 12, y + 10, x + 9, y + 9, icon_col);
+    tft.drawLine (x + 9, y + 9, x + 7, y + 10, icon_col);
 
     // Internal page detail horizontal lines
-    tft.drawLine (x + 4, y + 6, x + 5, y + 6, icon_col);
-    tft.drawLine (x + 4, y + 8, x + 5, y + 8, icon_col);
-    tft.drawLine (x + 8, y + 6, x + 9, y + 6, icon_col);
-    tft.drawLine (x + 8, y + 8, x + 9, y + 8, icon_col);
+    tft.drawLine (x + 4, y + 5, x + 5, y + 5, icon_col);
+    tft.drawLine (x + 4, y + 7, x + 5, y + 7, icon_col);
+    tft.drawLine (x + 9, y + 5, x + 10, y + 5, icon_col);
+    tft.drawLine (x + 9, y + 7, x + 10, y + 7, icon_col);
 }
 
 /* return whether touch event at s is on the user guide icon.
