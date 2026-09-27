@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.location.Location
@@ -42,6 +43,7 @@ import androidx.core.view.WindowCompat
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -68,6 +70,8 @@ class MainActivity : AppCompatActivity() {
     private val PREF_ALLOW_EXTERNAL = "allow_external_access"
     private val PREF_MDNS_NAME = "mdns_name"
     private val PREF_RUN_IN_BACKGROUND = "run_in_background"
+    private val PREF_TV_OVERSCAN = "tv_overscan"
+    private var lastBackPressTime: Long = 0
 
     private val REST_PORT = 8080
     private val RW_PORT = 8081
@@ -91,6 +95,11 @@ class MainActivity : AppCompatActivity() {
 
     private val executor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
+    private var isDpadCenterLongPressed = false
+    private val dpadCenterLongPressRunnable = Runnable {
+        isDpadCenterLongPressed = true
+        showBackendSettingsDialog()
+    }
 
     private val locationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -100,6 +109,9 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (isFireTvOrTv()) {
+            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        }
         setContentView(R.layout.activity_main)
 
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -125,14 +137,20 @@ class MainActivity : AppCompatActivity() {
 
         setupWebView()
 
+        val initialOverscan = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getInt(PREF_TV_OVERSCAN, 0)
+        applyOverscanMargin(initialOverscan)
+
         onBackPressedDispatcher.addCallback(this) {
-            val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            val runInBackground = prefs.getBoolean(PREF_RUN_IN_BACKGROUND, false)
-            if (runInBackground) {
-                Log.i(TAG, "Run in background enabled - moving task to back on Back press")
-                moveTaskToBack(true)
+            val now = System.currentTimeMillis()
+            if (isFireTvOrTv()) {
+                if (now - lastBackPressTime < 2000) {
+                    performAppExitOrBackground()
+                } else {
+                    lastBackPressTime = now
+                    Toast.makeText(this@MainActivity, R.string.press_back_again_to_exit, Toast.LENGTH_SHORT).show()
+                }
             } else {
-                finish()
+                performAppExitOrBackground()
             }
         }
 
@@ -229,6 +247,38 @@ class MainActivity : AppCompatActivity() {
         return isAmazonFireTv || isLeanback || isUiTv
     }
 
+    private fun performAppExitOrBackground() {
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val runInBackground = prefs.getBoolean(PREF_RUN_IN_BACKGROUND, false)
+        if (runInBackground) {
+            Log.i(TAG, "Run in background enabled - moving task to back on Back press")
+            moveTaskToBack(true)
+        } else {
+            finish()
+        }
+    }
+
+    private fun applyOverscanMargin(percent: Int) {
+        val displayMetrics = resources.displayMetrics
+        val widthPx = displayMetrics.widthPixels
+        val heightPx = displayMetrics.heightPixels
+        val marginH = (widthPx * (percent / 100.0f)).toInt()
+        val marginV = (heightPx * (percent / 100.0f)).toInt()
+
+        val params = webView.layoutParams as? FrameLayout.LayoutParams ?: return
+        if (params.leftMargin != marginH || params.topMargin != marginV) {
+            params.setMargins(marginH, marginV, marginH, marginV)
+            webView.layoutParams = params
+            webView.requestLayout()
+            webView.postDelayed({
+                webView.evaluateJavascript(
+                    "(function() { if (typeof runSoon === 'function' && typeof getFullImage === 'function') { runSoon(getFullImage); } else { window.dispatchEvent(new Event('resize')); } })();",
+                    null
+                )
+            }, 100)
+        }
+    }
+
     private fun getSelectedBackendHost(): String {
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         return prefs.getString(PREF_BACKEND_HOST, getString(R.string.backend_default))
@@ -265,6 +315,42 @@ class MainActivity : AppCompatActivity() {
 
         val currentRunInBackground = prefs.getBoolean(PREF_RUN_IN_BACKGROUND, false)
         cbRunInBackground.isChecked = currentRunInBackground
+
+        val currentOverscan = prefs.getInt(PREF_TV_OVERSCAN, 0)
+        var selectedOverscan = currentOverscan
+
+        val btnOverscan0 = dialogView.findViewById<Button>(R.id.btn_overscan_0)
+        val btnOverscan3 = dialogView.findViewById<Button>(R.id.btn_overscan_3)
+        val btnOverscan5 = dialogView.findViewById<Button>(R.id.btn_overscan_5)
+
+        fun updateOverscanButtons(percent: Int) {
+            btnOverscan0?.setBackgroundResource(if (percent == 0) R.drawable.btn_toggle_active_selector else R.drawable.btn_neutral_selector)
+            btnOverscan0?.setTextColor(ContextCompat.getColor(this@MainActivity, if (percent == 0) R.color.white else R.color.hamclock_text))
+
+            btnOverscan3?.setBackgroundResource(if (percent == 3) R.drawable.btn_toggle_active_selector else R.drawable.btn_neutral_selector)
+            btnOverscan3?.setTextColor(ContextCompat.getColor(this@MainActivity, if (percent == 3) R.color.white else R.color.hamclock_text))
+
+            btnOverscan5?.setBackgroundResource(if (percent == 5) R.drawable.btn_toggle_active_selector else R.drawable.btn_neutral_selector)
+            btnOverscan5?.setTextColor(ContextCompat.getColor(this@MainActivity, if (percent == 5) R.color.white else R.color.hamclock_text))
+        }
+
+        updateOverscanButtons(selectedOverscan)
+
+        btnOverscan0?.setOnClickListener {
+            selectedOverscan = 0
+            updateOverscanButtons(0)
+            applyOverscanMargin(0)
+        }
+        btnOverscan3?.setOnClickListener {
+            selectedOverscan = 3
+            updateOverscanButtons(3)
+            applyOverscanMargin(3)
+        }
+        btnOverscan5?.setOnClickListener {
+            selectedOverscan = 5
+            updateOverscanButtons(5)
+            applyOverscanMargin(5)
+        }
 
         var currentTab = 0 // 0 = Live Clock, 1 = Antennas
 
@@ -448,7 +534,10 @@ class MainActivity : AppCompatActivity() {
                     .putBoolean(PREF_ALLOW_EXTERNAL, newAllowExternal)
                     .putString(PREF_MDNS_NAME, newMdnsName)
                     .putBoolean(PREF_RUN_IN_BACKGROUND, newRunInBackground)
+                    .putInt(PREF_TV_OVERSCAN, selectedOverscan)
                     .commit()
+
+                applyOverscanMargin(selectedOverscan)
 
                 HamClockNative.setAllowExternalAccess(newAllowExternal)
                 updateMdnsService(newAllowExternal, newMdnsName)
@@ -470,6 +559,7 @@ class MainActivity : AppCompatActivity() {
             .setNegativeButton(getString(R.string.cancel), null)
             .setOnDismissListener {
                 if (!isSaved) {
+                    applyOverscanMargin(currentOverscan)
                     // Revert in-memory network access to whatever was previously saved
                     HamClockNative.setAllowExternalAccess(currentAllowExternal)
                     updateMdnsService(currentAllowExternal, currentMdnsName)
@@ -509,7 +599,9 @@ class MainActivity : AppCompatActivity() {
                             prefs.edit()
                                 .putBoolean(PREF_ALLOW_EXTERNAL, true)
                                 .putString(PREF_MDNS_NAME, enteredMdns)
+                                .putInt(PREF_TV_OVERSCAN, selectedOverscan)
                                 .commit()
+                            applyOverscanMargin(selectedOverscan)
                             HamClockNative.setAllowExternalAccess(true)
                             updateMdnsService(true, enteredMdns)
                             acquireWifiLock()
@@ -1071,6 +1163,9 @@ class MainActivity : AppCompatActivity() {
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         hideSystemUI()
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val overscan = prefs.getInt(PREF_TV_OVERSCAN, 0)
+        applyOverscanMargin(overscan)
         webView.postDelayed({
             hideSystemUI()
             webView.evaluateJavascript(
@@ -1112,26 +1207,36 @@ class MainActivity : AppCompatActivity() {
         wifiLock = null
     }
 
+    private fun isCenterOrEnterKey(keyCode: Int): Boolean {
+        return keyCode == KeyEvent.KEYCODE_DPAD_CENTER ||
+                keyCode == KeyEvent.KEYCODE_ENTER ||
+                keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER
+    }
+
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (event.action == KeyEvent.ACTION_DOWN) {
-            if (event.keyCode == KeyEvent.KEYCODE_BACK && isEmbedVisible) {
+        if (event.keyCode == KeyEvent.KEYCODE_BACK && isEmbedVisible) {
+            if (event.action == KeyEvent.ACTION_DOWN) {
                 webView.evaluateJavascript("if (typeof hideEmbed === 'function') hideEmbed();", null)
-                return true
             }
+            return true
+        }
 
-            if (isEmbedVisible) {
-                // When embed overlay is showing, allow standard WebView focus navigation for D-pad and Enter
-                return super.dispatchKeyEvent(event)
-            }
+        if (isEmbedVisible) {
+            // When embed overlay is showing, allow standard WebView focus navigation for D-pad and Enter
+            return super.dispatchKeyEvent(event)
+        }
 
-            // Quick access remote shortcuts to settings dialog (Menu or Play/Pause)
-            if (event.keyCode == KeyEvent.KEYCODE_MENU || event.keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
+        // Quick access remote shortcuts to settings dialog (Menu or Play/Pause)
+        if (event.keyCode == KeyEvent.KEYCODE_MENU || event.keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
+            if (event.action == KeyEvent.ACTION_DOWN) {
                 showBackendSettingsDialog()
-                return true
             }
+            return true
+        }
 
-            // If settings button is explicitly focused
-            if (btnSettings.isFocused) {
+        // If settings button is explicitly focused
+        if (btnSettings.isFocused) {
+            if (event.action == KeyEvent.ACTION_DOWN) {
                 when (event.keyCode) {
                     KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> {
                         btnSettings.performClick()
@@ -1144,8 +1249,27 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
             }
+            return super.dispatchKeyEvent(event)
+        }
 
-            if (isFireTvOrTv()) {
+        if (isFireTvOrTv()) {
+            if (isCenterOrEnterKey(event.keyCode)) {
+                if (event.action == KeyEvent.ACTION_DOWN) {
+                    if (event.repeatCount == 0) {
+                        isDpadCenterLongPressed = false
+                        mainHandler.removeCallbacks(dpadCenterLongPressRunnable)
+                        mainHandler.postDelayed(dpadCenterLongPressRunnable, 500)
+                    }
+                    return true
+                } else if (event.action == KeyEvent.ACTION_UP) {
+                    mainHandler.removeCallbacks(dpadCenterLongPressRunnable)
+                    if (!isDpadCenterLongPressed) {
+                        webView.evaluateJavascript("if (typeof handleVirtualCursorClick === 'function') handleVirtualCursorClick();", null)
+                    }
+                    isDpadCenterLongPressed = false
+                    return true
+                }
+            } else if (event.action == KeyEvent.ACTION_DOWN) {
                 when (event.keyCode) {
                     KeyEvent.KEYCODE_DPAD_UP -> {
                         webView.evaluateJavascript("if (typeof handleVirtualCursorMove === 'function') handleVirtualCursorMove('ArrowUp');", null)
@@ -1163,13 +1287,10 @@ class MainActivity : AppCompatActivity() {
                         webView.evaluateJavascript("if (typeof handleVirtualCursorMove === 'function') handleVirtualCursorMove('ArrowRight');", null)
                         return true
                     }
-                    KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> {
-                        event.startTracking()
-                        webView.evaluateJavascript("if (typeof handleVirtualCursorClick === 'function') handleVirtualCursorClick();", null)
-                        return true
-                    }
                 }
-            } else {
+            }
+        } else {
+            if (event.action == KeyEvent.ACTION_DOWN) {
                 when (event.keyCode) {
                     KeyEvent.KEYCODE_DPAD_UP -> {
                         webView.evaluateJavascript("if (typeof sendKey === 'function') sendKey('ArrowUp');", null)
@@ -1188,7 +1309,6 @@ class MainActivity : AppCompatActivity() {
                         return true
                     }
                     KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> {
-                        event.startTracking()
                         webView.evaluateJavascript("if (typeof sendKey === 'function') sendKey('Enter');", null)
                         return true
                     }
@@ -1199,15 +1319,23 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onKeyLongPress(keyCode: Int, event: KeyEvent?): Boolean {
-        if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
+        if (isCenterOrEnterKey(keyCode)) {
+            isDpadCenterLongPressed = true
+            mainHandler.removeCallbacks(dpadCenterLongPressRunnable)
             showBackendSettingsDialog()
             return true
         }
         return super.onKeyLongPress(keyCode, event)
     }
 
+    override fun onPause() {
+        super.onPause()
+        mainHandler.removeCallbacks(dpadCenterLongPressRunnable)
+    }
+
     override fun onDestroy() {
         super.onDestroy()
+        mainHandler.removeCallbacks(dpadCenterLongPressRunnable)
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val runInBackground = prefs.getBoolean(PREF_RUN_IN_BACKGROUND, false)
         HamClockNative.setAppControlListener(null)

@@ -1,4 +1,4 @@
 Changes with latest release:
-- start of 4.33 beta
 - fix broken chars in lat/lon
 - ADS-B button on all maps
+- Android/Google TV support
