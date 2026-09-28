@@ -1041,7 +1041,7 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
 
-                Log.i(TAG, "Launching native HamClock in ${dataDir.absolutePath} (rwPort=$actualRwPort, roPort=$actualRoPort, restPort=$actualRestPort, rwConflict=$rwConflict, restConflict=$conflict)")
+                Log.i(TAG, "Launching native HamClock in ${dataDir.absolutePath} (hasLocation=$hasLocation, lat=$lat, lng=$lng, backend=$backendHost, forceSetup=$forceSetup, countdownSetup=$countdownSetup, allowExternal=$allowExternal, rwPort=$actualRwPort, roPort=$actualRoPort, restPort=$actualRestPort, rwConflict=$rwConflict, restConflict=$conflict)")
                 HamClockNative.startDaemon(
                     dataDir = dataDir.absolutePath,
                     rwPort = actualRwPort,
@@ -1339,6 +1339,11 @@ class MainActivity : AppCompatActivity() {
             return super.dispatchKeyEvent(event)
         }
 
+        if (errorContainer.visibility == View.VISIBLE) {
+            // When recovery error card is showing, allow standard focus navigation for D-pad on TV
+            return super.dispatchKeyEvent(event)
+        }
+
         // Quick access remote shortcuts to settings dialog (Menu or Play/Pause)
         if (event.keyCode == KeyEvent.KEYCODE_MENU || event.keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
             if (event.action == KeyEvent.ACTION_DOWN) {
@@ -1457,6 +1462,7 @@ class MainActivity : AppCompatActivity() {
             unregisterMdnsService()
             releaseWifiLock()
             executor.shutdown()
+            killLingeringHamClockZombies()
             android.os.Process.killProcess(android.os.Process.myPid())
         } else {
             Log.i(TAG, "MainActivity destroyed with run_in_background=true; keeping daemon active in background")
