@@ -74,12 +74,15 @@ class MainActivity : AppCompatActivity() {
     private val PREF_TV_OVERSCAN = "tv_overscan"
     private var lastBackPressTime: Long = 0
 
-    private val REST_PORT = 8080
-    private val RW_PORT = 8081
-    private val RO_PORT = 8082
+    private val DEFAULT_REST_PORT = 8080
+    private val DEFAULT_RW_PORT = 8081
+    private val DEFAULT_RO_PORT = 8082
 
     private var actualRestPort = 8080
+    private var actualRwPort = 8081
+    private var actualRoPort = 8082
     private var restPortConflict = false
+    private var rwPortConflict = false
     private var isExplicitExit = false
 
     private var wifiLock: WifiManager.WifiLock? = null
@@ -92,6 +95,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var progressBar: ProgressBar
     private lateinit var statusText: TextView
     private lateinit var btnSettings: ImageButton
+    private lateinit var loadingContainer: LinearLayout
+    private lateinit var errorContainer: LinearLayout
+    private lateinit var btnCleanRestart: Button
+    private lateinit var btnErrorSettings: Button
     @Volatile private var isEmbedVisible = false
 
     private val executor = Executors.newSingleThreadExecutor()
@@ -122,6 +129,19 @@ class MainActivity : AppCompatActivity() {
         progressBar = findViewById(R.id.progress_bar)
         statusText = findViewById(R.id.status_text)
         btnSettings = findViewById(R.id.btn_settings)
+        loadingContainer = findViewById(R.id.loading_container)
+        errorContainer = findViewById(R.id.error_container)
+        btnCleanRestart = findViewById(R.id.btn_clean_restart)
+        btnErrorSettings = findViewById(R.id.btn_error_settings)
+
+        btnCleanRestart.setOnClickListener {
+            Log.i(TAG, "User requested Clean Restart from error screen")
+            killLingeringHamClockZombies()
+            RestartActivity.restart(this)
+        }
+        btnErrorSettings.setOnClickListener {
+            showBackendSettingsDialog()
+        }
 
         btnSettings.setOnClickListener {
             showBackendSettingsDialog()
@@ -241,7 +261,10 @@ class MainActivity : AppCompatActivity() {
     private fun isFireTvOrTv(): Boolean {
         val pm = packageManager
         val isAmazonFireTv = pm.hasSystemFeature("amazon.hardware.fire_tv") ||
-                (Build.MANUFACTURER.equals("Amazon", ignoreCase = true) && Build.MODEL.startsWith("AFT"))
+                Build.MANUFACTURER.equals("Amazon", ignoreCase = true) ||
+                Build.BRAND.equals("Amazon", ignoreCase = true) ||
+                Build.MODEL.contains("AFT", ignoreCase = true) ||
+                Build.MODEL.contains("Fire", ignoreCase = true)
         val isLeanback = pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
         val uiModeManager = getSystemService(Context.UI_MODE_SERVICE) as? android.app.UiModeManager
         val isUiTv = uiModeManager?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
@@ -381,9 +404,9 @@ class MainActivity : AppCompatActivity() {
                 if (entered.isNotEmpty()) "$entered.local" else (registeredMdnsName ?: "hamclock") + ".local"
             }
             return if (tab == 0) {
-                "http://$host:$RW_PORT/live.html"
+                "http://$host:$actualRwPort/live.html"
             } else {
-                val port = if (actualRestPort > 0) actualRestPort else REST_PORT
+                val port = if (actualRestPort > 0) actualRestPort else DEFAULT_REST_PORT
                 "http://$host:$port/antennas.html"
             }
         }
@@ -392,7 +415,7 @@ class MainActivity : AppCompatActivity() {
             val trimmed = name.trim()
             val host = if (trimmed.isNotEmpty()) "$trimmed.local" else (registeredMdnsName ?: "hamclock") + ".local"
             return if (tab == 0) {
-                "http://$host:$RW_PORT/live.html"
+                "http://$host:$actualRwPort/live.html"
             } else {
                 if (actualRestPort <= 0) {
                     getString(R.string.rest_port_disabled)
@@ -508,7 +531,7 @@ class MainActivity : AppCompatActivity() {
         val tvRestPortConflict = dialogView.findViewById<TextView>(R.id.tv_rest_port_conflict)
 
         val restText = if (actualRestPort > 0) "Port $actualRestPort" else getString(R.string.rest_port_disabled)
-        tvPortsInfo.text = getString(R.string.server_ports_compact, RW_PORT, RO_PORT, restText)
+        tvPortsInfo.text = getString(R.string.server_ports_compact, actualRwPort, actualRoPort, restText)
 
         if (restPortConflict) {
             tvRestPortConflict.visibility = View.VISIBLE
@@ -568,6 +591,8 @@ class MainActivity : AppCompatActivity() {
             }
             .setNegativeButton(getString(R.string.cancel), null)
             .setOnDismissListener {
+                btnSettings.clearFocus()
+                webView.requestFocus()
                 if (!isSaved) {
                     applyOverscanMargin(currentOverscan)
                     // Revert in-memory network access to whatever was previously saved
@@ -596,6 +621,10 @@ class MainActivity : AppCompatActivity() {
             isExplicitExit = true
             dialog.dismiss()
             finishAndRemoveTask()
+            mainHandler.postDelayed({
+                killLingeringHamClockZombies()
+                android.os.Process.killProcess(android.os.Process.myPid())
+            }, 150)
         }
 
         if (isFirstRunTv) {
@@ -884,6 +913,35 @@ class MainActivity : AppCompatActivity() {
                 }
                 return text
             }
+
+            @JavascriptInterface
+            fun openSettings() {
+                mainHandler.post {
+                    btnSettings.performClick()
+                }
+            }
+
+            @JavascriptInterface
+            fun focusSettings() {
+                mainHandler.post {
+                    btnSettings.requestFocus()
+                }
+            }
+
+            @JavascriptInterface
+            fun setSettingsHover(isHovered: Boolean) {
+                mainHandler.post {
+                    if (!btnSettings.isFocused) {
+                        if (isHovered) {
+                            btnSettings.alpha = 1.0f
+                            btnSettings.animate().scaleX(1.15f).scaleY(1.15f).setDuration(150).start()
+                        } else {
+                            btnSettings.alpha = 0.8f
+                            btnSettings.animate().scaleX(1.0f).scaleY(1.0f).setDuration(150).start()
+                        }
+                    }
+                }
+            }
         }, "AndroidApp")
 
         webView.webChromeClient = object : WebChromeClient() {
@@ -986,9 +1044,22 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
 
-                val (selectedRestPort, conflict) = findAvailableRestPort(REST_PORT)
+                val (selectedRwPort, rwConflict) = findAvailableRwPort(DEFAULT_RW_PORT)
+                actualRwPort = selectedRwPort
+                rwPortConflict = rwConflict
+
+                val selectedRoPort = findAvailableRoPort(DEFAULT_RO_PORT)
+                actualRoPort = selectedRoPort
+
+                val (selectedRestPort, conflict) = findAvailableRestPort(DEFAULT_REST_PORT)
                 actualRestPort = selectedRestPort
                 restPortConflict = conflict
+
+                if (rwConflict) {
+                    mainHandler.post {
+                        Toast.makeText(this@MainActivity, getString(R.string.rw_port_conflict_toast, actualRwPort), Toast.LENGTH_LONG).show()
+                    }
+                }
 
                 if (conflict) {
                     mainHandler.post {
@@ -1001,11 +1072,11 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
 
-                Log.i(TAG, "Launching native HamClock in ${dataDir.absolutePath} (hasLocation=$hasLocation, lat=$lat, lng=$lng, backend=$backendHost, forceSetup=$forceSetup, countdownSetup=$countdownSetup, allowExternal=$allowExternal, restPort=$actualRestPort, restConflict=$conflict)")
+                Log.i(TAG, "Launching native HamClock in ${dataDir.absolutePath} (hasLocation=$hasLocation, lat=$lat, lng=$lng, backend=$backendHost, forceSetup=$forceSetup, countdownSetup=$countdownSetup, allowExternal=$allowExternal, rwPort=$actualRwPort, roPort=$actualRoPort, restPort=$actualRestPort, rwConflict=$rwConflict, restConflict=$conflict)")
                 HamClockNative.startDaemon(
                     dataDir = dataDir.absolutePath,
-                    rwPort = RW_PORT,
-                    roPort = RO_PORT,
+                    rwPort = actualRwPort,
+                    roPort = actualRoPort,
                     restPort = actualRestPort,
                     backendHost = backendHost,
                     hasLocation = hasLocation,
@@ -1020,6 +1091,68 @@ class MainActivity : AppCompatActivity() {
             // Wait for local HTTP/WebSocket port to become available
             waitForServerReady()
         }
+    }
+
+    private fun killLingeringHamClockZombies() {
+        val myPid = android.os.Process.myPid()
+        try {
+            val procDir = File("/proc")
+            val files = procDir.listFiles() ?: return
+            for (file in files) {
+                val pid = file.name.toIntOrNull() ?: continue
+                if (pid != myPid && pid > 0) {
+                    try {
+                        Log.w(TAG, "Terminating orphaned HamClock process PID $pid")
+                        android.os.Process.killProcess(pid)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Could not terminate process $pid: ${e.message}")
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Error checking /proc for orphaned processes: ${e.message}")
+        }
+    }
+
+    private fun findAvailableRwPort(preferredPort: Int): Pair<Int, Boolean> {
+        if (preferredPort > 0 && isPortAvailable(preferredPort)) {
+            return Pair(preferredPort, false)
+        }
+
+        // Port is occupied. First, terminate any orphaned zombies belonging to our UID
+        killLingeringHamClockZombies()
+        try {
+            Thread.sleep(250)
+        } catch (_: InterruptedException) {}
+
+        if (isPortAvailable(preferredPort)) {
+            Log.i(TAG, "Port $preferredPort freed after killing orphaned process")
+            return Pair(preferredPort, false)
+        }
+
+        // Port remains occupied (used by an external process). Fall back to alternate ports.
+        val fallbacks = listOf(8083, 8084, 8086, 8091)
+        for (port in fallbacks) {
+            if (isPortAvailable(port)) {
+                Log.w(TAG, "Port $preferredPort is in use by external app. Using fallback port $port")
+                return Pair(port, true)
+            }
+        }
+        Log.w(TAG, "Neither port $preferredPort nor fallback ports were available.")
+        return Pair(preferredPort, true)
+    }
+
+    private fun findAvailableRoPort(preferredPort: Int): Int {
+        if (preferredPort > 0 && isPortAvailable(preferredPort)) {
+            return preferredPort
+        }
+        val fallbacks = listOf(8085, 8087, 8092, 8093)
+        for (port in fallbacks) {
+            if (isPortAvailable(port)) {
+                return port
+            }
+        }
+        return preferredPort
     }
 
     private fun findAvailableRestPort(preferredPort: Int): Pair<Int, Boolean> {
@@ -1059,10 +1192,10 @@ class MainActivity : AppCompatActivity() {
         while (attempts < maxAttempts && !isReady) {
             attempts++
             try {
-                Socket("127.0.0.1", RW_PORT).use { socket ->
+                Socket("127.0.0.1", actualRwPort).use { socket ->
                     if (socket.isConnected) {
                         isReady = true
-                        Log.i(TAG, "HamClock server ready on port $RW_PORT after $attempts attempts")
+                        Log.i(TAG, "HamClock server ready on port $actualRwPort after $attempts attempts")
                     }
                 }
             } catch (e: Exception) {
@@ -1073,7 +1206,7 @@ class MainActivity : AppCompatActivity() {
         mainHandler.post {
             if (isReady) {
                 statusText.text = getString(R.string.loading_interface)
-                val targetUrl = "http://127.0.0.1:$RW_PORT/live.html"
+                val targetUrl = "http://127.0.0.1:$actualRwPort/live.html"
                 Log.i(TAG, "Loading URL: $targetUrl")
                 webView.loadUrl(targetUrl)
 
@@ -1082,8 +1215,9 @@ class MainActivity : AppCompatActivity() {
                     showBackendSettingsDialog(isFirstRunTv = true)
                 }
             } else {
-                statusText.text = getString(R.string.start_failed)
-                progressBar.visibility = View.GONE
+                loadingContainer.visibility = View.GONE
+                errorContainer.visibility = View.VISIBLE
+                btnCleanRestart.requestFocus()
             }
         }
     }
@@ -1121,7 +1255,7 @@ class MainActivity : AppCompatActivity() {
         val serviceInfo = NsdServiceInfo().apply {
             this.serviceName = serviceName
             this.serviceType = "_http._tcp"
-            this.port = RW_PORT
+            this.port = actualRwPort
         }
 
         val nsd = getSystemService(Context.NSD_SERVICE) as? NsdManager ?: return
@@ -1130,7 +1264,7 @@ class MainActivity : AppCompatActivity() {
         val listener = object : NsdManager.RegistrationListener {
             override fun onServiceRegistered(registeredInfo: NsdServiceInfo) {
                 registeredMdnsName = registeredInfo.serviceName
-                Log.i(TAG, "mDNS DNS-SD service registered: ${registeredInfo.serviceName}._http._tcp on port $RW_PORT")
+                Log.i(TAG, "mDNS DNS-SD service registered: ${registeredInfo.serviceName}._http._tcp on port $actualRwPort")
             }
 
             override fun onRegistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
@@ -1236,6 +1370,11 @@ class MainActivity : AppCompatActivity() {
             return super.dispatchKeyEvent(event)
         }
 
+        if (errorContainer.visibility == View.VISIBLE) {
+            // When recovery error card is showing, allow standard focus navigation for D-pad on TV
+            return super.dispatchKeyEvent(event)
+        }
+
         // Quick access remote shortcuts to settings dialog (Menu or Play/Pause)
         if (event.keyCode == KeyEvent.KEYCODE_MENU || event.keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
             if (event.action == KeyEvent.ACTION_DOWN) {
@@ -1252,9 +1391,24 @@ class MainActivity : AppCompatActivity() {
                         btnSettings.performClick()
                         return true
                     }
-                    KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_BACK -> {
+                    KeyEvent.KEYCODE_DPAD_UP -> {
                         btnSettings.clearFocus()
                         webView.requestFocus()
+                        webView.evaluateJavascript("if (typeof handleVirtualCursorMove === 'function') handleVirtualCursorMove('ArrowUp');", null)
+                        return true
+                    }
+                    KeyEvent.KEYCODE_DPAD_LEFT -> {
+                        btnSettings.clearFocus()
+                        webView.requestFocus()
+                        webView.evaluateJavascript("if (typeof handleVirtualCursorMove === 'function') handleVirtualCursorMove('ArrowLeft');", null)
+                        return true
+                    }
+                    KeyEvent.KEYCODE_BACK -> {
+                        btnSettings.clearFocus()
+                        webView.requestFocus()
+                        return true
+                    }
+                    KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_RIGHT -> {
                         return true
                     }
                 }
@@ -1354,6 +1508,7 @@ class MainActivity : AppCompatActivity() {
             unregisterMdnsService()
             releaseWifiLock()
             executor.shutdown()
+            killLingeringHamClockZombies()
             android.os.Process.killProcess(android.os.Process.myPid())
         } else {
             Log.i(TAG, "MainActivity destroyed with run_in_background=true; keeping daemon active in background")
