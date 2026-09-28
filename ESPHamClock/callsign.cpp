@@ -276,6 +276,10 @@ static void drawCallsign (bool all)
             }
         }
     }
+
+    // refresh status line beneath callsign box to clean up any past or current overlap
+    if (all)
+        updateCallsignStatus (true);
 }
 
 /* common test for setOnAirHW() and setOnAirSW(), latch state to avoid repetitive drawing.

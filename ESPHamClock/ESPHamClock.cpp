@@ -156,7 +156,7 @@ const char *detime_names[DETIME_N] = {
 static void drawVersion(bool force);
 static void checkTouch(void);
 static void drawUptime(bool force);
-static void drawRotatingMessage(void);
+static void drawRotatingMessage(bool force = false);
 static void drawScreenLock(void);
 static void toggleLockScreen(void);
 static void setDXPrefixOverride (const char *ovprefix);
@@ -1494,11 +1494,11 @@ static void drawVersion (bool draw)
 
 /* draw one of several possible rotating message beneath the call sign.
  */
-static void drawRotatingMessage()
+static void drawRotatingMessage(bool force)
 {
     // just once every few seconds is fine
     static uint32_t prev_ms;
-    if (!timesUp(&prev_ms, 5000))
+    if (!force && !timesUp(&prev_ms, 5000))
         return;
 
     // default color, cases might change
@@ -1659,13 +1659,10 @@ static void drawRotatingMessage()
 static void prepUptime()
 {
 
-    const uint16_t x = uptime_b.x+UPTIME_INDENT;
     const uint16_t y = cs_info.box.y+cs_info.box.h+CSINFO_DROP;
-    const uint16_t w = uptime_b.w - UPTIME_INDENT;
 
     // clear from cs_info.box bottom down through status box to catch any descenders
-    tft.fillRect (x, cs_info.box.y+cs_info.box.h, w, CSINFO_DROP+CSINFO_H+2, RA8875_BLACK);             // Skip "Up"
-    // drawSBox (uptime_b, RA8875_GREEN);                       // RBF
+    tft.fillRect (uptime_b.x, cs_info.box.y+cs_info.box.h, uptime_b.w, CSINFO_DROP+CSINFO_H+2, RA8875_BLACK);
 
     selectFontStyle (LIGHT_FONT, FAST_FONT);
     tft.setTextColor (GRAY);
@@ -1713,9 +1710,9 @@ time_t getUptime (uint16_t *days, uint8_t *hrs, uint8_t *mins, uint8_t *secs)
  */
 static void drawUptime(bool force)
 {
-    // only do the real work once per second
+    // only do the real work once per second unless forced
     static uint32_t prev_ms;
-    if (!timesUp(&prev_ms, 1000))
+    if (!force && !timesUp(&prev_ms, 1000))
         return;
 
     // only redraw if significant chars change
@@ -1765,7 +1762,7 @@ void updateCallsignStatus (bool force)
     getFontStyle (&fw, &fs);
 
     drawUptime (force);
-    drawRotatingMessage ();
+    drawRotatingMessage (force);
     drawVersion (force);
 
     selectFontStyle (fw, fs);
