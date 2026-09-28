@@ -591,6 +591,8 @@ class MainActivity : AppCompatActivity() {
             }
             .setNegativeButton(getString(R.string.cancel), null)
             .setOnDismissListener {
+                btnSettings.clearFocus()
+                webView.requestFocus()
                 if (!isSaved) {
                     applyOverscanMargin(currentOverscan)
                     // Revert in-memory network access to whatever was previously saved
@@ -910,6 +912,35 @@ class MainActivity : AppCompatActivity() {
                     Log.w(TAG, "Timeout waiting for clipboard in JS interface")
                 }
                 return text
+            }
+
+            @JavascriptInterface
+            fun openSettings() {
+                mainHandler.post {
+                    btnSettings.performClick()
+                }
+            }
+
+            @JavascriptInterface
+            fun focusSettings() {
+                mainHandler.post {
+                    btnSettings.requestFocus()
+                }
+            }
+
+            @JavascriptInterface
+            fun setSettingsHover(isHovered: Boolean) {
+                mainHandler.post {
+                    if (!btnSettings.isFocused) {
+                        if (isHovered) {
+                            btnSettings.alpha = 1.0f
+                            btnSettings.animate().scaleX(1.15f).scaleY(1.15f).setDuration(150).start()
+                        } else {
+                            btnSettings.alpha = 0.8f
+                            btnSettings.animate().scaleX(1.0f).scaleY(1.0f).setDuration(150).start()
+                        }
+                    }
+                }
             }
         }, "AndroidApp")
 
@@ -1360,9 +1391,24 @@ class MainActivity : AppCompatActivity() {
                         btnSettings.performClick()
                         return true
                     }
-                    KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_BACK -> {
+                    KeyEvent.KEYCODE_DPAD_UP -> {
                         btnSettings.clearFocus()
                         webView.requestFocus()
+                        webView.evaluateJavascript("if (typeof handleVirtualCursorMove === 'function') handleVirtualCursorMove('ArrowUp');", null)
+                        return true
+                    }
+                    KeyEvent.KEYCODE_DPAD_LEFT -> {
+                        btnSettings.clearFocus()
+                        webView.requestFocus()
+                        webView.evaluateJavascript("if (typeof handleVirtualCursorMove === 'function') handleVirtualCursorMove('ArrowLeft');", null)
+                        return true
+                    }
+                    KeyEvent.KEYCODE_BACK -> {
+                        btnSettings.clearFocus()
+                        webView.requestFocus()
+                        return true
+                    }
+                    KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_RIGHT -> {
                         return true
                     }
                 }
