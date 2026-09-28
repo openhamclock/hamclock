@@ -34,6 +34,7 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.widget.ProgressBar
 import android.widget.TextView
+import android.view.inputmethod.EditorInfo
 import androidx.activity.addCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
@@ -367,6 +368,11 @@ class MainActivity : AppCompatActivity() {
         cbStartOnBoot.isChecked = currentStartOnBoot
 
         etMdnsName.setText(currentMdnsName)
+
+        if (isFireTvOrTv()) {
+            etBackendHost.imeOptions = EditorInfo.IME_ACTION_DONE
+            etMdnsName.imeOptions = EditorInfo.IME_ACTION_DONE
+        }
 
         fun getEndpointTargetUrl(tab: Int): String {
             val ip = getDeviceIpAddress()
@@ -720,7 +726,7 @@ class MainActivity : AppCompatActivity() {
         @Suppress("DEPRECATION")
         dialog.window?.setSoftInputMode(
             WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN or
-            WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+            WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN
         )
 
         val displayWidth = resources.displayMetrics.widthPixels
