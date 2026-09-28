@@ -16,12 +16,22 @@ class HamClockViewController: UIViewController, WKNavigationDelegate, WKUIDelega
     private let statusLabel = UILabel()
     private let settingsButton = UIButton(type: .system)
 
+    // Error recovery card components
+    private let errorContainer = UIView()
+    private let errorIcon = UIImageView()
+    private let errorTitleLabel = UILabel()
+    private let errorMessageLabel = UILabel()
+    private let restartButton = UIButton(type: .system)
+    private let errorSettingsButton = UIButton(type: .system)
+
     private let liveWebPort: Int32 = 8081
     private let roPort: Int32 = 8082
     private let restPort: Int32 = 8080
 
     private var pollTimer: Timer?
     private var isConnected = false
+    private var connectAttemptCount = 0
+    private let maxConnectAttempts = 24 // 24 * 0.5s = 12 seconds
 
     override var prefersStatusBarHidden: Bool {
         return true
@@ -37,6 +47,7 @@ class HamClockViewController: UIViewController, WKNavigationDelegate, WKUIDelega
 
         setupWebView()
         setupOverlayUI()
+        setupRecoveryUI()
         setupBridge()
 
         LocationService.shared.delegate = self
@@ -123,6 +134,90 @@ class HamClockViewController: UIViewController, WKNavigationDelegate, WKUIDelega
         ])
     }
 
+    private func setupRecoveryUI() {
+        errorContainer.backgroundColor = UIColor(red: 0.12, green: 0.12, blue: 0.15, alpha: 0.96)
+        errorContainer.layer.cornerRadius = 16
+        errorContainer.layer.borderWidth = 1.0
+        errorContainer.layer.borderColor = UIColor(white: 1.0, alpha: 0.2).cgColor
+        errorContainer.layer.shadowColor = UIColor.black.cgColor
+        errorContainer.layer.shadowOpacity = 0.5
+        errorContainer.layer.shadowOffset = CGSize(width: 0, height: 4)
+        errorContainer.layer.shadowRadius = 8
+        errorContainer.translatesAutoresizingMaskIntoConstraints = false
+        errorContainer.isHidden = true
+        errorContainer.alpha = 0.0
+        view.addSubview(errorContainer)
+
+        let errorCardStack = UIStackView()
+        errorCardStack.axis = .vertical
+        errorCardStack.alignment = .center
+        errorCardStack.spacing = 14
+        errorCardStack.translatesAutoresizingMaskIntoConstraints = false
+        errorContainer.addSubview(errorCardStack)
+
+        errorIcon.image = UIImage(systemName: "exclamationmark.triangle.fill")
+        errorIcon.tintColor = .systemOrange
+        errorIcon.contentMode = .scaleAspectFit
+        errorIcon.translatesAutoresizingMaskIntoConstraints = false
+        errorIcon.heightAnchor.constraint(equalToConstant: 44).isActive = true
+        errorIcon.widthAnchor.constraint(equalToConstant: 44).isActive = true
+        errorCardStack.addArrangedSubview(errorIcon)
+
+        errorTitleLabel.text = "HamClock Engine Not Responding"
+        errorTitleLabel.textColor = .white
+        errorTitleLabel.font = .systemFont(ofSize: 18, weight: .bold)
+        errorTitleLabel.textAlignment = .center
+        errorCardStack.addArrangedSubview(errorTitleLabel)
+
+        errorMessageLabel.text = "The background HamClock engine failed to respond on port \(liveWebPort). Check settings or restart the engine."
+        errorMessageLabel.textColor = UIColor(white: 0.8, alpha: 1.0)
+        errorMessageLabel.font = .systemFont(ofSize: 14, weight: .regular)
+        errorMessageLabel.textAlignment = .center
+        errorMessageLabel.numberOfLines = 0
+        errorCardStack.addArrangedSubview(errorMessageLabel)
+
+        let buttonStack = UIStackView()
+        buttonStack.axis = .horizontal
+        buttonStack.spacing = 12
+        buttonStack.distribution = .fillEqually
+        buttonStack.translatesAutoresizingMaskIntoConstraints = false
+
+        restartButton.setTitle("Restart Engine", for: .normal)
+        restartButton.setTitleColor(.white, for: .normal)
+        restartButton.backgroundColor = UIColor(red: 0.2, green: 0.45, blue: 0.8, alpha: 1.0)
+        restartButton.titleLabel?.font = .systemFont(ofSize: 15, weight: .semibold)
+        restartButton.layer.cornerRadius = 8
+        restartButton.heightAnchor.constraint(equalToConstant: 42).isActive = true
+        restartButton.addTarget(self, action: #selector(restartEngineTapped), for: .touchUpInside)
+
+        errorSettingsButton.setTitle("HamClock Settings", for: .normal)
+        errorSettingsButton.setTitleColor(.white, for: .normal)
+        errorSettingsButton.backgroundColor = UIColor(white: 0.25, alpha: 1.0)
+        errorSettingsButton.titleLabel?.font = .systemFont(ofSize: 15, weight: .semibold)
+        errorSettingsButton.layer.cornerRadius = 8
+        errorSettingsButton.heightAnchor.constraint(equalToConstant: 42).isActive = true
+        errorSettingsButton.addTarget(self, action: #selector(settingsTapped), for: .touchUpInside)
+
+        buttonStack.addArrangedSubview(restartButton)
+        buttonStack.addArrangedSubview(errorSettingsButton)
+        errorCardStack.addArrangedSubview(buttonStack)
+
+        NSLayoutConstraint.activate([
+            errorContainer.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            errorContainer.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            errorContainer.widthAnchor.constraint(lessThanOrEqualToConstant: 420),
+            errorContainer.leadingAnchor.constraint(greaterThanOrEqualTo: view.leadingAnchor, constant: 24),
+            errorContainer.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor, constant: -24),
+
+            errorCardStack.topAnchor.constraint(equalTo: errorContainer.topAnchor, constant: 20),
+            errorCardStack.leadingAnchor.constraint(equalTo: errorContainer.leadingAnchor, constant: 20),
+            errorCardStack.trailingAnchor.constraint(equalTo: errorContainer.trailingAnchor, constant: -20),
+            errorCardStack.bottomAnchor.constraint(equalTo: errorContainer.bottomAnchor, constant: -20),
+
+            buttonStack.widthAnchor.constraint(equalTo: errorCardStack.widthAnchor)
+        ])
+    }
+
     @objc private func handleButtonPan(_ gesture: UIPanGestureRecognizer) {
         let translation = gesture.translation(in: view)
         if let btn = gesture.view {
@@ -173,6 +268,10 @@ class HamClockViewController: UIViewController, WKNavigationDelegate, WKUIDelega
     private func startConnectingToEngine() {
         pollTimer?.invalidate()
         isConnected = false
+        connectAttemptCount = 0
+
+        errorContainer.isHidden = true
+        errorContainer.alpha = 0.0
         activityIndicator.startAnimating()
         activityIndicator.isHidden = false
         statusLabel.isHidden = false
@@ -186,6 +285,14 @@ class HamClockViewController: UIViewController, WKNavigationDelegate, WKUIDelega
     private func checkEngineReadiness() {
         guard let url = URL(string: "http://127.0.0.1:\(liveWebPort)/live.html") else { return }
 
+        connectAttemptCount += 1
+        if connectAttemptCount > maxConnectAttempts {
+            DispatchQueue.main.async { [weak self] in
+                self?.showRecoveryUI()
+            }
+            return
+        }
+
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.timeoutInterval = 1.0
@@ -195,9 +302,37 @@ class HamClockViewController: UIViewController, WKNavigationDelegate, WKUIDelega
                 DispatchQueue.main.async {
                     self?.onEngineReady(url: url)
                 }
+            } else if let self = self, !HamClockBridge.shared().isDaemonRunning() && self.connectAttemptCount >= 6 {
+                // If daemon thread already exited prematurely, fail fast
+                DispatchQueue.main.async {
+                    self.showRecoveryUI()
+                }
             }
         }
         task.resume()
+    }
+
+    private func showRecoveryUI() {
+        guard !isConnected else { return }
+        pollTimer?.invalidate()
+        pollTimer = nil
+        activityIndicator.stopAnimating()
+        activityIndicator.isHidden = true
+        statusLabel.isHidden = true
+
+        errorContainer.isHidden = false
+        UIView.animate(withDuration: 0.25) {
+            self.errorContainer.alpha = 1.0
+        }
+    }
+
+    @objc private func restartEngineTapped() {
+        UIView.animate(withDuration: 0.2, animations: {
+            self.errorContainer.alpha = 0.0
+        }) { _ in
+            self.errorContainer.isHidden = true
+            self.startEngine(forceSetup: false, countdown: false)
+        }
     }
 
     private func onEngineReady(url: URL) {
@@ -206,6 +341,8 @@ class HamClockViewController: UIViewController, WKNavigationDelegate, WKUIDelega
         pollTimer?.invalidate()
         pollTimer = nil
 
+        errorContainer.isHidden = true
+        errorContainer.alpha = 0.0
         statusLabel.text = "Loading interface..."
         webView.load(URLRequest(url: url))
     }
@@ -220,6 +357,22 @@ class HamClockViewController: UIViewController, WKNavigationDelegate, WKUIDelega
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
         statusLabel.text = "Load failed: \(error.localizedDescription)"
+        if !isConnected {
+            showRecoveryUI()
+        }
+    }
+
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        statusLabel.text = "Connection failed: \(error.localizedDescription)"
+        if !isConnected {
+            showRecoveryUI()
+        }
+    }
+
+    func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        NSLog("[HamClockViewController] WebContent process terminated")
+        isConnected = false
+        showRecoveryUI()
     }
 
     // MARK: - HamClockBridgeDelegate
