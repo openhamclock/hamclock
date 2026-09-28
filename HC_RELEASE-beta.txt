@@ -2,3 +2,6 @@ Changes with latest release:
 - fix broken chars in lat/lon
 - ADS-B button on all maps
 - Android/Google TV support
+- fix poss. Android crash in sleep
+- fix pointer config select on TV
+- fix descenders cover status line
