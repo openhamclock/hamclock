@@ -414,20 +414,21 @@
         android:layout_marginTop="-4dp"
         android:layout_marginBottom="8dp" />
 
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:layout_marginTop="8dp"
-        android:layout_marginBottom="12dp"
-        android:background="#33FFFFFF" />
-
     <LinearLayout
         android:id="@+id/ll_tv_overscan"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:focusable="false"
+        android:visibility="gone"
         android:layout_marginBottom="8dp">
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="12dp"
+            android:background="#33FFFFFF" />
 
         <TextView
             android:layout_width="match_parent"

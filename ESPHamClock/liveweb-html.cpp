@@ -153,12 +153,31 @@ char live_html[] =  R"_raw_html_(
         var arrow_repeat_count = 0;
         const VCURSOR_HIDE_MS = 12000;  // auto-hide after 12s of inactivity
 
+        function isOverSettings(domX, domY) {
+            if (!window.AndroidApp) return false;
+            if (domX === undefined || domY === undefined) {
+                if (!cvs || !app_scale) return false;
+                const rect = cvs.getBoundingClientRect();
+                domX = rect.left + vcursor_x * app_scale;
+                domY = rect.top + vcursor_y * app_scale;
+            }
+            const win_w = window.innerWidth;
+            const win_h = window.innerHeight;
+            const nearDomEdge = (domX >= win_w - 75 && domY >= win_h - 75);
+            const nearCanvasEdge = (vcursor_x >= APP_W - 35 && vcursor_y >= 445);
+            return nearDomEdge || nearCanvasEdge;
+        }
+
         function updateVirtualCursorDom() {
             if (!vcursor_el || !cvs || !app_scale) return;
             const rect = cvs.getBoundingClientRect();
             const domX = rect.left + vcursor_x * app_scale;
             const domY = rect.top + vcursor_y * app_scale;
             vcursor_el.style.transform = 'translate3d(' + Math.round(domX) + 'px, ' + Math.round(domY) + 'px, 0px)';
+
+            if (window.AndroidApp && typeof window.AndroidApp.setSettingsHover === 'function') {
+                window.AndroidApp.setSettingsHover(isOverSettings(domX, domY));
+            }
         }
 
         function showVirtualCursor() {
@@ -176,6 +195,9 @@ char live_html[] =  R"_raw_html_(
             if (vcursor_hide_timer) {
                 clearTimeout(vcursor_hide_timer);
                 vcursor_hide_timer = null;
+            }
+            if (window.AndroidApp && typeof window.AndroidApp.setSettingsHover === 'function') {
+                window.AndroidApp.setSettingsHover(false);
             }
         }
 
@@ -206,6 +228,15 @@ char live_html[] =  R"_raw_html_(
                 return;
             }
 
+            // Transfer focus to native Android settings button when navigating past bottom-right
+            if (window.AndroidApp && typeof window.AndroidApp.focusSettings === 'function') {
+                if ((direction === 'ArrowDown' || direction === 'ArrowRight') &&
+                    vcursor_x >= APP_W - 35 && vcursor_y >= 445) {
+                    window.AndroidApp.focusSettings();
+                    return;
+                }
+            }
+
             if (direction === 'ArrowLeft') vcursor_x -= step;
             else if (direction === 'ArrowRight') vcursor_x += step;
             else if (direction === 'ArrowUp') vcursor_y -= step;
@@ -227,6 +258,15 @@ char live_html[] =  R"_raw_html_(
             if (!vcursor_visible) {
                 showVirtualCursor();
                 return;
+            }
+
+            // Open settings if virtual cursor is clicked over the native settings button
+            if (window.AndroidApp && typeof window.AndroidApp.openSettings === 'function') {
+                if (isOverSettings()) {
+                    window.AndroidApp.openSettings();
+                    resetVirtualCursorTimer();
+                    return;
+                }
             }
 
             // brief click feedback animation

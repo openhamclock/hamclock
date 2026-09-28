@@ -50,6 +50,10 @@
     <string name="overscan_normal">Normal (3%)</string>
     <string name="overscan_large">Large (5%)</string>
     <string name="press_back_again_to_exit">Press Back again to exit HamClock</string>
+    <string name="error_engine_title">Unable to Connect to HamClock</string>
+    <string name="error_engine_message">The HamClock engine could not start or port 8081 is in use. Tap Clean Restart to terminate any lingering processes and start fresh.</string>
+    <string name="clean_restart">Clean Restart</string>
+    <string name="rw_port_conflict_toast">Notice: Port 8081 is in use. Live clock switched to port %1$d.</string>
 </resources>
 
 

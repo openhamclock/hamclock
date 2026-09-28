@@ -23,18 +23,22 @@ class RestartActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 1. Relaunch the main activity while this activity is in foreground
+        // 1. Kill previous main process first to wipe native daemon and release ports
+        val mainPid = intent.getIntExtra(EXTRA_MAIN_PID, -1)
+        if (mainPid > 0) {
+            Process.killProcess(mainPid)
+            try {
+                Thread.sleep(150)
+            } catch (_: InterruptedException) {
+            }
+        }
+
+        // 2. Relaunch the main activity
         val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
         }
         if (launchIntent != null) {
             startActivity(launchIntent)
-        }
-
-        // 2. Kill previous main process to wipe native memory, threads, and daemon state
-        val mainPid = intent.getIntExtra(EXTRA_MAIN_PID, -1)
-        if (mainPid > 0) {
-            Process.killProcess(mainPid)
         }
 
         // 3. Finish this activity cleanly
