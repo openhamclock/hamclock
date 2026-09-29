@@ -1757,6 +1757,10 @@ static void drawUptime(bool force)
  */
 void updateCallsignStatus (bool force)
 {
+    // only valid on main page
+    if (!mainpage_up)
+        return;
+
     FontWeight fw;
     FontSize fs;
     getFontStyle (&fw, &fs);
