@@ -1,7 +1,8 @@
 Changes with latest release:
-- fix broken chars in lat/lon
-- ADS-B button on all maps
 - Android/Google TV support
+- ADS-B button on all maps
+- align clouds and wx map buttons
+- fix broken chars in lat/lon
 - fix poss. Android crash in sleep
 - fix pointer config select on TV
 - fix descenders cover status line

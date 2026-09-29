@@ -5,28 +5,29 @@
  * app-mode popup on the X11 desktop build, or a plain new browser tab everywhere else -- see
  * qrz.cpp.
  *
- * On-map presence, not buried in the map menu: only shown when core_map == CM_WX (the "Weather"
- * core map style, ie the one people actually think to look for wind info on), same convention as
- * wefaxBadgeVisible(). It floats to the right of the WEFAX badge, which shares the row on CM_WX
- * and can be showing at the same time, or right of View when WEFAX isn't enabled.
+ * On-map presence, not buried in the map menu: shown when core_map == CM_WX (the "Weather"
+ * core map style) or CM_CLOUDS ("Clouds"), floating to the right of whichever badge is to its
+ * left (WEFAX on CM_WX, Fires or Borders on CM_CLOUDS, else View).
  */
 
 #include "HamClock.h"
 
-SBox windmap_btn_b;                    // extern; badge box, geometry set each draw (floats with WEFAX)
+SBox windmap_btn_b;                    // extern; badge box, geometry set each draw (floats with WEFAX/Fires/Borders)
 
 /* return whether the on-map "Wind" badge should currently be shown.
- * Weather map only -- no projection restriction, matching WEFAX's own simplicity, since this is
+ * Weather and Clouds maps -- no projection restriction, matching WEFAX's own simplicity, since this is
  * just a link and draws nothing that would look wrong in an azimuthal projection.
  */
 bool windBadgeVisible(void)
 {
-    return (core_map == CM_WX);
+    return (core_map == CM_WX || core_map == CM_CLOUDS);
 }
 
 /* draw (or blank) the on-map "Wind" badge.
- * Floats to the right of the WEFAX badge, when showing, else right of View -- recomputed here
- * every draw, same convention as drawFiresButton()/drawADSBBadge() tracking their neighbors.
+ * Floats to the right of whichever badge is currently rightmost in its row to its left:
+ * on Weather that's WEFAX (if showing) else View; on Clouds that's WEFAX (if showing)
+ * else Fires (if showing) else Borders (if showing) else View. Recomputed here every draw,
+ * same convention as drawFiresButton()/drawADSBBadge() tracking their neighbors.
  */
 void drawWindButton(void)
 {
@@ -40,8 +41,13 @@ void drawWindButton(void)
     const int gap = 4;
     const int pad = 8;
     selectFontStyle (LIGHT_FONT, FAST_FONT);
-    uint16_t left_edge = wefaxBadgeVisible() ? (wefax_btn_b.x + wefax_btn_b.w)
-                                              : (view_btn_b.x + view_btn_b.w);
+    uint16_t left_edge = view_btn_b.x + view_btn_b.w;
+    if (bordersBadgeVisible())
+        left_edge = borders_btn_b.x + borders_btn_b.w;
+    if (firesBadgeVisible())
+        left_edge = fires_btn_b.x + fires_btn_b.w;
+    if (wefaxBadgeVisible())
+        left_edge = wefax_btn_b.x + wefax_btn_b.w;
     windmap_btn_b.x = left_edge + gap;
     windmap_btn_b.w = getTextWidth ("Wind") + pad;
     windmap_btn_b.h = view_btn_b.h;

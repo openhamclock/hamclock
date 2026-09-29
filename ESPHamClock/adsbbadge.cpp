@@ -31,9 +31,9 @@ bool adsbBadgeVisible(void)
 
 /* draw (or blank) the on-map "ADS-B" badge.
  * Floats to the right of whichever badge is currently rightmost in its row: on
- * Countries/Terrain/Clouds that's Fires, else Borders, else View; on Weather that's Wind, else
- * WEFAX, else View. Recomputed here every draw, same convention as drawFiresButton()/
- * drawWindButton() tracking their own neighbors.
+ * Countries/Terrain that's Fires, else Borders, else View; on Clouds that's Wind, else WEFAX,
+ * else Fires, else Borders, else View; on Weather that's Wind, else WEFAX, else Fires, else View. Recomputed here every draw,
+ * same convention as drawFiresButton()/drawWindButton() tracking their own neighbors.
  */
 void drawADSBBadge(void)
 {
