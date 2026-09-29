@@ -1039,8 +1039,8 @@ void openLiveWebURL (const char *url)
 /* same as openLiveWebURL() but asks the client to show it in its in-page embed overlay (an
  * iframe) instead of opening a new tab -- see showEmbed() in liveweb-html.cpp. Intended for
  * pages worth glancing at without leaving HamClock's tab. Not every site allows this -- some set
- * X-Frame-Options/CSP frame-ancestors specifically to block being framed by another site (eg
- * confirmed: Windy.com, which is why windbadge.cpp does NOT use this) -- so only call this for a
+ * X-Frame-Options/CSP frame-ancestors specifically to block being framed by another site (e.g.
+ * top-level www.windy.com, whereas embed.windy.com allows it) -- so only call this for a
  * target confirmed to permit framing; the client shows a manual "Open in new tab" fallback for
  * the case it doesn't, since that failure can't be reliably detected across origins from JS.
  */

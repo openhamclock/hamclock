@@ -1,8 +1,8 @@
 /* windbadge.cpp -- on-map "Wind" badge for HamClock
  *
  * Same idea as adsbbadge.cpp: no on/off state of its own, draws nothing onto the map, just a
- * link button. Tapping it opens Windy.com centered on DE via openURLPopup() -- a Chromium
- * app-mode popup on the X11 desktop build, or a plain new browser tab everywhere else -- see
+ * link button. Tapping it opens Windy.com centered on DE via openURLPopupEmbed() -- an in-app
+ * overlay window on Live Web / Android, or a Chromium app-mode popup on the X11 desktop build -- see
  * qrz.cpp.
  *
  * On-map presence, not buried in the map menu: shown when core_map == CM_WX (the "Weather"
@@ -65,14 +65,17 @@ void drawWindButton(void)
 }
 
 /* open Windy.com centered on DE.
- * uses openURLPopup(): on the X11 desktop build this is a chromeless Chromium app-mode popup
- * positioned near the HamClock window; everywhere else (Live Web, fb0, ESP32, Android, or no
- * Chromium found) it's a plain new browser tab -- see qrz.cpp.
+ * uses openURLPopupEmbed(): under Live Web / Android this is the in-page <iframe> overlay
+ * using Windy's official embed widget (embed.windy.com/embed2.html); on the X11 desktop build it is
+ * a chromeless Chromium app-mode popup positioned near the HamClock window; everywhere else
+ * (fb0, ESP32, or no Chromium found) it falls back to openURL() in a browser tab -- see qrz.cpp.
  * call this from checkTouch() when windBadgeVisible() && inBox(s, windmap_btn_b).
  */
 void windBadgeClicked(void)
 {
-    char url[100];
-    snprintf (url, sizeof(url), "https://www.windy.com/?%.3f,%.3f,8", de_ll.lat_d, de_ll.lng_d);
-    openURLPopup (url);
+    char url[256];
+    snprintf (url, sizeof(url),
+        "https://embed.windy.com/embed2.html?lat=%.3f&lon=%.3f&zoom=8&level=surface&overlay=wind",
+        de_ll.lat_d, de_ll.lng_d);
+    openURLPopupEmbed (url);
 }
