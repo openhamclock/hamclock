@@ -401,6 +401,31 @@ static void updateMenu (MenuInfo &menu, SBox *pick_boxes, int pick_i, bool kb_fo
         break;
     }
 
+    // if this item has an active parent, ensure parent is set
+    if (MENU_ACTIVE(mi.type)) {
+        int child_i = pick_i;
+        while (child_i >= 0) {
+            int parent_i = -1;
+            for (int j = child_i - 1; j >= 0; j--) {
+                if (MENU_ACTIVE(menu.items[j].type) && menu.items[j].indent < menu.items[child_i].indent) {
+                    parent_i = j;
+                    break;
+                }
+            }
+            if (parent_i >= 0 && !menu.items[parent_i].set) {
+                if (menu.items[parent_i].type == MENU_1OFN || menu.items[parent_i].type == MENU_01OFN) {
+                    menuItemsAllOff (menu, pick_boxes, parent_i);
+                    menu.items[parent_i].set = true;
+                    menuDrawItem (menu.items[parent_i], pick_boxes[parent_i], false, false);
+                } else if (menu.items[parent_i].type == MENU_TOGGLE || menu.items[parent_i].type == MENU_AL1OFN) {
+                    menu.items[parent_i].set = true;
+                    menuDrawItem (menu.items[parent_i], pick_boxes[parent_i], false, false);
+                }
+            }
+            child_i = parent_i;
+        }
+    }
+
     // live footer redraw, if this menu wants one -- cheap no-op otherwise (footer_text NULL)
     drawMenuFooter (menu);
 }
