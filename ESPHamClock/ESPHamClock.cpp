@@ -638,9 +638,9 @@ void setup()
     ll2s (de_ll, de_c.s, DE_R);
     ll2s (deap_ll, deap_c.s, DEAP_R);
     de_title_b.x = de_info_b.x;
-    de_title_b.y = de_tz.box.y-5;
-    de_title_b.w = 30;
-    de_title_b.h = 30;
+    de_title_b.y = map_b.y;
+    de_title_b.w = de_tz.box.x - de_info_b.x;
+    de_title_b.h = de_info_b.y - de_title_b.y;
 
     // init dx unit
     if (!NVReadUInt8 (NV_LP, &show_lp)) {
