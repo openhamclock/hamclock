@@ -1263,8 +1263,8 @@ void initEarthMap()
     // draw map view button
     drawMapMenuButton();
     drawBordersButton();
-    drawWefaxButton();
     drawFiresButton();
+    drawWefaxButton();
     drawWindButton();
     drawADSBBadge();
 
@@ -1387,8 +1387,8 @@ void drawMoreEarth()
         // not just after a full initEarthMap(), or they silently vanish after the next redraw
         drawMapMenuButton();
         drawBordersButton();
-        drawWefaxButton();
         drawFiresButton();
+        drawWefaxButton();
         drawWindButton();
         drawADSBBadge();
 
@@ -1941,7 +1941,8 @@ void antipode (LatLong &to, const LatLong &from)
  * also extends over the Borders, Fires, WEFAX, Wind and/or ADS-B badges, when currently shown,
  * since they all sit side by side -- each floats to the right of whichever of View/Borders/Fires/
  * WEFAX/Wind is rightmost, so ADS-B, being last in every chain it can appear in (Countries/
- * Terrain/Clouds' Borders+Fires row, or Weather's WEFAX+Wind row), must be checked last here too.
+ * Terrain's Borders+Fires row, Clouds' Borders+Fires+WEFAX+Wind row, or Weather's Fires+WEFAX+Wind row), must
+ * be checked last here too.
  */
 bool overViewBtn (const SCoord &s, uint16_t border)
 {

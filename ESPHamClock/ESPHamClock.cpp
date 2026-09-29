@@ -495,23 +495,23 @@ void setup()
         borders_btn_b.h = view_btn_b.h;
     }
 
-    // position WEFAX on-map badge in the same slot as the Borders badge, same convention.
-    // the two are never visible at once -- bordersBadgeVisible() requires CM_CLOUDS/CM_TERRAIN
-    // and wefaxBadgeVisible() requires CM_WX, and core_map can only be one value at a time --
-    // so sharing the slot avoids a permanent gap next to the View button when neither is showing.
+    // seed the WEFAX on-map badge just to the right of View, same convention as Fires/Wind:
+    // it can be showing alongside Borders/Fires on CM_CLOUDS, so it can't share a fixed slot
+    // either -- drawWefaxButton() recomputes wefax_btn_b.x every draw to float right of whichever
+    // badge is to its left, or View. This is just a harmless initial value.
     {
         const int gap = 4;
         const int pad = 8;
         selectFontStyle (LIGHT_FONT, FAST_FONT);
         wefax_btn_b.x = view_btn_b.x + view_btn_b.w + gap;
         wefax_btn_b.y = view_btn_b.y;
-        wefax_btn_b.w = getTextWidth ("WEFAX Off") + pad;
+        wefax_btn_b.w = getTextWidth ("WEFAX") + pad;
         wefax_btn_b.h = view_btn_b.h;
     }
 
-    // seed the Fires on-map badge just to the right of View. Unlike Borders/WEFAX it can be
-    // showing at the same time as Borders (both apply to Terrain/Clouds), so it can't share
-    // their fixed slot -- drawFiresButton() recomputes fires_btn_b.x every draw to float right
+    // seed the Fires on-map badge just to the right of View. Unlike Borders it can be
+    // showing on multiple maps (Countries/Terrain/Clouds/Weather), so it can't share
+    // a fixed slot -- drawFiresButton() recomputes fires_btn_b.x every draw to float right
     // of whichever of View/Borders is currently rightmost. This is just a harmless initial value.
     {
         const int gap = 4;
@@ -538,9 +538,9 @@ void setup()
     }
 
     // seed the Wind on-map badge just to the right of View, same convention: it can share the
-    // CM_WX row with WEFAX, so it can't take a fixed slot either -- drawWindButton() recomputes
-    // windmap_btn_b.x every draw to float right of WEFAX, or View when WEFAX isn't enabled. This
-    // is just a harmless initial value.
+    // row with Fires/WEFAX on CM_WX or Borders/Fires/WEFAX on CM_CLOUDS, so it can't take a fixed slot either --
+    // drawWindButton() recomputes windmap_btn_b.x every draw to float right of whichever badge is to
+    // its left, or View. This is just a harmless initial value.
     {
         const int gap = 4;
         const int pad = 8;

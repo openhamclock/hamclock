@@ -659,8 +659,8 @@ extern bool bordersBadgeVisible(void);  // whether that badge should currently b
  */
 
 extern uint8_t wefax_on;                // whether the viewer is currently open; runtime only, not NV
-extern SBox wefax_btn_b;                // on-map "WEFAX On/Off" badge, shares the Borders badge's slot
-extern bool wefaxBadgeVisible(void);    // whether that badge should currently be shown -- CM_WX only
+extern SBox wefax_btn_b;                // on-map "WEFAX" badge; slot floats right of Fires/Borders/View
+extern bool wefaxBadgeVisible(void);    // whether that badge should currently be shown -- CM_WX and CM_CLOUDS
 extern void drawWefaxButton(void);      // draw (or blank) the badge
 extern void initWefax(void);            // restore NV state at startup
 extern void runWefaxViewer(void);       // take over map_b showing the chart, until the user leaves
@@ -679,7 +679,7 @@ extern uint8_t fires_on;                // show active-fire hotspot overlay
 extern SBox fires_btn_b;                // on-map "Fires On/Off" badge; slot floats right of
                                          // whichever of View/Borders is currently rightmost
 extern bool firesBadgeVisible(void);    // whether that badge should currently be shown --
-                                         // Countries/Terrain/Clouds + Mercator only
+                                         // Countries/Terrain/Clouds/Weather + Mercator only
 extern void drawFiresButton(void);      // draw (or blank) the badge
 extern void initFires(void);            // restore NV state at startup
 extern void updateFires(void);          // fetch from OHB if due; call from updateWiFi()
@@ -692,8 +692,8 @@ extern bool adsbBadgeVisible(void);     // whether that badge should currently b
 extern void drawADSBBadge(void);        // draw (or blank) the badge
 extern void adsbBadgeClicked(void);     // open ADS-B Exchange (or PiAware) centered on DE
 
-extern SBox windmap_btn_b;              // on-map "Wind" badge; slot floats right of WEFAX, or View
-extern bool windBadgeVisible(void);     // whether that badge should currently be shown -- CM_WX only
+extern SBox windmap_btn_b;              // on-map "Wind" badge; slot floats right of WEFAX/Fires/Borders/View
+extern bool windBadgeVisible(void);     // whether that badge should currently be shown -- CM_WX and CM_CLOUDS
 extern void drawWindButton(void);       // draw (or blank) the badge
 extern void windBadgeClicked(void);     // open Windy.com centered on DE
 

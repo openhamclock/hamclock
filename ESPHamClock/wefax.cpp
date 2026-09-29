@@ -1,9 +1,8 @@
 /* wefax.cpp -- on-demand WEFAX chart viewer, proxied and cached via OHB.
  *
- * Adds a "WEFAX" badge that shares the on-map badge slot next to the
- * View button with the Borders badge (the two are mutually exclusive: this
- * one is only shown while core_map == CM_WX, Borders only for CM_CLOUDS/
- * CM_TERRAIN, and core_map can only be one value at a time).
+ * Adds a "WEFAX" badge shown when core_map == CM_WX (Weather) or CM_CLOUDS
+ * (Clouds), floating to the right of whichever badge is to its left
+ * (Fires or Borders on CM_CLOUDS, or View on CM_WX).
  *
  * Pressing the badge takes over map_b exactly the way satsked.cpp's
  * drawSatGroupSchedule() does for the satellite pass table: DE/DX info and
@@ -124,7 +123,7 @@ static bool wefaxMultipleProductsAvailable (uint8_t reg_i)
 // ---------------------------------------------------------------------
 
 uint8_t wefax_on;                  // extern; true only while the modal viewer is on screen
-SBox    wefax_btn_b;               // extern; badge box, geometry set in ESPHamClock.cpp
+SBox    wefax_btn_b;               // extern; badge box, geometry set each draw (floats with Borders/Fires)
 
 static uint8_t wefax_region_i;     // index into wefax_regions[], persisted
 static uint8_t wefax_product_i;    // index into wefax_products[], persisted
@@ -205,13 +204,11 @@ void initWefax (void)
 }
 
 /* whether the on-map WEFAX badge should currently be shown.
- * only offered while the Weather core map style is active -- WEFAX charts are a
- * different thing entirely from CM_WX's synthetic temperature map, but it's the
- * natural place for a user to think to look for real weather chart imagery.
+ * Offered while the Weather or Clouds core map style is active.
  */
 bool wefaxBadgeVisible (void)
 {
-    return (core_map == CM_WX && wefaxEnabled());
+    return ((core_map == CM_WX || core_map == CM_CLOUDS) && wefaxEnabled());
 }
 
 
@@ -571,15 +568,28 @@ static void redrawWefaxZoomed (const SBox &img_b, const SBox &left_b, const SBox
  */
 void drawWefaxButton (void)
 {
+    wefax_btn_b.y = view_btn_b.y;
+
     if (!wefaxBadgeVisible())
         return;
+
+    const int gap = 4;
+    const int pad = 8;
+    selectFontStyle (LIGHT_FONT, FAST_FONT);
+    uint16_t left_edge = view_btn_b.x + view_btn_b.w;
+    if (bordersBadgeVisible())
+        left_edge = borders_btn_b.x + borders_btn_b.w;
+    if (firesBadgeVisible())
+        left_edge = fires_btn_b.x + fires_btn_b.w;
+    wefax_btn_b.x = left_edge + gap;
+    wefax_btn_b.w = getTextWidth ("WEFAX") + pad;
+    wefax_btn_b.h = view_btn_b.h;
 
     static const char label[] = "WEFAX";
 
     tft.fillRect (wefax_btn_b.x, wefax_btn_b.y, wefax_btn_b.w-1, wefax_btn_b.h-1, RA8875_BLACK);
     tft.drawRect (wefax_btn_b.x, wefax_btn_b.y, wefax_btn_b.w-1, wefax_btn_b.h-1, RA8875_WHITE);
 
-    selectFontStyle (LIGHT_FONT, FAST_FONT);
     uint16_t lbl_w = getTextWidth (label);
     tft.setCursor (wefax_btn_b.x + (wefax_btn_b.w-lbl_w)/2, wefax_btn_b.y+2);
     tft.setTextColor (RA8875_WHITE);
