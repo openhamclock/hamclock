@@ -54,7 +54,8 @@ void EEPROM::begin (int s)
             fp = NULL;
         }
         if (rm_eeprom) {
-            (void) unlink (filename);
+            if (unlink (filename) < 0)
+                (void) truncate (filename, 0);
             rm_eeprom = false;  // only once!
         }
         if (data_array) {
