@@ -2,6 +2,8 @@ Changes with latest release:
 - Android/Google TV support
 - ADS-B button on all maps
 - align clouds and wx map buttons
+- embed Wind in HamClock
+- factory reset
 - fix broken chars in lat/lon
 - fix poss. Android crash in sleep
 - fix pointer config select on TV
