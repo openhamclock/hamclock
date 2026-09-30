@@ -80,7 +80,7 @@ SBox    fires_btn_b;                    // extern; badge box, geometry set each 
  */
 bool firesBadgeVisible(void)
 {
-    return ((core_map == CM_COUNTRIES || core_map == CM_TERRAIN || core_map == CM_CLOUDS || core_map == CM_WX)
+    return ((core_map == CM_COUNTRIES || core_map == CM_TERRAIN || core_map == CM_PHYSICAL || core_map == CM_CLOUDS || core_map == CM_WX)
                         && map_proj == MAPP_MERCATOR);
 }
 
