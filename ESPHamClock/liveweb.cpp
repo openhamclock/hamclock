@@ -220,8 +220,9 @@ static void updateExistingClient (ws_cli_conn_t *client)
                                 ws_getaddress(client), TVDELUS (tv0,tv1));
     }
 
-    // draw connection counter on main page
-    if (mainpage_up) {
+    // draw connection counter on main page if not covered by an active menu
+    SBox ctr_b = { (uint16_t)(lkscrn_b.x - 4), (uint16_t)(lkscrn_b.y + lkscrn_b.h + 3), 24, 6 };
+    if (mainpage_up && !menuOverlaps (ctr_b)) {
         #define CTR_RAWW (3*tft.SCALESZ)
         #define CTR_RAWH (5*tft.SCALESZ)
         #define CTR_RAWX (tft.SCALESZ*(lkscrn_b.x-4))

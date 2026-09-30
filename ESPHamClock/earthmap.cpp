@@ -957,7 +957,7 @@ static void drawMapMenuButton()
 }
 
 /* draw (or blank) the on-map "Borders On/Off" badge just to the right of the View button.
- * Only shown on Clouds/Terrain in the Mercator or Robinson projections -- see bordersBadgeVisible().
+ * Only shown on Clouds/Terrain/Physical in the Mercator or Robinson projections -- see bordersBadgeVisible().
  * Hiding it never touches borders_on, so whatever the user last set just keeps applying silently.
  *
  * Deliberately looks different when engaged: filled light with dark text, like a pressed button,
@@ -995,7 +995,7 @@ static void drawMapMenu()
 {
     enum MIName {     // menu items -- N.B. must be in same order as mitems[]
         MI_STY_TTL,
-            MI_STY_CTY, MI_STY_TER, MI_STY_DRA, MI_STY_MUF, MI_STY_MRT, MI_STY_AUR, MI_STY_WXX,
+            MI_STY_CTY, MI_STY_PHY, MI_STY_TER, MI_STY_DRA, MI_STY_MUF, MI_STY_MRT, MI_STY_AUR, MI_STY_WXX,
             MI_STY_CLO, MI_STY_TRP, MI_STY_USR, MI_STY_TOA, MI_STY_REL, 
         MI_GRD_TTL,
             MI_GRD_NON, MI_GRD_TRO, MI_GRD_LLG, MI_GRD_MAI, MI_GRD_MA4, MI_GRD_AZM, MI_GRD_CQZ, MI_GRD_ITU,
@@ -1012,6 +1012,7 @@ static void drawMapMenu()
     MenuItem mitems[MI_N] = {
         {MENU_LABEL, false, 0, PRI_INDENT, "Style:", 0},
             {MENU_AL1OFN, IS_CMROT(CM_COUNTRIES), 1, SEC_INDENT, cm_info[CM_COUNTRIES].name, 0},
+            {MENU_AL1OFN, IS_CMROT(CM_PHYSICAL),  1, SEC_INDENT, cm_info[CM_PHYSICAL].name, 0},
             {MENU_AL1OFN, IS_CMROT(CM_TERRAIN),   1, SEC_INDENT, cm_info[CM_TERRAIN].name, 0},
             {MENU_AL1OFN, IS_CMROT(CM_DRAP),      1, SEC_INDENT, cm_info[CM_DRAP].name, 0},
             {MENU_AL1OFN, IS_CMROT(CM_MUF_V),     1, SEC_INDENT, cm_info[CM_MUF_V].name, 0},
@@ -1106,6 +1107,8 @@ static void drawMapMenu()
         map_rotset = 0;
         if (mitems[MI_STY_CTY].set)
             scheduleNewCoreMap (CM_COUNTRIES);
+        if (mitems[MI_STY_PHY].set)
+            scheduleNewCoreMap (CM_PHYSICAL);
         if (mitems[MI_STY_TER].set)
             scheduleNewCoreMap (CM_TERRAIN);
         if (mitems[MI_STY_DRA].set)
@@ -1366,7 +1369,7 @@ void drawMoreEarth()
 
         // draw goodies unless showing CM_USER
         if (core_map != CM_USER) {
-            // country/state borders (Clouds/Terrain only) must be the lowest-Z overlay --
+            // country/state borders (Clouds/Terrain/Physical only) must be the lowest-Z overlay --
             // draw them here, before the grid/sat-path/DX-path/PSK-path lines below, since
             // those are painted directly on the just-swept map and NOT through drawAllSymbols()
             // until a few lines later. Without this, drawAllSymbols()'s own (correctly early)

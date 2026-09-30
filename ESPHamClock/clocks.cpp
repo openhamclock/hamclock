@@ -1115,7 +1115,8 @@ void updateClocks(bool all)
         prev_wd = tm_wo.Wday;
     }
 
-    drawAuxTime (all, t_wo, tm_wo);
+    if (!menuOverlaps (auxtime_b))
+        drawAuxTime (all, t_wo, tm_wo);
 
     // draw other misc time items unless showing pane 0
     if (draw_other_times && !SHOWING_PANE_0()) {

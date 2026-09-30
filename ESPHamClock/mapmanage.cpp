@@ -629,6 +629,7 @@ bool installFreshMaps()
             break;
         case CM_COUNTRIES:
         case CM_TERRAIN:
+        case CM_PHYSICAL:
         case CM_DRAP:
         case CM_MUF_RT:
         case CM_AURORA:
@@ -814,6 +815,7 @@ bool mapScaleIsUp(void)
         return (true);
     case CM_COUNTRIES:
     case CM_TERRAIN:
+    case CM_PHYSICAL:
     case CM_CLOUDS:
     case CM_USER:
     case CM_N:          // lint
@@ -911,6 +913,7 @@ void drawMapScale()
     switch (core_map) {
     case CM_COUNTRIES:
     case CM_TERRAIN:
+    case CM_PHYSICAL:
     case CM_CLOUDS:
     case CM_USER:
     case CM_N:                                          // lint
