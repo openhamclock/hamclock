@@ -2551,6 +2551,107 @@ static bool RUSure (SBox &box, const char *q)
     return (runMenu (menu));
 }
 
+/* recursively remove the contents of a directory.
+ * if is_root is true, .mac_address is preserved.
+ */
+static void wipeDirectory (const char *path, bool is_root)
+{
+    DIR *dirp = opendir (path);
+    if (!dirp) {
+        Serial.printf ("wipeDirectory: opendir(%s): %s\n", path, strerror(errno));
+        return;
+    }
+
+    struct dirent *dp;
+    while ((dp = readdir (dirp)) != NULL) {
+        // skip . and ..
+        if (strcmp (dp->d_name, ".") == 0 || strcmp (dp->d_name, "..") == 0)
+            continue;
+
+        // preserve persistent MAC address file at the root of our_dir
+        if (is_root && strcmp (dp->d_name, ".mac_address") == 0) {
+            Serial.printf ("Factory reset: preserving %s\n", dp->d_name);
+            continue;
+        }
+
+        char full_path[PATH_MAX];
+        snprintf (full_path, sizeof(full_path), "%s/%s", path, dp->d_name);
+
+        struct stat st;
+        if (lstat (full_path, &st) < 0) {
+            Serial.printf ("Factory reset: lstat(%s): %s\n", full_path, strerror(errno));
+            continue;
+        }
+
+        if (S_ISDIR (st.st_mode)) {
+            wipeDirectory (full_path, false);
+            if (rmdir (full_path) < 0) {
+                chmod (full_path, 0777);
+                if (rmdir (full_path) < 0)
+                    Serial.printf ("Factory reset: rmdir(%s): %s\n", full_path, strerror(errno));
+            } else {
+                Serial.printf ("Factory reset: removed dir %s\n", full_path);
+            }
+        } else {
+            if (unlink (full_path) < 0) {
+                // If unlink failed (e.g. EBUSY on a bind mount in Docker), try truncating
+                if (truncate (full_path, 0) == 0) {
+                    Serial.printf ("Factory reset: %s cannot be unlinked, truncated to 0 bytes\n", full_path);
+                } else {
+                    chmod (full_path, 0666);
+                    if (unlink (full_path) < 0) {
+                        if (truncate (full_path, 0) == 0)
+                            Serial.printf ("Factory reset: %s truncated after chmod\n", full_path);
+                        else
+                            Serial.printf ("Factory reset: unlink/truncate(%s): %s\n", full_path, strerror(errno));
+                    } else {
+                        Serial.printf ("Factory reset: removed %s\n", full_path);
+                    }
+                }
+            } else {
+                Serial.printf ("Factory reset: removed %s\n", full_path);
+            }
+        }
+    }
+
+    closedir (dirp);
+}
+
+/* completely clear out config directory (our_dir) preserving .mac_address, then restart.
+ */
+static void doFactoryReset(void)
+{
+    Serial.printf ("Performing Factory Reset...\n");
+
+    // sanitize our_dir
+    std::string base = our_dir;
+    while (!base.empty() && base.back() == '/')
+        base.pop_back();
+
+    if (base.empty() || base == "/" || base == "/root" || base == "/home" || base == "/tmp") {
+        Serial.printf ("Factory reset aborted: unsafe our_dir '%s'\n", our_dir.c_str());
+        return;
+    }
+
+    eraseScreen();
+    selectFontStyle (BOLD_FONT, SMALL_FONT);
+    tft.setTextColor (RA8875_WHITE);
+    const char *msg = "Resetting to factory defaults...";
+    uint16_t msg_w = getTextWidth (msg);
+    uint16_t msg_x = (tft.width() > msg_w) ? (tft.width() - msg_w) / 2 : 50;
+    tft.setCursor (msg_x, tft.height() / 2);
+    tft.print (msg);
+    tft.drawPR();
+
+    // wipe directory contents, preserving .mac_address
+    wipeDirectory (base.c_str(), true);
+
+    sync();
+    wdDelay (1500);
+
+    doReboot (false, false);
+}
+
 /* offer power down, restart etc 
  */
 static void runShutdownMenu(void)
@@ -2569,6 +2670,7 @@ static void runShutdownMenu(void)
 #if !defined(NO_HAMCLOCK_CONTROLS)
         SHM_RESTART_HC,
         SHM_EXIT_HC,
+        SHM_RESET_HC,
 #endif
 #if !defined(NO_SYSTEM_CONTROLS)
         SHM_REBOOT_SYS,
@@ -2585,6 +2687,7 @@ static void runShutdownMenu(void)
 #if !defined(NO_HAMCLOCK_CONTROLS)
         {locked ? MENU_IGNORE : MENU_01OFN,  false,         3, SHM_INDENT, "Restart HamClock", 0}, // SHM_RESTART_HC
         {locked ? MENU_IGNORE : MENU_01OFN,  false,         3, SHM_INDENT, "Exit HamClock", 0},    // SHM_EXIT_HC
+        {locked ? MENU_IGNORE : MENU_01OFN,  false,         3, SHM_INDENT, "Factory reset", 0},    // SHM_RESET_HC
 #endif
 #if !defined(NO_SYSTEM_CONTROLS)
         {locked ? MENU_IGNORE : MENU_01OFN,  false,         3, SHM_INDENT, "Reboot computer", 0},  // SHM_REBOOT_SYS
@@ -2646,6 +2749,12 @@ static void runShutdownMenu(void)
             if (RUSure (menu_b, mitems[SHM_EXIT_HC].label) && askPasswd ("exit", true)) {
                 Serial.print ("Exiting\n");
                 doExit();
+            }
+        }
+
+        if (mitems[SHM_RESET_HC].set) {
+            if (RUSure (menu_b, mitems[SHM_RESET_HC].label) && askPasswd ("reset", true)) {
+                doFactoryReset();
             }
         }
 #endif

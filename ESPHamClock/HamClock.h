@@ -22,6 +22,7 @@
 #include <signal.h>
 #include <dirent.h>
 #include <sys/file.h>
+#include <sys/stat.h>
 
 
 #include "ArduinoLib.h"
