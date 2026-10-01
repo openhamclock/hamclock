@@ -1,8 +1,10 @@
 Changes with latest release:
 - Android/Google TV support
+- both Physical and Terrain maps
+- POTA schedules
+- embed Wind in HamClock
 - ADS-B button on all maps
 - align clouds and wx map buttons
-- embed Wind in HamClock
 - factory reset
 - fix broken chars in lat/lon
 - fix poss. Android crash in sleep
