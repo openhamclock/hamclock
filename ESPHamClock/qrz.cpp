@@ -109,11 +109,11 @@ void openURLPopup (const char *url)
         char *cmd = (char *) cmd_mem.getMem();
         if (pos_x >= 0)
             snprintf (cmd, cmd_mem.getSize(),
-                "%s --app=%s --window-size=%d,%d --window-position=%d,%d >/dev/null 2>&1 &",
+                "%s --app='%s' --window-size=%d,%d --window-position=%d,%d >/dev/null 2>&1 &",
                 chromium, url, popup_w, popup_h, pos_x, pos_y);
         else
             snprintf (cmd, cmd_mem.getSize(),
-                "%s --app=%s --window-size=%d,%d >/dev/null 2>&1 &", chromium, url, popup_w, popup_h);
+                "%s --app='%s' --window-size=%d,%d >/dev/null 2>&1 &", chromium, url, popup_w, popup_h);
 
         if ((system (cmd) >> 8) != 0)
             Serial.printf ("URL popup: fail: %s\n", cmd);
@@ -171,9 +171,9 @@ void openURL (const char *url)
         StackMalloc cmd_mem(strlen(url) + 50);
         char *cmd = (char *) cmd_mem.getMem();
         #if defined (_IS_APPLE)
-            snprintf (cmd, cmd_mem.getSize(), "open %s &", url);
+            snprintf (cmd, cmd_mem.getSize(), "open '%s' &", url);
         #else
-            snprintf (cmd, cmd_mem.getSize(), "xdg-open %s &", url);
+            snprintf (cmd, cmd_mem.getSize(), "xdg-open '%s' &", url);
         #endif
         if ((system (cmd) >> 8) != 0)
             Serial.printf ("URL local: fail: %s\n", cmd);
