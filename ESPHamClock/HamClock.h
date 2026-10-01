@@ -453,7 +453,8 @@ typedef enum {
     X(PLOT_CH_BANDACT,      "Band_Act")          \
     X(PLOT_CH_MARINE,       "Marine_Wx")         \
     X(PLOT_CH_FIREWX,       "Fire_Wx")           \
-    X(PLOT_CH_QUAKES,       "Quakes")
+    X(PLOT_CH_QUAKES,       "Quakes")            \
+    X(PLOT_CH_POTASCHED,    "POTA_Sked")
 
 #define PLOTNAMES PLOTNAMES_LOW PLOTNAMES_HIGH
 
@@ -2404,6 +2405,10 @@ extern void reportEESize (uint16_t &ee_used, uint16_t &ee_size);
 extern bool updateOnTheAir (const SBox &box, bool fresh);
 extern bool checkOnTheAirTouch (TouchType tt, const SCoord &s, const SBox &box);
 
+#define POTASCHED_INTERVAL (5)                  // pane update interval, secs
+extern bool updatePotaSched (const SBox &box, bool fresh);
+extern bool checkPotaSchedTouch (const SCoord &s, const SBox &box);
+
 /*********************************************************************************************
  *
  * bandactivity.cpp -- Band Activity heatmap pane
@@ -2576,10 +2581,14 @@ extern PlotMask plot_rotset[PANE_N];       // each pane's PlotChoice rotation ch
                                  PLOTBIT(PLOT_CH_LAUNCHES) | PLOTBIT(PLOT_CH_SATACT) | \
                                  PLOTBIT(PLOT_CH_APRSCLUSTER) | \
                                  PLOTBIT(PLOT_CH_BALLOONS) | PLOTBIT(PLOT_CH_BANDACT) | \
-                                 PLOTBIT(PLOT_CH_MARINE) | PLOTBIT(PLOT_CH_FIREWX))
+                                 PLOTBIT(PLOT_CH_MARINE) | PLOTBIT(PLOT_CH_FIREWX) | \
+                                 PLOTBIT(PLOT_CH_POTASCHED))
                                  // N.B. Quakes deliberately excluded -- its layout (icons, wrapped
                                  // place-name text, severity bars) is sized for the wider PANE_1/2/3
                                  // panes and doesn't fit PANE_0's narrow 139x332 DE/DX overlay geometry.
+                                 // POTA_Sked's row 1 (call+ref+state, ~126px) fits PANE_0's ~137px
+                                 // usable width with a little margin; row 2 and the ref/state fields
+                                 // are all defensively width-guarded in potasched.cpp regardless.
 
 // compute number of bits set in PANE_0_CH_MASK at compile time :-)
 // https://stackoverflow.com/questions/109023/count-the-number-of-set-bits-in-a-32-bit-integer
