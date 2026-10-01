@@ -162,6 +162,7 @@ OBJS = \
 	plot.o \
 	plotmap.o \
 	plotmgmnt.o \
+	potasched.o \
 	prefixes.o \
 	pskreporter.o \
 	qrcodegen.o \

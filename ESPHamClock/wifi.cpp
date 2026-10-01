@@ -2281,6 +2281,7 @@ void updateWiFi(PlotPane skip_pp)
             if (pc == PLOT_CH_ADIF)      fresh_redraw[PLOT_CH_ADIF] = true;
             if (pc == PLOT_CH_ONTA)      fresh_redraw[PLOT_CH_ONTA] = true;
             if (pc == PLOT_CH_CONTESTS)  fresh_redraw[PLOT_CH_CONTESTS] = true;
+            if (pc == PLOT_CH_POTASCHED) fresh_redraw[PLOT_CH_POTASCHED] = true;
             if (pc == PLOT_CH_ACTIVENETS) fresh_redraw[PLOT_CH_ACTIVENETS] = true;
             if (pc == PLOT_CH_DXPEDS)    fresh_redraw[PLOT_CH_DXPEDS] = true;
             if (pc == PLOT_CH_STORMS)    fresh_redraw[PLOT_CH_STORMS] = true;
@@ -2469,6 +2470,16 @@ void updateWiFi(PlotPane skip_pp)
             if (t0 >= next_update[pp]) {
                 if (updateContests(box, fresh_redraw[pc])) {
                     next_update[pp] = nextPaneUpdate (pc, CONTESTS_INTERVAL);
+                    fresh_redraw[pc] = false;
+                } else
+                    next_update[pp] = nextWiFiRetry(pc);
+            }
+            break;
+
+        case PLOT_CH_POTASCHED:
+            if (t0 >= next_update[pp]) {
+                if (updatePotaSched(box, fresh_redraw[pc])) {
+                    next_update[pp] = nextPaneUpdate (pc, POTASCHED_INTERVAL);
                     fresh_redraw[pc] = false;
                 } else
                     next_update[pp] = nextWiFiRetry(pc);
@@ -2902,6 +2913,7 @@ void forcePaneRotationPrev (PlotPane pp)
     if (pc == PLOT_CH_ADIF)       fresh_redraw[PLOT_CH_ADIF] = true;
     if (pc == PLOT_CH_ONTA)       fresh_redraw[PLOT_CH_ONTA] = true;
     if (pc == PLOT_CH_CONTESTS)   fresh_redraw[PLOT_CH_CONTESTS] = true;
+    if (pc == PLOT_CH_POTASCHED)  fresh_redraw[PLOT_CH_POTASCHED] = true;
     if (pc == PLOT_CH_ACTIVENETS) fresh_redraw[PLOT_CH_ACTIVENETS] = true;
     if (pc == PLOT_CH_DXPEDS)     fresh_redraw[PLOT_CH_DXPEDS] = true;
     if (pc == PLOT_CH_STORMS)     fresh_redraw[PLOT_CH_STORMS] = true;
