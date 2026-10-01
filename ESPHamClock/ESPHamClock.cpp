@@ -156,7 +156,7 @@ const char *detime_names[DETIME_N] = {
 static void drawVersion(bool force);
 static void checkTouch(void);
 static void drawUptime(bool force);
-static void drawRotatingMessage(void);
+static void drawRotatingMessage(bool force = false);
 static void drawScreenLock(void);
 static void toggleLockScreen(void);
 static void setDXPrefixOverride (const char *ovprefix);
@@ -495,23 +495,23 @@ void setup()
         borders_btn_b.h = view_btn_b.h;
     }
 
-    // position WEFAX on-map badge in the same slot as the Borders badge, same convention.
-    // the two are never visible at once -- bordersBadgeVisible() requires CM_CLOUDS/CM_TERRAIN
-    // and wefaxBadgeVisible() requires CM_WX, and core_map can only be one value at a time --
-    // so sharing the slot avoids a permanent gap next to the View button when neither is showing.
+    // seed the WEFAX on-map badge just to the right of View, same convention as Fires/Wind:
+    // it can be showing alongside Borders/Fires on CM_CLOUDS, so it can't share a fixed slot
+    // either -- drawWefaxButton() recomputes wefax_btn_b.x every draw to float right of whichever
+    // badge is to its left, or View. This is just a harmless initial value.
     {
         const int gap = 4;
         const int pad = 8;
         selectFontStyle (LIGHT_FONT, FAST_FONT);
         wefax_btn_b.x = view_btn_b.x + view_btn_b.w + gap;
         wefax_btn_b.y = view_btn_b.y;
-        wefax_btn_b.w = getTextWidth ("WEFAX Off") + pad;
+        wefax_btn_b.w = getTextWidth ("WEFAX") + pad;
         wefax_btn_b.h = view_btn_b.h;
     }
 
-    // seed the Fires on-map badge just to the right of View. Unlike Borders/WEFAX it can be
-    // showing at the same time as Borders (both apply to Terrain/Clouds), so it can't share
-    // their fixed slot -- drawFiresButton() recomputes fires_btn_b.x every draw to float right
+    // seed the Fires on-map badge just to the right of View. Unlike Borders it can be
+    // showing on multiple maps (Countries/Terrain/Clouds/Weather), so it can't share
+    // a fixed slot -- drawFiresButton() recomputes fires_btn_b.x every draw to float right
     // of whichever of View/Borders is currently rightmost. This is just a harmless initial value.
     {
         const int gap = 4;
@@ -538,9 +538,9 @@ void setup()
     }
 
     // seed the Wind on-map badge just to the right of View, same convention: it can share the
-    // CM_WX row with WEFAX, so it can't take a fixed slot either -- drawWindButton() recomputes
-    // windmap_btn_b.x every draw to float right of WEFAX, or View when WEFAX isn't enabled. This
-    // is just a harmless initial value.
+    // row with Fires/WEFAX on CM_WX or Borders/Fires/WEFAX on CM_CLOUDS, so it can't take a fixed slot either --
+    // drawWindButton() recomputes windmap_btn_b.x every draw to float right of whichever badge is to
+    // its left, or View. This is just a harmless initial value.
     {
         const int gap = 4;
         const int pad = 8;
@@ -638,9 +638,9 @@ void setup()
     ll2s (de_ll, de_c.s, DE_R);
     ll2s (deap_ll, deap_c.s, DEAP_R);
     de_title_b.x = de_info_b.x;
-    de_title_b.y = de_tz.box.y-5;
-    de_title_b.w = 30;
-    de_title_b.h = 30;
+    de_title_b.y = map_b.y;
+    de_title_b.w = de_tz.box.x - de_info_b.x;
+    de_title_b.h = de_info_b.y - de_title_b.y;
 
     // init dx unit
     if (!NVReadUInt8 (NV_LP, &show_lp)) {
@@ -1494,11 +1494,11 @@ static void drawVersion (bool draw)
 
 /* draw one of several possible rotating message beneath the call sign.
  */
-static void drawRotatingMessage()
+static void drawRotatingMessage(bool force)
 {
     // just once every few seconds is fine
     static uint32_t prev_ms;
-    if (!timesUp(&prev_ms, 5000))
+    if (!force && !timesUp(&prev_ms, 5000))
         return;
 
     // default color, cases might change
@@ -1659,13 +1659,10 @@ static void drawRotatingMessage()
 static void prepUptime()
 {
 
-    const uint16_t x = uptime_b.x+UPTIME_INDENT;
     const uint16_t y = cs_info.box.y+cs_info.box.h+CSINFO_DROP;
-    const uint16_t w = uptime_b.w - UPTIME_INDENT;
 
     // clear from cs_info.box bottom down through status box to catch any descenders
-    tft.fillRect (x, cs_info.box.y+cs_info.box.h, w, CSINFO_DROP+CSINFO_H+2, RA8875_BLACK);             // Skip "Up"
-    // drawSBox (uptime_b, RA8875_GREEN);                       // RBF
+    tft.fillRect (uptime_b.x, cs_info.box.y+cs_info.box.h, uptime_b.w, CSINFO_DROP+CSINFO_H+2, RA8875_BLACK);
 
     selectFontStyle (LIGHT_FONT, FAST_FONT);
     tft.setTextColor (GRAY);
@@ -1713,9 +1710,9 @@ time_t getUptime (uint16_t *days, uint8_t *hrs, uint8_t *mins, uint8_t *secs)
  */
 static void drawUptime(bool force)
 {
-    // only do the real work once per second
+    // only do the real work once per second unless forced
     static uint32_t prev_ms;
-    if (!timesUp(&prev_ms, 1000))
+    if (!force && !timesUp(&prev_ms, 1000))
         return;
 
     // only redraw if significant chars change
@@ -1760,12 +1757,16 @@ static void drawUptime(bool force)
  */
 void updateCallsignStatus (bool force)
 {
+    // only valid on main page
+    if (!mainpage_up)
+        return;
+
     FontWeight fw;
     FontSize fs;
     getFontStyle (&fw, &fs);
 
     drawUptime (force);
-    drawRotatingMessage ();
+    drawRotatingMessage (force);
     drawVersion (force);
 
     selectFontStyle (fw, fs);
@@ -2550,6 +2551,107 @@ static bool RUSure (SBox &box, const char *q)
     return (runMenu (menu));
 }
 
+/* recursively remove the contents of a directory.
+ * if is_root is true, .mac_address is preserved.
+ */
+static void wipeDirectory (const char *path, bool is_root)
+{
+    DIR *dirp = opendir (path);
+    if (!dirp) {
+        Serial.printf ("wipeDirectory: opendir(%s): %s\n", path, strerror(errno));
+        return;
+    }
+
+    struct dirent *dp;
+    while ((dp = readdir (dirp)) != NULL) {
+        // skip . and ..
+        if (strcmp (dp->d_name, ".") == 0 || strcmp (dp->d_name, "..") == 0)
+            continue;
+
+        // preserve persistent MAC address file at the root of our_dir
+        if (is_root && strcmp (dp->d_name, ".mac_address") == 0) {
+            Serial.printf ("Factory reset: preserving %s\n", dp->d_name);
+            continue;
+        }
+
+        char full_path[PATH_MAX];
+        snprintf (full_path, sizeof(full_path), "%s/%s", path, dp->d_name);
+
+        struct stat st;
+        if (lstat (full_path, &st) < 0) {
+            Serial.printf ("Factory reset: lstat(%s): %s\n", full_path, strerror(errno));
+            continue;
+        }
+
+        if (S_ISDIR (st.st_mode)) {
+            wipeDirectory (full_path, false);
+            if (rmdir (full_path) < 0) {
+                chmod (full_path, 0777);
+                if (rmdir (full_path) < 0)
+                    Serial.printf ("Factory reset: rmdir(%s): %s\n", full_path, strerror(errno));
+            } else {
+                Serial.printf ("Factory reset: removed dir %s\n", full_path);
+            }
+        } else {
+            if (unlink (full_path) < 0) {
+                // If unlink failed (e.g. EBUSY on a bind mount in Docker), try truncating
+                if (truncate (full_path, 0) == 0) {
+                    Serial.printf ("Factory reset: %s cannot be unlinked, truncated to 0 bytes\n", full_path);
+                } else {
+                    chmod (full_path, 0666);
+                    if (unlink (full_path) < 0) {
+                        if (truncate (full_path, 0) == 0)
+                            Serial.printf ("Factory reset: %s truncated after chmod\n", full_path);
+                        else
+                            Serial.printf ("Factory reset: unlink/truncate(%s): %s\n", full_path, strerror(errno));
+                    } else {
+                        Serial.printf ("Factory reset: removed %s\n", full_path);
+                    }
+                }
+            } else {
+                Serial.printf ("Factory reset: removed %s\n", full_path);
+            }
+        }
+    }
+
+    closedir (dirp);
+}
+
+/* completely clear out config directory (our_dir) preserving .mac_address, then restart.
+ */
+static void doFactoryReset(void)
+{
+    Serial.printf ("Performing Factory Reset...\n");
+
+    // sanitize our_dir
+    std::string base = our_dir;
+    while (!base.empty() && base.back() == '/')
+        base.pop_back();
+
+    if (base.empty() || base == "/" || base == "/root" || base == "/home" || base == "/tmp") {
+        Serial.printf ("Factory reset aborted: unsafe our_dir '%s'\n", our_dir.c_str());
+        return;
+    }
+
+    eraseScreen();
+    selectFontStyle (BOLD_FONT, SMALL_FONT);
+    tft.setTextColor (RA8875_WHITE);
+    const char *msg = "Resetting to factory defaults...";
+    uint16_t msg_w = getTextWidth (msg);
+    uint16_t msg_x = (tft.width() > msg_w) ? (tft.width() - msg_w) / 2 : 50;
+    tft.setCursor (msg_x, tft.height() / 2);
+    tft.print (msg);
+    tft.drawPR();
+
+    // wipe directory contents, preserving .mac_address
+    wipeDirectory (base.c_str(), true);
+
+    sync();
+    wdDelay (1500);
+
+    doReboot (false, false);
+}
+
 /* offer power down, restart etc 
  */
 static void runShutdownMenu(void)
@@ -2568,6 +2670,7 @@ static void runShutdownMenu(void)
 #if !defined(NO_HAMCLOCK_CONTROLS)
         SHM_RESTART_HC,
         SHM_EXIT_HC,
+        SHM_RESET_HC,
 #endif
 #if !defined(NO_SYSTEM_CONTROLS)
         SHM_REBOOT_SYS,
@@ -2584,6 +2687,7 @@ static void runShutdownMenu(void)
 #if !defined(NO_HAMCLOCK_CONTROLS)
         {locked ? MENU_IGNORE : MENU_01OFN,  false,         3, SHM_INDENT, "Restart HamClock", 0}, // SHM_RESTART_HC
         {locked ? MENU_IGNORE : MENU_01OFN,  false,         3, SHM_INDENT, "Exit HamClock", 0},    // SHM_EXIT_HC
+        {locked ? MENU_IGNORE : MENU_01OFN,  false,         3, SHM_INDENT, "Factory reset", 0},    // SHM_RESET_HC
 #endif
 #if !defined(NO_SYSTEM_CONTROLS)
         {locked ? MENU_IGNORE : MENU_01OFN,  false,         3, SHM_INDENT, "Reboot computer", 0},  // SHM_REBOOT_SYS
@@ -2645,6 +2749,12 @@ static void runShutdownMenu(void)
             if (RUSure (menu_b, mitems[SHM_EXIT_HC].label) && askPasswd ("exit", true)) {
                 Serial.print ("Exiting\n");
                 doExit();
+            }
+        }
+
+        if (mitems[SHM_RESET_HC].set) {
+            if (RUSure (menu_b, mitems[SHM_RESET_HC].label) && askPasswd ("reset", true)) {
+                doFactoryReset();
             }
         }
 #endif

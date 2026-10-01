@@ -333,7 +333,7 @@ void initCountryBorders(void)
  */
 void updateCountryBorders(void)
 {
-    if (core_map != CM_CLOUDS && core_map != CM_TERRAIN)
+    if (core_map != CM_CLOUDS && core_map != CM_TERRAIN && core_map != CM_PHYSICAL)
         return;
 
     updateBorderSet (&bset_borders);
@@ -353,7 +353,7 @@ void updateCountryBorders(void)
  */
 void drawCountryBorders(void)
 {
-    if (core_map != CM_CLOUDS && core_map != CM_TERRAIN)
+    if (core_map != CM_CLOUDS && core_map != CM_TERRAIN && core_map != CM_PHYSICAL)
         return;
 
     if (!borders_on)
@@ -380,6 +380,6 @@ void drawCountryBorders(void)
  */
 bool bordersBadgeVisible(void)
 {
-    return ((core_map == CM_CLOUDS || core_map == CM_TERRAIN)
+    return ((core_map == CM_CLOUDS || core_map == CM_TERRAIN || core_map == CM_PHYSICAL)
                         && (map_proj == MAPP_MERCATOR || map_proj == MAPP_ROB));
 }

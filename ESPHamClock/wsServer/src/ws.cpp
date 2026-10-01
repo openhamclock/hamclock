@@ -1642,13 +1642,16 @@ int ws_socket(struct ws_events *evs, uint16_t port, int thread_loop,
 	if (sock < 0)
 		fatalError("Could not create socket: %s", strerror(errno));
 
-	/* Reuse previous address. */
+	/* Reuse previous address and port. */
 	reuse = 1;
 	if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (const char *)&reuse,
 			sizeof(reuse)) < 0)
 	{
 		fatalError("setsockopt(SO_REUSEADDR) failed: %s", strerror(errno));
 	}
+#ifdef SO_REUSEPORT
+	(void) setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (const char *)&reuse, sizeof(reuse));
+#endif
 
 	/* Prepare the sockaddr_in structure. */
 	server.sin_family = AF_INET;

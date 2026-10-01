@@ -22,6 +22,7 @@
 #include <signal.h>
 #include <dirent.h>
 #include <sys/file.h>
+#include <sys/stat.h>
 
 
 #include "ArduinoLib.h"
@@ -649,7 +650,7 @@ extern SCircle satpass_c;               // satellite pass horizon
 
 extern uint8_t night_on;                // show night portion of map on/off
 extern uint8_t names_on;                // show place names when roving
-extern uint8_t borders_on;              // show country/state borders overlay on Clouds/Terrain
+extern uint8_t borders_on;              // show country/state borders overlay on Clouds/Terrain/Physical
 extern SBox borders_btn_b;              // on-map "Borders On/Off" badge, next to the View button
 extern bool bordersBadgeVisible(void);  // whether that badge should currently be shown
 
@@ -660,8 +661,8 @@ extern bool bordersBadgeVisible(void);  // whether that badge should currently b
  */
 
 extern uint8_t wefax_on;                // whether the viewer is currently open; runtime only, not NV
-extern SBox wefax_btn_b;                // on-map "WEFAX On/Off" badge, shares the Borders badge's slot
-extern bool wefaxBadgeVisible(void);    // whether that badge should currently be shown -- CM_WX only
+extern SBox wefax_btn_b;                // on-map "WEFAX" badge; slot floats right of Fires/Borders/View
+extern bool wefaxBadgeVisible(void);    // whether that badge should currently be shown -- CM_WX and CM_CLOUDS
 extern void drawWefaxButton(void);      // draw (or blank) the badge
 extern void initWefax(void);            // restore NV state at startup
 extern void runWefaxViewer(void);       // take over map_b showing the chart, until the user leaves
@@ -680,7 +681,7 @@ extern uint8_t fires_on;                // show active-fire hotspot overlay
 extern SBox fires_btn_b;                // on-map "Fires On/Off" badge; slot floats right of
                                          // whichever of View/Borders is currently rightmost
 extern bool firesBadgeVisible(void);    // whether that badge should currently be shown --
-                                         // Countries/Terrain/Clouds + Mercator only
+                                         // Countries/Terrain/Clouds/Weather + Mercator only
 extern void drawFiresButton(void);      // draw (or blank) the badge
 extern void initFires(void);            // restore NV state at startup
 extern void updateFires(void);          // fetch from OHB if due; call from updateWiFi()
@@ -693,8 +694,8 @@ extern bool adsbBadgeVisible(void);     // whether that badge should currently b
 extern void drawADSBBadge(void);        // draw (or blank) the badge
 extern void adsbBadgeClicked(void);     // open ADS-B Exchange (or PiAware) centered on DE
 
-extern SBox windmap_btn_b;              // on-map "Wind" badge; slot floats right of WEFAX, or View
-extern bool windBadgeVisible(void);     // whether that badge should currently be shown -- CM_WX only
+extern SBox windmap_btn_b;              // on-map "Wind" badge; slot floats right of WEFAX/Fires/Borders/View
+extern bool windBadgeVisible(void);     // whether that badge should currently be shown -- CM_WX and CM_CLOUDS
 extern void drawWindButton(void);       // draw (or blank) the badge
 extern void windBadgeClicked(void);     // open Windy.com centered on DE
 
@@ -2080,7 +2081,8 @@ typedef enum {
     X(CM_PMREL,     BC_INTERVAL,        "REL",       PROPBAND_NONE, false, false)       \
     X(CM_CLOUDS,    CLOUDS_INTERVAL,    "Clouds",    PROPBAND_NONE, false, false)       \
     X(CM_TROPO,     TROPO_INTERVAL,     "Tropo",     PROPBAND_NONE, false, false)       \
-    X(CM_USER,      CACHE_FOREVER,      "User",      PROPBAND_NONE, false, false)
+    X(CM_USER,      CACHE_FOREVER,      "User",      PROPBAND_NONE, false, false)       \
+    X(CM_PHYSICAL,  7*SECSPERDAY,       "Physical",  PROPBAND_NONE, false, false)
 
 #define X(a,b,c,d,e,f)  a,                      // expands COREMAPS to each enum followed by comma
 typedef enum {
@@ -2094,7 +2096,8 @@ typedef enum {
 // macro to test whether the given core map style is just a file (not an active query)
 #define CM_ISFILE(cm)     ((cm) == CM_COUNTRIES || (cm) == CM_TERRAIN || (cm) == CM_DRAP || \
                            (cm) == CM_AURORA    || (cm) == CM_WX      || (cm) == CM_MUF_RT || \
-                           (cm) == CM_CLOUDS    || (cm) == CM_TROPO   || (cm) == CM_USER)
+                           (cm) == CM_CLOUDS    || (cm) == CM_TROPO   || (cm) == CM_USER   || \
+                           (cm) == CM_PHYSICAL)
 
 typedef struct {
     int max_age;                                // refresh interval, secs

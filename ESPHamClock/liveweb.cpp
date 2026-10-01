@@ -220,8 +220,9 @@ static void updateExistingClient (ws_cli_conn_t *client)
                                 ws_getaddress(client), TVDELUS (tv0,tv1));
     }
 
-    // draw connection counter on main page
-    if (mainpage_up) {
+    // draw connection counter on main page if not covered by an active menu
+    SBox ctr_b = { (uint16_t)(lkscrn_b.x - 4), (uint16_t)(lkscrn_b.y + lkscrn_b.h + 3), 24, 6 };
+    if (mainpage_up && !menuOverlaps (ctr_b)) {
         #define CTR_RAWW (3*tft.SCALESZ)
         #define CTR_RAWH (5*tft.SCALESZ)
         #define CTR_RAWX (tft.SCALESZ*(lkscrn_b.x-4))
@@ -1039,8 +1040,8 @@ void openLiveWebURL (const char *url)
 /* same as openLiveWebURL() but asks the client to show it in its in-page embed overlay (an
  * iframe) instead of opening a new tab -- see showEmbed() in liveweb-html.cpp. Intended for
  * pages worth glancing at without leaving HamClock's tab. Not every site allows this -- some set
- * X-Frame-Options/CSP frame-ancestors specifically to block being framed by another site (eg
- * confirmed: Windy.com, which is why windbadge.cpp does NOT use this) -- so only call this for a
+ * X-Frame-Options/CSP frame-ancestors specifically to block being framed by another site (e.g.
+ * top-level www.windy.com, whereas embed.windy.com allows it) -- so only call this for a
  * target confirmed to permit framing; the client shows a manual "Open in new tab" fallback for
  * the case it doesn't, since that failure can't be reliably detected across origins from JS.
  */

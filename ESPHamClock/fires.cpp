@@ -14,8 +14,8 @@
  * FIRE_MIN_FRP_MW and anything below "nominal" confidence -- see OHB-side fetch_fires.py).
  *
  * On-map presence: a real badge button next to View/Borders (not buried in the map menu, which
- * is already full), shown only when it's meaningful to look for fires -- Countries, Terrain or
- * Clouds, and only in the Mercator projection, matching how bordersBadgeVisible() gates itself
+ * is already full), shown only when it's meaningful to look for fires -- Countries, Terrain,
+ * Clouds or Weather, and only in the Mercator projection, matching how bordersBadgeVisible() gates itself
  * to Clouds/Terrain + Mercator/Robinson. Toggling the badge only hides the badge and the glyphs;
  * fires_on is the actual on/off state and persists across projection/map changes, same contract
  * as borders_on.
@@ -72,7 +72,7 @@ SBox    fires_btn_b;                    // extern; badge box, geometry set each 
 // ---------------------------------------------------------------------------
 
 /* return whether the on-map "Fires On/Off" badge should currently be shown.
- * Offered on Countries, Terrain or Clouds, and only in the Mercator projection -- unlike the
+ * Offered on Countries, Terrain, Clouds or Weather, and only in the Mercator projection -- unlike the
  * Borders badge this deliberately does NOT include Robinson, since that's the caller's spec.
  * Like bordersBadgeVisible(), this is only a UI convenience: hiding the badge never touches
  * fires_on, so the setting the user last chose keeps applying silently once they come back to
@@ -80,13 +80,13 @@ SBox    fires_btn_b;                    // extern; badge box, geometry set each 
  */
 bool firesBadgeVisible(void)
 {
-    return ((core_map == CM_COUNTRIES || core_map == CM_TERRAIN || core_map == CM_CLOUDS)
+    return ((core_map == CM_COUNTRIES || core_map == CM_TERRAIN || core_map == CM_PHYSICAL || core_map == CM_CLOUDS || core_map == CM_WX)
                         && map_proj == MAPP_MERCATOR);
 }
 
 /* draw (or blank) the on-map "Fires On/Off" badge.
  * Sits immediately right of the Borders badge when Borders is also showing (Terrain/Clouds),
- * or immediately right of the View button when it isn't (Countries has no Borders badge) --
+ * or immediately right of the View button when it isn't (Countries/Weather have no Borders badge) --
  * recomputed here every draw, same convention as drawBordersButton() tracking view_btn_b.y.
  */
 void drawFiresButton(void)

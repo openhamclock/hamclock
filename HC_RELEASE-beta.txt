@@ -1,3 +1,10 @@
 Changes with latest release:
-- start of 4.33 beta
-- fix missing chars in lat/lon
+- Android/Google TV support
+- ADS-B button on all maps
+- align clouds and wx map buttons
+- embed Wind in HamClock
+- factory reset
+- fix broken chars in lat/lon
+- fix poss. Android crash in sleep
+- fix pointer config select on TV
+- fix descenders cover status line
