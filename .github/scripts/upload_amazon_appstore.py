@@ -85,14 +85,20 @@ def create_or_get_edit(app_id: str, token: str) -> str:
     print(f"Creating edit session for App ID: {app_id}...")
     status, _, data = api_request(url, token, method="POST", headers={"Content-Type": "application/json"}, allow_error_codes=[409])
     if status == 200:
-        edit_info = json.loads(data.decode("utf-8"))
+        try:
+            edit_info = json.loads(data.decode("utf-8")) if data else {}
+        except Exception:
+            edit_info = {}
         edit_id = edit_info.get("id")
         print(f"Edit session created with ID: {edit_id}")
         return edit_id
     elif status == 409:
         print("Edit session already exists (409 Conflict). Fetching active edit session...")
         _, _, data = api_request(url, token, method="GET")
-        edit_info = json.loads(data.decode("utf-8"))
+        try:
+            edit_info = json.loads(data.decode("utf-8")) if data else {}
+        except Exception:
+            edit_info = {}
         edit_id = edit_info.get("id")
         print(f"Using active edit session with ID: {edit_id}")
         return edit_id
@@ -106,7 +112,18 @@ def upload_apk(app_id: str, edit_id: str, token: str, apk_path: str):
     print(f"Checking existing APKs in edit session {edit_id}...")
     apks_url = f"{API_BASE_URL}/{app_id}/edits/{edit_id}/apks"
     _, _, data = api_request(apks_url, token, method="GET")
-    existing_apks = json.loads(data.decode("utf-8"))
+    raw_text = data.decode("utf-8", errors="replace").strip() if data else ""
+    existing_apks = []
+    if raw_text:
+        try:
+            parsed = json.loads(raw_text)
+            if isinstance(parsed, list):
+                existing_apks = parsed
+            elif isinstance(parsed, dict):
+                existing_apks = parsed.get("apks", [parsed] if "id" in parsed else [])
+        except Exception as e:
+            print(f"Could not parse existing APKs list ({e}), treating as no existing APKs.")
+            existing_apks = []
 
     file_size = os.path.getsize(apk_path)
     print(f"Uploading APK ({apk_path}, {file_size} bytes)...")
