@@ -36,6 +36,9 @@ gh workflow run release.yml -f tag_name=v4.32.0
 # Optional: manually override Google Play track:
 gh workflow run release.yml -f tag_name=v4.32.0 -f play_store_track=beta
 
+# Optional: stage Google Play upload as draft (required if review was rejected or blocked from auto-submit):
+gh workflow run release.yml -f tag_name=v4.32.0 -f play_store_changes_not_sent_for_review=true
+
 # Optional: manually override Amazon submission behavior:
 gh workflow run release.yml -f tag_name=v4.32.0 -f amazon_submit_for_review=false
 
@@ -74,6 +77,7 @@ gh workflow run
 | `build_docker` | choice (`true`, `false`) | `true` | When `true`, builds and pushes the multi-platform Docker image. |
 | `push_play_store` | choice (`true`, `false`) | `true` | When `true`, uploads the Android AAB to Google Play. |
 | `play_store_track` | choice (`auto`, `beta`, `production`, `internal`) | `auto` | Target Google Play track. `auto` sends beta tags (`*b*`) to Open testing (`beta`) and stable tags to Production (`production`). |
+| `play_store_changes_not_sent_for_review` | choice (`false`, `true`) | `false` | When `true`, stages the upload as a draft in Google Play without auto-submitting for review. Required when Google Play locks automated API submissions following a review rejection or pending policy declaration. |
 | `push_amazon_appstore` | choice (`true`, `false`) | `true` | When `true`, uploads the Android APK to the Amazon Appstore. |
 | `amazon_submit_for_review` | choice (`auto`, `true`, `false`) | `auto` | When `auto`, stable tags submit directly for review (to become Current Version) and beta tags leave a draft upcoming version for Live App Testing (LAT). |
 
@@ -209,6 +213,7 @@ The release workflow executes two jobs sequentially: `release` followed by `dock
        - **Stable tags** (e.g. `v4.32.0`) $\rightarrow$ **Production** (`production` track).
        - Can be overridden via `play_store_track` (`auto`, `beta`, `production`, `internal`).
      - Submits with `status: completed` to immediately trigger Google's automated/manual review queue.
+     - **Handling Review Rejections or Blocked Auto-Submissions (`changesNotSentForReview`):** If a previous release was rejected or Google Play requires manual confirmation for policy changes, Google's API rejects automated submissions with `Changes cannot be sent for review automatically. Please set the query parameter changesNotSentForReview to true.` In this situation, set `play_store_changes_not_sent_for_review=true`. The workflow will successfully stage the `.aab` in Google Play Console without error, allowing you to review the changes and click **Send changes for review** manually from the console UI.
      - **Managed Publishing:** Because Managed Publishing is turned ON in Google Play Console, approved releases do *not* go live automatically. Instead, they wait in Google Play Console under **Publishing Overview** -> **Ready to publish**, giving you the final manual control to send changes live to users.
    - **Amazon Appstore (`push_amazon_appstore`):**
      - Automatically selects submission mode based on the release tag (via `amazon_submit_for_review=auto`):
