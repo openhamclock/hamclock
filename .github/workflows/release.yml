@@ -41,6 +41,14 @@ on:
           - 'production'
           - 'internal'
         default: 'auto'
+      play_store_changes_not_sent_for_review:
+        description: 'Google Play changesNotSentForReview (true: required after rejection or to stage draft; false: auto-submit)'
+        required: true
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+        default: 'false'
       push_amazon_appstore:
         description: 'Upload Android APK to Amazon Appstore'
         required: true
@@ -213,6 +221,7 @@ jobs:
           releaseFiles: dist/org.openhamclock*.aab
           tracks: ${{ steps.play_track.outputs.track }}
           status: completed
+          changesNotSentForReview: ${{ (github.event.inputs.play_store_changes_not_sent_for_review || inputs.play_store_changes_not_sent_for_review) == 'true' }}
           whatsNewDirectory: dist/whatsnew
           mappingFile: dist/mapping.txt
           debugSymbols: dist/native-debug-symbols.zip
