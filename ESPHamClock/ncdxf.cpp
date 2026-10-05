@@ -22,6 +22,7 @@ typedef struct {
     SCoord s;                                   // screen coord of triangle symbol center
     uint16_t c;                                 // color
     SBox call_b;                                // enclosing background box
+    bool is_drawn;                              // whether currently drawn on map
 } NCDXFBeacon;
 
 /* listed in order of 14, 18, 21, 24 and 28 MHz starting at 3N minutes after the hour.
@@ -35,24 +36,24 @@ typedef struct {
  *   28 MHz i = (s/10-4+NBEACONS)%NBEACONS
  */
 static NCDXFBeacon blist[NBEACONS] = {
-    {  41,  -74, "4U1UN",  {0,0}, 0, {0,0,0,0}},
-    {  68, -133, "VE8AT",  {0,0}, 0, {0,0,0,0}},
-    {  37, -122, "W6WX",   {0,0}, 0, {0,0,0,0}},
-    {  21, -156, "KH6RS",  {0,0}, 0, {0,0,0,0}},
-    { -41,  176, "ZL6B",   {0,0}, 0, {0,0,0,0}},
-    { -32,  116, "VK6RBP", {0,0}, 0, {0,0,0,0}},
-    {  34,  137, "JA2IGY", {0,0}, 0, {0,0,0,0}},
-    {  55,   83, "RR9O",   {0,0}, 0, {0,0,0,0}},
-    {  22,  114, "VR2B",   {0,0}, 0, {0,0,0,0}},
-    {   7,   80, "4S7B",   {0,0}, 0, {0,0,0,0}},
-    { -26,   28, "ZS6DN",  {0,0}, 0, {0,0,0,0}},
-    {  -1,   37, "5Z4B",   {0,0}, 0, {0,0,0,0}},
-    {  32,   35, "4X6TU",  {0,0}, 0, {0,0,0,0}},
-    {  60,   25, "OH2B",   {0,0}, 0, {0,0,0,0}},
-    {  33,  -17, "CS3B",   {0,0}, 0, {0,0,0,0}},
-    { -35,  -58, "LU4AA",  {0,0}, 0, {0,0,0,0}},
-    { -12,  -77, "OA4B",   {0,0}, 0, {0,0,0,0}},
-    {   9,  -68, "YV5B",   {0,0}, 0, {0,0,0,0}},
+    {  41,  -74, "4U1UN",  {0,0}, 0, {0,0,0,0}, false},
+    {  68, -133, "VE8AT",  {0,0}, 0, {0,0,0,0}, false},
+    {  37, -122, "W6WX",   {0,0}, 0, {0,0,0,0}, false},
+    {  21, -156, "KH6RS",  {0,0}, 0, {0,0,0,0}, false},
+    { -41,  176, "ZL6B",   {0,0}, 0, {0,0,0,0}, false},
+    { -32,  116, "VK6RBP", {0,0}, 0, {0,0,0,0}, false},
+    {  34,  137, "JA2IGY", {0,0}, 0, {0,0,0,0}, false},
+    {  55,   83, "RR9O",   {0,0}, 0, {0,0,0,0}, false},
+    {  22,  114, "VR2B",   {0,0}, 0, {0,0,0,0}, false},
+    {   7,   80, "4S7B",   {0,0}, 0, {0,0,0,0}, false},
+    { -26,   28, "ZS6DN",  {0,0}, 0, {0,0,0,0}, false},
+    {  -1,   37, "5Z4B",   {0,0}, 0, {0,0,0,0}, false},
+    {  32,   35, "4X6TU",  {0,0}, 0, {0,0,0,0}, false},
+    {  60,   25, "OH2B",   {0,0}, 0, {0,0,0,0}, false},
+    {  33,  -17, "CS3B",   {0,0}, 0, {0,0,0,0}, false},
+    { -35,  -58, "LU4AA",  {0,0}, 0, {0,0,0,0}, false},
+    { -12,  -77, "OA4B",   {0,0}, 0, {0,0,0,0}, false},
+    {   9,  -68, "YV5B",   {0,0}, 0, {0,0,0,0}, false},
 };
 
 
@@ -106,6 +107,29 @@ static void drawBeacon (NCDXFBeacon &nb)
 
     // draw call sign
     drawMapTag (nb.call, nb.call_b);
+
+    nb.is_drawn = true;
+}
+
+/* erase the given beacon symbol and call sign tag from the map by restoring the underlying map pixels.
+ */
+static void eraseBeacon (NCDXFBeacon &nb)
+{
+    if (!overMap (nb.s))
+        return;
+
+    // triangle symbol
+    SCircle sym_c;
+    sym_c.s = nb.s;
+    sym_c.r = BEACONR;
+    eraseSCircle (sym_c);
+
+    // call sign tag beneath it
+    for (uint16_t dy = 0; dy < nb.call_b.h; dy++)
+        for (uint16_t dx = 0; dx < nb.call_b.w; dx++)
+            drawMapCoord (nb.call_b.x + dx, nb.call_b.y + dy);
+
+    nb.is_drawn = false;
 }
 
 /* erase every beacon symbol and call sign tag from the map by restoring the underlying map
@@ -114,21 +138,10 @@ static void drawBeacon (NCDXFBeacon &nb)
  */
 static void eraseBeacons (void)
 {
-    for (NCDXFBeacon *bp = blist; bp < &blist[NBEACONS]; bp++) {
-        if (!overMap (bp->s))
-            continue;
+    for (NCDXFBeacon *bp = blist; bp < &blist[NBEACONS]; bp++)
+        eraseBeacon (*bp);
 
-        // triangle symbol
-        SCircle sym_c;
-        sym_c.s = bp->s;
-        sym_c.r = BEACONR;
-        eraseSCircle (sym_c);
-
-        // call sign tag beneath it
-        for (uint16_t dy = 0; dy < bp->call_b.h; dy++)
-            for (uint16_t dx = 0; dx < bp->call_b.w; dx++)
-                drawMapCoord (bp->call_b.x + dx, bp->call_b.y + dy);
-    }
+    tft.drawPR();
 }
 
 /* update map beacons, typically on each 10 second period unless immediate.
@@ -159,10 +172,21 @@ void updateBeacons (bool immediate)
 
     // now update each beacon as required
     setBeaconStates();
+    bool any_changed = false;
     for (NCDXFBeacon *bp = blist; bp < &blist[NBEACONS]; bp++) {
-        if (bp->c != BCOL_S && overMap(bp->s) && !overRSS (bp->call_b))
-            drawBeacon (*bp);
+        if (bp->c != BCOL_S) {
+            if (overMap(bp->s) && !overRSS (bp->call_b)) {
+                drawBeacon (*bp);
+                any_changed = true;
+            }
+        } else if (bp->is_drawn) {
+            eraseBeacon (*bp);
+            any_changed = true;
+        }
     }
+
+    if (any_changed)
+        tft.drawPR();
 
     updateClocks(false);
 }
@@ -174,6 +198,7 @@ void updateBeaconMapLocations()
     for (NCDXFBeacon *bp = blist; bp < &blist[NBEACONS]; bp++) {
         ll2s (deg2rad(bp->lat), deg2rad(bp->lng), bp->s, 3*BEACONCW);   // about max
         setMapTagBox (bp->call, bp->s, BEACONR/2+1, bp->call_b);
+        bp->is_drawn = false;
     }
 }
 
