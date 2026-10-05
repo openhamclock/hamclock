@@ -88,6 +88,8 @@ jobs:
           cache: gradle
 
       - name: Prepare assets
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           echo "Running on branch: ${{ github.ref_name }}"
 
@@ -99,7 +101,20 @@ jobs:
           HC_TAG=${HC_TAG#v}
           HC_TAG=${HC_TAG#V}
           # test if HC_TAG is the right format
-          [[ $HC_TAG =~ $HC_VER_PATTERN ]] || exit 1
+          if ! [[ $HC_TAG =~ $HC_VER_PATTERN ]]; then
+            echo "Error: Tag '$TAG' (derived '$HC_TAG') does not match expected format: $HC_VER_PATTERN"
+            exit 1
+          fi
+
+          # Pre-flight check: ensure tag or release does not already exist
+          if git rev-parse "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "Error: Git tag '$TAG' already exists in repository. Aborting release."
+            exit 1
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Error: GitHub release '$TAG' already exists. Aborting release."
+            exit 1
+          fi
 
           MGR_NAME="manage-hc-docker-$TAG.sh"
 

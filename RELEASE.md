@@ -154,6 +154,8 @@ The workflow strips the leading `v` / `V` and strips the trailing patch componen
 
 > [!IMPORTANT]
 > Always include the trailing `.0` (or patch number) in `tag_name`. If omitted (e.g. `v4.32`), the pipeline's regex validation will fail and immediately abort the run.
+>
+> The pipeline also performs an automated pre-flight check at step 1 to verify that the tag or GitHub release does not already exist. If an existing release is detected, the run aborts immediately to avoid building or deploying duplicate releases.
 
 ---
 
