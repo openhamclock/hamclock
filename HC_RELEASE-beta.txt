@@ -10,3 +10,4 @@ Changes with latest release:
 - fix poss. Android crash in sleep
 - fix pointer config select on TV
 - fix descenders cover status line
+- fix beacon erase issue
