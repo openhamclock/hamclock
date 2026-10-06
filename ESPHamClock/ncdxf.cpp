@@ -115,19 +115,18 @@ static void drawBeacon (NCDXFBeacon &nb)
  */
 static void eraseBeacon (NCDXFBeacon &nb)
 {
-    if (!overMap (nb.s))
-        return;
+    if (overMap (nb.s)) {
+        // triangle symbol
+        SCircle sym_c;
+        sym_c.s = nb.s;
+        sym_c.r = BEACONR;
+        eraseSCircle (sym_c);
 
-    // triangle symbol
-    SCircle sym_c;
-    sym_c.s = nb.s;
-    sym_c.r = BEACONR;
-    eraseSCircle (sym_c);
-
-    // call sign tag beneath it
-    for (uint16_t dy = 0; dy < nb.call_b.h; dy++)
-        for (uint16_t dx = 0; dx < nb.call_b.w; dx++)
-            drawMapCoord (nb.call_b.x + dx, nb.call_b.y + dy);
+        // call sign tag beneath it
+        for (uint16_t dy = 0; dy < nb.call_b.h; dy++)
+            for (uint16_t dx = 0; dx < nb.call_b.w; dx++)
+                drawMapCoord (nb.call_b.x + dx, nb.call_b.y + dy);
+    }
 
     nb.is_drawn = false;
 }
@@ -138,10 +137,13 @@ static void eraseBeacon (NCDXFBeacon &nb)
  */
 static void eraseBeacons (void)
 {
-    for (NCDXFBeacon *bp = blist; bp < &blist[NBEACONS]; bp++)
-        eraseBeacon (*bp);
+    for (NCDXFBeacon *bp = blist; bp < &blist[NBEACONS]; bp++) {
+        if (bp->is_drawn)
+            eraseBeacon (*bp);
+    }
 
-    tft.drawPR();
+    if (!mapSweepActive())
+        tft.drawPR();
 }
 
 /* update map beacons, typically on each 10 second period unless immediate.
@@ -163,10 +165,10 @@ void updateBeacons (bool immediate)
     }
     was_on = true;
 
-    // process if immediate or it's a new time period
+    // process if immediate or it's a new time period and no map sweep is active
     static uint8_t prev_sec10;
     uint8_t sec10 = second(nowWO())/10;
-    if (!immediate && sec10 == prev_sec10)
+    if (!immediate && (sec10 == prev_sec10 || mapSweepActive()))
         return;
     prev_sec10 = sec10;
 
@@ -185,7 +187,7 @@ void updateBeacons (bool immediate)
         }
     }
 
-    if (any_changed)
+    if (any_changed && !immediate && !mapSweepActive())
         tft.drawPR();
 
     updateClocks(false);
