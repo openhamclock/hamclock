@@ -2255,6 +2255,15 @@ typedef struct {
                                  // that distinction -- its footer reports on a master array
                                  // living outside the running menu entirely, so it keeps
                                  // using a plain, caller-formatted string instead).
+    bool no_parent;             // false (default): runMenu() infers a parent/child relationship from
+                                 // item order and indent -- an indented active item has the nearest
+                                 // preceding active item with a smaller indent as its "parent", which
+                                 // is forced on whenever the child is picked. True: indent is purely
+                                 // visual in this menu, so never infer parents. Needed by multi-column
+                                 // grid menus (eg the DX Cluster and On-The-Air filters) where an item
+                                 // merely happens to follow a smaller-indented item in items[] order.
+                                 // Like footer_text above, callers that don't know about this field
+                                 // get false, ie unchanged behavior; set it after initialization.
 } MenuInfo;
 
 extern bool runMenu (MenuInfo &menu);

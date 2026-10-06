@@ -349,6 +349,33 @@ static void drawMenuFooter (MenuInfo &menu)
     tft.setTextColor (MENU_FGC);       // restore default for whatever draws next
 }
 
+/* return index of the item that is the "parent" of item child_i, or -1 if none.
+ * A parent is the nearest preceding item with a smaller indent. Only an active item
+ * (see MENU_ACTIVE) can really be a parent, but a MENU_LABEL with a smaller indent is a
+ * section header that ENDS the search: items beneath it belong to that header, not to
+ * some active item that happens to sit above the header. Without this, a menu such as the
+ * satellite menu (radio "Show DX Info here", then a name label, then indented children)
+ * would treat "Show DX Info here" as the parent of every child and force it selected
+ * whenever any child was tapped.
+ * MENU_IGNORE and MENU_BLANK entries are not displayed as rows with meaning so are skipped.
+ * Menus whose indents are purely visual set MenuInfo.no_parent to opt out of this entirely.
+ */
+static int menuParentIndex (const MenuInfo &menu, int child_i)
+{
+    // caller says indent is only cosmetic in this menu
+    if (menu.no_parent)
+        return (-1);
+
+    for (int j = child_i - 1; j >= 0; j--) {
+        const MenuItem &mj = menu.items[j];
+        if (mj.type == MENU_IGNORE || mj.type == MENU_BLANK)
+            continue;
+        if (mj.indent < menu.items[child_i].indent)
+            return (MENU_ACTIVE(mj.type) ? j : -1);
+    }
+    return (-1);
+}
+
 /* engage an action at the specified pick index.
  * kb_focus indicates whether to highlight the new focus item for keyboard navigation.
  */
@@ -405,13 +432,7 @@ static void updateMenu (MenuInfo &menu, SBox *pick_boxes, int pick_i, bool kb_fo
     if (MENU_ACTIVE(mi.type)) {
         int child_i = pick_i;
         while (child_i >= 0) {
-            int parent_i = -1;
-            for (int j = child_i - 1; j >= 0; j--) {
-                if (MENU_ACTIVE(menu.items[j].type) && menu.items[j].indent < menu.items[child_i].indent) {
-                    parent_i = j;
-                    break;
-                }
-            }
+            int parent_i = menuParentIndex (menu, child_i);
             if (parent_i >= 0 && !menu.items[parent_i].set) {
                 if (menu.items[parent_i].type == MENU_1OFN || menu.items[parent_i].type == MENU_01OFN) {
                     menuItemsAllOff (menu, pick_boxes, parent_i);
@@ -688,13 +709,7 @@ static bool menuStateOk (MenuInfo &menu)
         if (menu.items[i].type == MENU_AL1OFN) {
 
             // only mandatory if parent item is set, if any
-            int parent_i = -1;
-            for (int j = i - 1; j >= 0; j--) {
-                if (MENU_ACTIVE(menu.items[j].type) && menu.items[j].indent < menu.items[i].indent) {
-                    parent_i = j;
-                    break;
-                }
-            }
+            int parent_i = menuParentIndex (menu, i);
             if (parent_i >= 0 && !menu.items[parent_i].set)
                 continue;
 

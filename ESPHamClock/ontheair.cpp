@@ -1217,6 +1217,7 @@ static void runONTASortMenu (const SBox &box)
         #define ONTAMENU_NARROW_N   NARRAY(mitems)
 
         MenuInfo menu = {menu_b, ok_b, UF_CLOCKSOK, M_CANCELOK, 2, ONTAMENU_NARROW_N, mitems};
+        menu.no_parent = true;          // indent here is layout only, see MenuInfo.no_parent
         ok = runMenu (menu);
         if (ok) {
             onta_showbio = mitems[11].set;
@@ -1299,6 +1300,7 @@ static void runONTASortMenu (const SBox &box)
         #define ONTAMENU_N   NARRAY(mitems)
 
         MenuInfo menu = {menu_b, ok_b, UF_CLOCKSOK, M_CANCELOK, 3, ONTAMENU_N, mitems};
+        menu.no_parent = true;          // indent here is layout only, see MenuInfo.no_parent
         ok = runMenu (menu);
         if (ok) {
             onta_showbio = mitems[10].set;
