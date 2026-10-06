@@ -763,7 +763,8 @@ out:
                                             dxp_ss.n_data, found_n, found_n_broken);
     }
 
-    fclose (fp);
+    if (fp)                                     // NULL if openCachedFile() failed: no cache and no download
+        fclose (fp);
     return (ok);
 }
 

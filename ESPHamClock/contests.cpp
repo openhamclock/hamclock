@@ -520,7 +520,8 @@ out:
         qsort (contests, cts_ss.n_data, sizeof(ContestEntry), qsContestStart);
 
     Serial.printf ("CTS: found %d in %s\n", cts_ss.n_data, contests_fn);
-    fclose (fp);
+    if (fp)                                     // NULL if openCachedFile() failed: no cache and no download
+        fclose (fp);
     return (ok);
 }
 
