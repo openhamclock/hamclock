@@ -807,6 +807,7 @@ static void runDXClusterMenu (const SBox &box)
         #define DXCMENU_NARROW_N   NARRAY(mitems)
 
         MenuInfo menu = {menu_b, ok_b, UF_CLOCKSOK, M_CANCELOK, 2, DXCMENU_NARROW_N, mitems};
+        menu.no_parent = true;          // indent here is layout only, see MenuInfo.no_parent
         ok = runMenu (menu);
         if (ok) {
             if (mitems[1].set)       dxc_age = dxc_ages[0];
@@ -901,6 +902,7 @@ static void runDXClusterMenu (const SBox &box)
         #define DXCMENU_N   NARRAY(mitems)
 
         MenuInfo menu = {menu_b, ok_b, UF_CLOCKSOK, M_CANCELOK, 3, DXCMENU_N, mitems};
+        menu.no_parent = true;          // indent here is layout only, see MenuInfo.no_parent
         ok = runMenu (menu);
         if (ok) {
             if (show_bio_enabled)
