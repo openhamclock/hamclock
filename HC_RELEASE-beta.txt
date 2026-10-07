@@ -12,3 +12,4 @@ Changes with latest release:
 - fix descenders cover status line
 - fix beacon erase issue
 - fix ONTA scroll issue
+- fix crash on empty dxped/cntst
