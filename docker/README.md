@@ -4,10 +4,11 @@ This is a dockerized deployment of the web version of HamClock.
 
 ## How to use it
 
-Grab the ```manage-hc-docker.sh``` file from the releases page. That file has a version in the name. I recommend renaming it, or do it all at once with a curl:
+Grab the `manage-hc-docker-<version>.sh` file from the [latest release](https://github.com/openhamclock/hamclock/releases/latest). That file has a version in the name. You can rename it to `manage-hc-docker.sh`, or download the latest release directly:
 
 ```sh
-curl -sLo manage-hc-docker.sh 'https://github.com/openhamclock/hamclock/releases/download/v4.22.0/manage-hc-docker-v4.22.0.sh'
+TAG=$(curl -s https://api.github.com/repos/openhamclock/hamclock/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+curl -sLo manage-hc-docker.sh "https://github.com/openhamclock/hamclock/releases/download/${TAG}/manage-hc-docker-${TAG}.sh"
 chmod +x manage-hc-docker.sh
 ```
 
