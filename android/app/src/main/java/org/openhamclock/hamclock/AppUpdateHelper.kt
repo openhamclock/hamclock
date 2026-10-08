@@ -274,7 +274,7 @@ class AppUpdateHelper(private val activity: AppCompatActivity) {
 
     private fun openAmazonAppstore() {
         val packageName = activity.packageName
-        val amznUri = Uri.parse("amzn://apps/android?p=$packageName")
+        val amznUri = Uri.parse("amzn://apps/android?p=$packageName&intent=app_update")
         val webUri = Uri.parse("https://www.amazon.com/gp/mas/dl/android?p=$packageName")
         try {
             val intent = Intent(Intent.ACTION_VIEW, amznUri).apply {
