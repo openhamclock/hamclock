@@ -43,7 +43,8 @@ sudo apt install curl make g++ xorg-dev libx11-dev zip
 
 cd
 rm -fr ESPHamClock
-curl -O https://www.clearskyinstitute.com/ham/HamClock/ESPHamClock.zip
+# Replace <hostname> with ohb.hamclock.app, hamclock.com, or your own OHB server
+curl -O https://<hostname>/ham/HamClock/ESPHamClock.zip
 unzip ESPHamClock.zip
 cd ESPHamClock
 make -j 4 hamclock-web-1600x960

@@ -29,7 +29,9 @@ For instructions on building local images, setting up SSH signing keys, and trig
 
 * [HamClock Standards](https://github.com/openhamclock/hamclock-standards) - specifications source
 * [HamClock Client](https://github.com/openhamclock/hamclock) - reference frontend implementation source
+    * available on [Google Play](https://play.google.com/store/apps/details?id=org.openhamclock.hamclock) and the Amazon Appstore (see [Android documentation](./android/README.md))
     * includes Raspberry Pi/Debian and Docker installers
+    * [User Contributions & Community Guides](./hamclock-contrib/README.md) - Windows (WSL2/WSLg), Proxmox LXC, web proxy, and custom scripts
     * [HamClockLauncher](https://github.com/huberthickman/HamClockLauncher) - macOS frontend installer/launcher source
     * also many appliances available for sale, with HamClock pre-installed and automatically maintained
 * Open Hamclock Backend project
