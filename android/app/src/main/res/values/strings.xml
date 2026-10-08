@@ -54,6 +54,16 @@
     <string name="error_engine_message">The HamClock engine could not start or port 8081 is in use. Tap Clean Restart to terminate any lingering processes and start fresh.</string>
     <string name="clean_restart">Clean Restart</string>
     <string name="rw_port_conflict_toast">Notice: Port 8081 is in use. Live clock switched to port %1$d.</string>
+
+    <string name="update_available_title">Update Available</string>
+    <string name="update_available_amazon_msg">A new version of HamClock (%1$s) is available in the Amazon Appstore.</string>
+    <string name="update_available_github_msg">A new version of HamClock (%1$s) is available on GitHub.</string>
+    <string name="update_in_appstore">Update in Appstore</string>
+    <string name="update_view_release">View Release</string>
+    <string name="update_downloaded_title">Update Ready</string>
+    <string name="update_downloaded_msg">A new version of HamClock has finished downloading. Restart now to apply the update?</string>
+    <string name="update_restart_now">Restart Now</string>
+    <string name="update_later">Later</string>
 </resources>
 
 

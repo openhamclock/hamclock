@@ -282,4 +282,7 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
     implementation(libs.androidx.webkit)
+    implementation(libs.play.app.update)
+    implementation(libs.play.app.update.ktx)
+    testImplementation(libs.junit)
 }

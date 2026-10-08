@@ -100,6 +100,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnCleanRestart: Button
     private lateinit var btnErrorSettings: Button
     @Volatile private var isEmbedVisible = false
+    private lateinit var appUpdateHelper: AppUpdateHelper
 
     private val executor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -214,6 +215,9 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         })
+
+        appUpdateHelper = AppUpdateHelper(this)
+        appUpdateHelper.start()
 
         // Check or request location permissions to obtain host coordinates
         if (hasLocationPermission()) {
@@ -1492,6 +1496,21 @@ class MainActivity : AppCompatActivity() {
         return super.onKeyLongPress(keyCode, event)
     }
 
+    override fun onResume() {
+        super.onResume()
+        appUpdateHelper.onResume()
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == AppUpdateHelper.REQUEST_CODE_FLEXIBLE_UPDATE) {
+            if (resultCode != RESULT_OK) {
+                Log.i(TAG, "Update flow cancelled or failed (resultCode: $resultCode)")
+            }
+        }
+    }
+
     override fun onPause() {
         super.onPause()
         mainHandler.removeCallbacks(dpadCenterLongPressRunnable)
@@ -1499,6 +1518,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        appUpdateHelper.onDestroy()
         mainHandler.removeCallbacks(dpadCenterLongPressRunnable)
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val runInBackground = prefs.getBoolean(PREF_RUN_IN_BACKGROUND, false)
