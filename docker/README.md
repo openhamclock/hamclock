@@ -19,3 +19,13 @@ NOTE: you can select from the 4 possible sizes with the -s option: ```800x480 16
 ### Preconfigure it on a first run
 
 The first time you run it, you can preconfigure some of your personal settings. Look for the [config.env.example](https://github.com/openhamclock/hamclock/blob/main/docker/config.env.example) file. Name it config.env and put it in the same folder with your manage-hc-docker.sh. Edit it as you like and it will pre-configure your hamclock. If you don't use the config.env, you'll get the usual setup screen for a fresh install.
+
+## Requirements
+
+* **Docker Engine** (20.10 or newer)
+* **Docker Compose V2** (`docker compose` CLI plugin, v2.0+) — legacy `docker-compose` (V1) is not supported
+* **`jq`** command-line JSON processor
+
+## Windows & WSL
+
+On Windows, you can run this container seamlessly using Docker Desktop or inside a WSL2 environment. If you prefer running the native X11 desktop GUI on Windows rather than the web version in Docker, see the community guide in [hamclock-contrib/README.md](../hamclock-contrib/README.md).

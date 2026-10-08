@@ -2,22 +2,39 @@
 
 All contributed scripts referred to below are available in [../hamclock-contrib/](../hamclock-contrib/)
 
-## 1. Tips for Executing and Displaying HamClock on Windows 10
+> **Note on download URLs:** In the commands below, `<hostname>` represents a user-chosen host—for example `ohb.hamclock.app`, `hamclock.com`, or your own server if you run an OpenHamClock Backend (OHB) instance.
+
+## 1. Tips for Executing and Displaying HamClock on Windows (WSL2 / WSLg)
 
 Contributed by Joeri van Dooren, ON3URE
 
-* In windows download <https://sourceforge.net/projects/vcxsrv>
-* Install; choose single windows
-* In Windows install WSL2 with ubuntu.
-* Start wsl.exe
+### Modern WSL2 with WSLg (Windows 11 and modern Windows 10)
+
+WSL2 includes native GUI support (WSLg) out of the box, so you do **not** need to install a third-party X server or manually set `DISPLAY`.
+
+1. Install WSL2 with Ubuntu (`wsl --install`).
+2. Start `wsl.exe`.
+3. Install the build tools and X11 development library headers (still required to compile the client application):
 
         sudo apt update
         sudo apt -y install g++ libx11-dev wget
-        wget https://www.clearskyinstitute.com/ham/HamClock/ESPHamClock.zip
+        wget https://<hostname>/ham/HamClock/ESPHamClock.zip
         unzip ESPHamClock.zip
         cd ESPHamClock
         make hamclock-800x480
         sudo make install
+        /usr/local/bin/hamclock
+
+The HamClock window will open directly on your Windows desktop.
+
+### Older Windows 10 (without WSLg)
+
+If running an older Windows 10 build without native WSLg:
+
+* In Windows, download and install VcXsrv: <https://sourceforge.net/projects/vcxsrv> (choose single or multiple windows).
+* Start VcXsrv before running HamClock.
+* Inside WSL, set the `DISPLAY` environment variable:
+
         export DISPLAY=:0
         /usr/local/bin/hamclock
 
@@ -32,7 +49,7 @@ At the terminal command prompt run the following commands:
     sudo apt install curl make g++ xorg-dev libx11-dev zip
     cd
     rm -fr ESPHamClock
-    curl -O https://www.clearskyinstitute.com/ham/HamClock/ESPHamClock.zip
+    curl -O https://<hostname>/ham/HamClock/ESPHamClock.zip
     unzip ESPHamClock.zip
     cd ESPHamClock
 
@@ -191,7 +208,7 @@ Putting it all together, assuming
 then the procedure might go something like this:
 
         cd ~
-        curl -O 'https://clearskyinstitute.com/ham/HamClock/hamclock-contrib.zip'
+        curl -O 'https://<hostname>/ham/HamClock/hamclock-contrib.zip'
         unzip hamclock-contrib.zip
         cd hamclock-contrib
         make hcwebproxy
@@ -303,7 +320,7 @@ For Debian
     sudo apt-get -y install curl make g++ libx11-dev libgpiod-dev zip
     cd
     rm -fr ESPHamClock
-    curl -O http://www.clearskyinstitute.com/ham/HamClock/ESPHamClock.zip
+    curl -O https://<hostname>/ham/HamClock/ESPHamClock.zip
     unzip ESPHamClock.zip
     cd ESPHamClock
     make -j 4 hamclock-800x480     (or 1600x960 or 2400x1440 or 3200x1920 depending upon the screen resolution of your device.

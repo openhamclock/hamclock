@@ -1,6 +1,15 @@
 # HamClock for Android
 
-This directory contains the standalone Android wrapper for HamClock.
+HamClock is available for Android and Amazon Fire OS devices.
+
+## Installation
+
+* **Google Play Store**: Install directly from [Google Play](https://play.google.com/store/apps/details?id=org.openhamclock.hamclock) for Android phones, tablets, and Android TV / Google TV.
+* **Amazon Appstore**: Install via the Amazon Appstore for Amazon Fire tablets and Fire TV devices.
+* **Direct APK Download**: Standalone release APKs (`org.openhamclock.hamclock-<version>.apk`) are available on the [GitHub Releases](https://github.com/openhamclock/hamclock/releases) page for direct installation and sideloading.
+
+### Supported Devices
+* Minimum supported OS: **Android 5.0+ (API 21+)**, including Amazon Fire OS tablets & Fire TV Sticks.
 
 ## Architecture
 
@@ -8,7 +17,7 @@ This directory contains the standalone Android wrapper for HamClock.
 * **Display & Touch:** Interactive HTML5/WebSocket frontend rendered inside an accelerated, fullscreen Android `WebView`.
 * **Zero Source Duplication:** The NDK CMake build references `../../../../ESPHamClock` directly.
 
-## Building
+## Building from Source
 
 ### Option 1: Android Studio (Recommended)
 1. Open **Android Studio**.
@@ -38,8 +47,7 @@ The resulting signed release bundle will be located at:
 `android/app/build/outputs/bundle/release/org.openhamclock.hamclock-<version>-release.aab`
 *(also available as `app-release.aab`)*
 
-## Requirements
+## Build Requirements (for compiling from source)
 * Android SDK 36 (Android 16)
 * Android NDK (version 25+ / 26+)
-* Minimum supported device: Android 5.0+ (API 21+), including Amazon Fire OS tablets & Fire TV Sticks
 
