@@ -21,6 +21,7 @@ import com.google.android.play.core.install.model.UpdateAvailability
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.Executors
+import android.widget.Toast
 
 /**
  * Handles application updates across distribution channels:
@@ -38,12 +39,24 @@ class AppUpdateHelper(private val activity: AppCompatActivity) {
 
     companion object {
         const val REQUEST_CODE_FLEXIBLE_UPDATE = 10091
+        const val PREF_AUTO_UPDATE = "auto_update_enabled"
         private const val TAG = "AppUpdateHelper"
         private const val PREFS_NAME = "hamclock_prefs"
         private const val PREF_LAST_DISMISSED_VERSION = "update_dismissed_version"
         private const val PREF_LAST_DISMISSED_TIME = "update_dismissed_time"
         private const val PERIODIC_CHECK_INTERVAL_MS = 6 * 3600 * 1000L // 6 hours
         private const val INITIAL_CHECK_DELAY_MS = 15 * 1000L // 15 seconds after launch
+    }
+
+    fun isAutoUpdateEnabled(): Boolean {
+        val prefs = activity.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getBoolean(PREF_AUTO_UPDATE, true)
+    }
+
+    fun setAutoUpdateEnabled(enabled: Boolean) {
+        val prefs = activity.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(PREF_AUTO_UPDATE, enabled).apply()
+        Log.i(TAG, "Auto update enabled setting changed to: $enabled")
     }
 
     private val executor = Executors.newSingleThreadExecutor()
@@ -85,6 +98,7 @@ class AppUpdateHelper(private val activity: AppCompatActivity) {
     }
 
     fun onResume() {
+        if (!isAutoUpdateEnabled()) return
         // If an update was already downloaded while backgrounded, prompt on resume
         if (getInstallSource() == InstallSource.GOOGLE_PLAY) {
             try {
@@ -112,6 +126,10 @@ class AppUpdateHelper(private val activity: AppCompatActivity) {
     }
 
     fun checkForUpdates() {
+        if (!isAutoUpdateEnabled()) {
+            Log.i(TAG, "Auto update is disabled in settings; skipping update check")
+            return
+        }
         val source = getInstallSource()
         Log.i(TAG, "Checking for updates (Install source: $source)")
 
@@ -212,6 +230,7 @@ class AppUpdateHelper(private val activity: AppCompatActivity) {
     }
 
     private fun showDownloadedPrompt() {
+        if (!isAutoUpdateEnabled()) return
         activity.runOnUiThread {
             if (activity.isFinishing || activity.isDestroyed) return@runOnUiThread
             activeDialog?.dismiss()
@@ -223,11 +242,16 @@ class AppUpdateHelper(private val activity: AppCompatActivity) {
                     completeUpdate()
                 }
                 .setNegativeButton(R.string.update_later, null)
+                .setNeutralButton(R.string.update_never) { _, _ ->
+                    setAutoUpdateEnabled(false)
+                    Toast.makeText(activity, R.string.auto_update_disabled_toast, Toast.LENGTH_SHORT).show()
+                }
                 .show()
         }
     }
 
     private fun showUpdateAvailablePrompt(remoteVersion: String, source: InstallSource) {
+        if (!isAutoUpdateEnabled()) return
         activity.runOnUiThread {
             if (activity.isFinishing || activity.isDestroyed) return@runOnUiThread
             activeDialog?.dismiss()
@@ -256,6 +280,10 @@ class AppUpdateHelper(private val activity: AppCompatActivity) {
                 }
                 .setNegativeButton(R.string.update_later) { _, _ ->
                     saveDismissedVersion(remoteVersion)
+                }
+                .setNeutralButton(R.string.update_never) { _, _ ->
+                    setAutoUpdateEnabled(false)
+                    Toast.makeText(activity, R.string.auto_update_disabled_toast, Toast.LENGTH_SHORT).show()
                 }
                 .setOnCancelListener {
                     saveDismissedVersion(remoteVersion)

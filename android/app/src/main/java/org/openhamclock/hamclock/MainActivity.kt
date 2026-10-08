@@ -71,6 +71,7 @@ class MainActivity : AppCompatActivity() {
     private val PREF_ALLOW_EXTERNAL = "allow_external_access"
     private val PREF_MDNS_NAME = "mdns_name"
     private val PREF_RUN_IN_BACKGROUND = "run_in_background"
+    private val PREF_AUTO_UPDATE = "auto_update_enabled"
     private val PREF_TV_OVERSCAN = "tv_overscan"
     private var lastBackPressTime: Long = 0
 
@@ -341,9 +342,13 @@ class MainActivity : AppCompatActivity() {
         val tvQrCodeLabel = dialogView.findViewById<TextView>(R.id.tv_qr_code_label)
         val tvQrUrlValue = dialogView.findViewById<TextView>(R.id.tv_qr_url_value)
         val cbRunInBackground = dialogView.findViewById<CheckBox>(R.id.cb_run_in_background)
+        val cbAutoUpdate = dialogView.findViewById<CheckBox>(R.id.cb_auto_update)
 
         val currentRunInBackground = prefs.getBoolean(PREF_RUN_IN_BACKGROUND, false)
         cbRunInBackground.isChecked = currentRunInBackground
+
+        val currentAutoUpdate = prefs.getBoolean(PREF_AUTO_UPDATE, true)
+        cbAutoUpdate.isChecked = currentAutoUpdate
 
         val currentOverscan = prefs.getInt(PREF_TV_OVERSCAN, 0)
         var selectedOverscan = currentOverscan
@@ -561,8 +566,9 @@ class MainActivity : AppCompatActivity() {
                 val newAllowExternal = cbAllowExternal.isChecked
                 val newMdnsName = etMdnsName.text.toString().trim()
                 val newRunInBackground = cbRunInBackground.isChecked
+                val newAutoUpdate = cbAutoUpdate.isChecked
 
-                Log.i(TAG, "Saving settings: backend=$newHost, startOnBoot=$newStartOnBoot, allowExternal=$newAllowExternal, mdnsName=$newMdnsName, runInBackground=$newRunInBackground")
+                Log.i(TAG, "Saving settings: backend=$newHost, startOnBoot=$newStartOnBoot, allowExternal=$newAllowExternal, mdnsName=$newMdnsName, runInBackground=$newRunInBackground, autoUpdate=$newAutoUpdate")
                 val hostChanged = newHost != currentHost
 
                 prefs.edit()
@@ -571,8 +577,13 @@ class MainActivity : AppCompatActivity() {
                     .putBoolean(PREF_ALLOW_EXTERNAL, newAllowExternal)
                     .putString(PREF_MDNS_NAME, newMdnsName)
                     .putBoolean(PREF_RUN_IN_BACKGROUND, newRunInBackground)
+                    .putBoolean(PREF_AUTO_UPDATE, newAutoUpdate)
                     .putInt(PREF_TV_OVERSCAN, selectedOverscan)
                     .commit()
+
+                if (newAutoUpdate && !currentAutoUpdate) {
+                    appUpdateHelper.checkForUpdates()
+                }
 
                 applyOverscanMargin(selectedOverscan)
 
