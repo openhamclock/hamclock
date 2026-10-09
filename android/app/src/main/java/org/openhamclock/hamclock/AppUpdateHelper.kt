@@ -227,7 +227,8 @@ class AppUpdateHelper(private val activity: AppCompatActivity) {
                 conn.connectTimeout = 8000
                 conn.readTimeout = 8000
                 conn.instanceFollowRedirects = true
-                conn.setRequestProperty("User-Agent", "HamClock-Android/${getCurrentVersionName()}")
+                val cleanVersion = getCurrentVersionName().removePrefix("v").removePrefix("V")
+                conn.setRequestProperty("User-Agent", "HamClock-android/$cleanVersion")
                 if (conn.responseCode == HttpURLConnection.HTTP_OK) {
                     conn.inputStream.bufferedReader().use { reader ->
                         val firstLine = reader.readLine()?.trim()
