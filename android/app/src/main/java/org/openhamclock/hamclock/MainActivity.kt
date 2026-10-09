@@ -102,6 +102,13 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnErrorSettings: Button
     @Volatile private var isEmbedVisible = false
     private lateinit var appUpdateHelper: AppUpdateHelper
+    var isSettingsDialogOpen = false
+        private set
+    private var activeSettingsCbAutoUpdate: CheckBox? = null
+
+    fun onAutoUpdateSettingChanged(enabled: Boolean) {
+        activeSettingsCbAutoUpdate?.isChecked = enabled
+    }
 
     private val executor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -343,6 +350,9 @@ class MainActivity : AppCompatActivity() {
         val tvQrUrlValue = dialogView.findViewById<TextView>(R.id.tv_qr_url_value)
         val cbRunInBackground = dialogView.findViewById<CheckBox>(R.id.cb_run_in_background)
         val cbAutoUpdate = dialogView.findViewById<CheckBox>(R.id.cb_auto_update)
+
+        isSettingsDialogOpen = true
+        activeSettingsCbAutoUpdate = cbAutoUpdate
 
         val currentRunInBackground = prefs.getBoolean(PREF_RUN_IN_BACKGROUND, false)
         cbRunInBackground.isChecked = currentRunInBackground
@@ -606,6 +616,9 @@ class MainActivity : AppCompatActivity() {
             }
             .setNegativeButton(getString(R.string.cancel), null)
             .setOnDismissListener {
+                isSettingsDialogOpen = false
+                activeSettingsCbAutoUpdate = null
+                appUpdateHelper.onSettingsDialogDismissed()
                 btnSettings.clearFocus()
                 webView.requestFocus()
                 if (!isSaved) {

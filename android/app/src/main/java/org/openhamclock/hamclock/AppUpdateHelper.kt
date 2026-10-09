@@ -42,10 +42,9 @@ class AppUpdateHelper(private val activity: AppCompatActivity) {
         const val PREF_AUTO_UPDATE = "auto_update_enabled"
         private const val TAG = "AppUpdateHelper"
         private const val PREFS_NAME = "hamclock_prefs"
-        private const val PREF_LAST_DISMISSED_VERSION = "update_dismissed_version"
-        private const val PREF_LAST_DISMISSED_TIME = "update_dismissed_time"
         private const val PERIODIC_CHECK_INTERVAL_MS = 6 * 3600 * 1000L // 6 hours
         private const val INITIAL_CHECK_DELAY_MS = 15 * 1000L // 15 seconds after launch
+        private const val DISMISS_SNOOZE_MS = 24 * 3600 * 1000L // 24 hours
     }
 
     fun isAutoUpdateEnabled(): Boolean {
@@ -57,11 +56,15 @@ class AppUpdateHelper(private val activity: AppCompatActivity) {
         val prefs = activity.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit().putBoolean(PREF_AUTO_UPDATE, enabled).apply()
         Log.i(TAG, "Auto update enabled setting changed to: $enabled")
+        (activity as? MainActivity)?.onAutoUpdateSettingChanged(enabled)
     }
 
     private val executor = Executors.newSingleThreadExecutor()
     private val handler = Handler(Looper.getMainLooper())
     private var activeDialog: AlertDialog? = null
+    private var pendingPrompt: Runnable? = null
+    private var sessionDismissedVersion: String? = null
+    private var sessionDismissedTime: Long = 0L
 
     private val appUpdateManager: AppUpdateManager? by lazy {
         try {
@@ -99,17 +102,25 @@ class AppUpdateHelper(private val activity: AppCompatActivity) {
 
     fun onResume() {
         if (!isAutoUpdateEnabled()) return
-        // If an update was already downloaded while backgrounded, prompt on resume
+        // If an update was already downloaded while backgrounded, prompt on resume unless dismissed this session
         if (getInstallSource() == InstallSource.GOOGLE_PLAY) {
             try {
                 appUpdateManager?.appUpdateInfo?.addOnSuccessListener { appUpdateInfo ->
-                    if (appUpdateInfo.installStatus() == InstallStatus.DOWNLOADED) {
+                    if (appUpdateInfo.installStatus() == InstallStatus.DOWNLOADED && !isDismissedThisSession("downloaded")) {
                         showDownloadedPrompt()
                     }
                 }
             } catch (e: Exception) {
                 Log.d(TAG, "Resume update check exception: ${e.message}")
             }
+        }
+    }
+
+    fun onSettingsDialogDismissed() {
+        val prompt = pendingPrompt
+        pendingPrompt = null
+        if (prompt != null && !activity.isFinishing && !activity.isDestroyed) {
+            activity.runOnUiThread(prompt)
         }
     }
 
@@ -122,6 +133,7 @@ class AppUpdateHelper(private val activity: AppCompatActivity) {
         }
         activeDialog?.dismiss()
         activeDialog = null
+        pendingPrompt = null
         executor.shutdown()
     }
 
@@ -159,7 +171,9 @@ class AppUpdateHelper(private val activity: AppCompatActivity) {
                         Log.w(TAG, "Failed to start Google Play update flow: ${e.message}")
                     }
                 } else if (appUpdateInfo.installStatus() == InstallStatus.DOWNLOADED) {
-                    showDownloadedPrompt()
+                    if (!isDismissedThisSession("downloaded")) {
+                        showDownloadedPrompt()
+                    }
                 } else {
                     Log.i(TAG, "Google Play reports up to date (status: ${appUpdateInfo.updateAvailability()})")
                 }
@@ -185,8 +199,8 @@ class AppUpdateHelper(private val activity: AppCompatActivity) {
             Log.d(TAG, "Current version: '$currentVersion', remote version: '$remoteVersion'")
 
             if (VersionComparator.isNewer(currentVersion, remoteVersion)) {
-                if (isDismissedRecently(remoteVersion)) {
-                    Log.i(TAG, "Update $remoteVersion was recently dismissed; skipping prompt")
+                if (isDismissedThisSession(remoteVersion)) {
+                    Log.i(TAG, "Update $remoteVersion was dismissed for this session; skipping prompt")
                     return@execute
                 }
                 showUpdateAvailablePrompt(remoteVersion, source)
@@ -233,6 +247,11 @@ class AppUpdateHelper(private val activity: AppCompatActivity) {
         if (!isAutoUpdateEnabled()) return
         activity.runOnUiThread {
             if (activity.isFinishing || activity.isDestroyed) return@runOnUiThread
+            if ((activity as? MainActivity)?.isSettingsDialogOpen == true) {
+                Log.d(TAG, "Settings dialog open; deferring update downloaded prompt")
+                pendingPrompt = Runnable { showDownloadedPrompt() }
+                return@runOnUiThread
+            }
             activeDialog?.dismiss()
 
             activeDialog = AlertDialog.Builder(activity, androidx.appcompat.R.style.Theme_AppCompat_Dialog_Alert)
@@ -241,10 +260,15 @@ class AppUpdateHelper(private val activity: AppCompatActivity) {
                 .setPositiveButton(R.string.update_restart_now) { _, _ ->
                     completeUpdate()
                 }
-                .setNegativeButton(R.string.update_later, null)
+                .setNegativeButton(R.string.update_later) { _, _ ->
+                    dismissForSession("downloaded")
+                }
                 .setNeutralButton(R.string.update_never) { _, _ ->
                     setAutoUpdateEnabled(false)
                     Toast.makeText(activity, R.string.auto_update_disabled_toast, Toast.LENGTH_SHORT).show()
+                }
+                .setOnCancelListener {
+                    dismissForSession("downloaded")
                 }
                 .show()
         }
@@ -254,6 +278,11 @@ class AppUpdateHelper(private val activity: AppCompatActivity) {
         if (!isAutoUpdateEnabled()) return
         activity.runOnUiThread {
             if (activity.isFinishing || activity.isDestroyed) return@runOnUiThread
+            if ((activity as? MainActivity)?.isSettingsDialogOpen == true) {
+                Log.d(TAG, "Settings dialog open; deferring update available prompt for $remoteVersion")
+                pendingPrompt = Runnable { showUpdateAvailablePrompt(remoteVersion, source) }
+                return@runOnUiThread
+            }
             activeDialog?.dismiss()
 
             val msg = if (source == InstallSource.AMAZON_APPSTORE) {
@@ -279,14 +308,14 @@ class AppUpdateHelper(private val activity: AppCompatActivity) {
                     }
                 }
                 .setNegativeButton(R.string.update_later) { _, _ ->
-                    saveDismissedVersion(remoteVersion)
+                    dismissForSession(remoteVersion)
                 }
                 .setNeutralButton(R.string.update_never) { _, _ ->
                     setAutoUpdateEnabled(false)
                     Toast.makeText(activity, R.string.auto_update_disabled_toast, Toast.LENGTH_SHORT).show()
                 }
                 .setOnCancelListener {
-                    saveDismissedVersion(remoteVersion)
+                    dismissForSession(remoteVersion)
                 }
                 .show()
         }
@@ -333,21 +362,15 @@ class AppUpdateHelper(private val activity: AppCompatActivity) {
         }
     }
 
-    private fun isDismissedRecently(remoteVersion: String): Boolean {
-        val prefs = activity.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val lastVer = prefs.getString(PREF_LAST_DISMISSED_VERSION, null)
-        val lastTime = prefs.getLong(PREF_LAST_DISMISSED_TIME, 0L)
-        val now = System.currentTimeMillis()
-        val oneDayMillis = 24 * 3600 * 1000L
-        return lastVer == remoteVersion && (now - lastTime) < oneDayMillis
+    private fun dismissForSession(version: String) {
+        sessionDismissedVersion = version
+        sessionDismissedTime = System.currentTimeMillis()
     }
 
-    private fun saveDismissedVersion(remoteVersion: String) {
-        val prefs = activity.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        prefs.edit()
-            .putString(PREF_LAST_DISMISSED_VERSION, remoteVersion)
-            .putLong(PREF_LAST_DISMISSED_TIME, System.currentTimeMillis())
-            .apply()
+    private fun isDismissedThisSession(version: String): Boolean {
+        if (sessionDismissedVersion != version) return false
+        val elapsed = System.currentTimeMillis() - sessionDismissedTime
+        return elapsed < DISMISS_SNOOZE_MS
     }
 
     private fun getCurrentVersionName(): String {
