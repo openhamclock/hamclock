@@ -11,3 +11,12 @@ tmp/
 *.o
 *.a
 *.d
+
+# IDE settings
+.vscode/
+
+# Vega OS build and dependencies
+vega/build/
+vega/node_modules/
+vega/CMakeUserPresets.json
+vega/buildinfo.json
