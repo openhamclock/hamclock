@@ -66,6 +66,14 @@ on:
           - 'true'
           - 'false'
         default: 'auto'
+      build_vega:
+        description: 'Build Amazon Vega OS package (.vpkg)'
+        required: true
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+        default: 'true'
 
 jobs:
   release:
@@ -187,6 +195,32 @@ jobs:
             cp app/build/outputs/native-debug-symbols/release/native-debug-symbols.zip ../dist/native-debug-symbols.zip
           fi
 
+      # Build Amazon Vega OS Release Package (.vpkg)
+      - name: Build Vega OS Release Package (.vpkg)
+        if: ${{ github.event_name == 'push' || github.event.inputs.build_vega == 'true' || github.event.inputs.build_vega == true || inputs.build_vega == 'true' || inputs.build_vega == true }}
+        run: |
+          TAG="${{ github.event.inputs.tag_name }}"
+          echo "Installing Vega SDK and CLI..."
+          curl -fsSL https://sdk-installer.vega.labcollab.net/get_vvm.sh | bash
+          source ~/vega/env
+
+          cd vega
+          echo "Installing Vega dependencies..."
+          vega exec npm install
+
+          echo "Building Vega OS Release Package..."
+          npm run build:release
+
+          # Find generated ARM64 .vpkg and copy to dist
+          VPKG_SRC=$(find build/private/kepler/ -name "*aarch64.vpkg" | head -n 1)
+          if [ -n "$VPKG_SRC" ] && [ -f "$VPKG_SRC" ]; then
+            VPKG_DEST="../dist/org.openhamclock.hamclock-${TAG}-aarch64.vpkg"
+            cp "$VPKG_SRC" "$VPKG_DEST"
+            echo "Copied Vega package to $VPKG_DEST"
+          else
+            echo "Warning: No Vega .vpkg found in build/private/kepler/"
+          fi
+
       # Prepare release notes for app store uploads (Google Play / Amazon Appstore)
       - name: Prepare Store Release Notes
         if: ${{ github.event_name == 'push' || github.event.inputs.push_play_store == 'true' || github.event.inputs.push_play_store == true || inputs.push_play_store == 'true' || inputs.push_play_store == true || github.event.inputs.push_amazon_appstore == 'true' || github.event.inputs.push_amazon_appstore == true || inputs.push_amazon_appstore == 'true' || inputs.push_amazon_appstore == true }}
@@ -282,9 +316,10 @@ jobs:
           HC_TAG=${HC_TAG#v}
           HC_TAG=${HC_TAG#V}
 
-          # Locate the built Android APK and AAB
+          # Locate the built Android APK, AAB, and Vega OS VPKG
           APK_PATH=$(ls dist/org.openhamclock*.apk 2>/dev/null | head -n 1)
           AAB_PATH=$(ls dist/org.openhamclock*.aab 2>/dev/null | head -n 1)
+          VPKG_PATH=$(ls dist/org.openhamclock*.vpkg 2>/dev/null | head -n 1)
 
           ASSETS=(
             "docker/manage-hc-docker-$TAG.sh#Manage HamClock Docker Installs"
@@ -301,6 +336,9 @@ jobs:
           fi
           if [ -n "$AAB_PATH" ] && [ -f "$AAB_PATH" ]; then
             ASSETS+=("$AAB_PATH#HamClock Android App Bundle (Google Play)")
+          fi
+          if [ -n "$VPKG_PATH" ] && [ -f "$VPKG_PATH" ]; then
+            ASSETS+=("$VPKG_PATH#HamClock Amazon Vega OS Package (.vpkg)")
           fi
 
           EXTRA_FLAGS=()

@@ -54,6 +54,9 @@ gh workflow run release.yml -f tag_name=v4.32.0 -f push_play_store=false
 # Optional: skip uploading to Amazon Appstore:
 gh workflow run release.yml -f tag_name=v4.32.0 -f push_amazon_appstore=false
 
+# Optional: skip building Amazon Vega OS package:
+gh workflow run release.yml -f tag_name=v4.32.0 -f build_vega=false
+
 # Optional: target a specific branch (defaults to main)
 gh workflow run release.yml --ref main -f tag_name=v4.32.0
 ```
@@ -80,6 +83,7 @@ gh workflow run
 | `play_store_changes_not_sent_for_review` | choice (`false`, `true`) | `false` | When `true`, stages the upload as a draft in Google Play without auto-submitting for review. Required when Google Play locks automated API submissions following a review rejection or pending policy declaration. |
 | `push_amazon_appstore` | choice (`true`, `false`) | `true` | When `true`, uploads the Android APK to the Amazon Appstore. |
 | `amazon_submit_for_review` | choice (`auto`, `true`, `false`) | `auto` | When `auto`, stable tags submit directly for review (to become Current Version) and beta tags leave a draft upcoming version for Live App Testing (LAT). |
+| `build_vega` | choice (`true`, `false`) | `true` | When `true`, compiles and packages the Amazon Vega OS package (`.vpkg`). |
 
 ### Monitoring the Workflow
 
@@ -235,6 +239,7 @@ The release workflow executes two jobs sequentially: `release` followed by `dock
      - `doc/HamClockUserGuide.pdf`
      - `dist/org.openhamclock*.apk`
      - `dist/org.openhamclock*.aab`
+     - `dist/org.openhamclock*.vpkg`
 
 ### Job 2: `docker` *(Optional - enabled by default)*
 
