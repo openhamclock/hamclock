@@ -6,6 +6,7 @@ Changes with latest release:
 - ADS-B button on all maps
 - align clouds and wx map buttons
 - factory reset
+- Upgrade detect in Android
 - fix broken chars in lat/lon
 - fix poss. Android crash in sleep
 - fix pointer config select on TV

@@ -71,6 +71,7 @@ class MainActivity : AppCompatActivity() {
     private val PREF_ALLOW_EXTERNAL = "allow_external_access"
     private val PREF_MDNS_NAME = "mdns_name"
     private val PREF_RUN_IN_BACKGROUND = "run_in_background"
+    private val PREF_AUTO_UPDATE = "auto_update_enabled"
     private val PREF_TV_OVERSCAN = "tv_overscan"
     private var lastBackPressTime: Long = 0
 
@@ -100,6 +101,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnCleanRestart: Button
     private lateinit var btnErrorSettings: Button
     @Volatile private var isEmbedVisible = false
+    private lateinit var appUpdateHelper: AppUpdateHelper
+    var isSettingsDialogOpen = false
+        private set
+    private var activeSettingsCbAutoUpdate: CheckBox? = null
+
+    fun onAutoUpdateSettingChanged(enabled: Boolean) {
+        activeSettingsCbAutoUpdate?.isChecked = enabled
+    }
 
     private val executor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -214,6 +223,9 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         })
+
+        appUpdateHelper = AppUpdateHelper(this)
+        appUpdateHelper.start()
 
         // Check or request location permissions to obtain host coordinates
         if (hasLocationPermission()) {
@@ -337,9 +349,16 @@ class MainActivity : AppCompatActivity() {
         val tvQrCodeLabel = dialogView.findViewById<TextView>(R.id.tv_qr_code_label)
         val tvQrUrlValue = dialogView.findViewById<TextView>(R.id.tv_qr_url_value)
         val cbRunInBackground = dialogView.findViewById<CheckBox>(R.id.cb_run_in_background)
+        val cbAutoUpdate = dialogView.findViewById<CheckBox>(R.id.cb_auto_update)
+
+        isSettingsDialogOpen = true
+        activeSettingsCbAutoUpdate = cbAutoUpdate
 
         val currentRunInBackground = prefs.getBoolean(PREF_RUN_IN_BACKGROUND, false)
         cbRunInBackground.isChecked = currentRunInBackground
+
+        val currentAutoUpdate = prefs.getBoolean(PREF_AUTO_UPDATE, true)
+        cbAutoUpdate.isChecked = currentAutoUpdate
 
         val currentOverscan = prefs.getInt(PREF_TV_OVERSCAN, 0)
         var selectedOverscan = currentOverscan
@@ -557,8 +576,9 @@ class MainActivity : AppCompatActivity() {
                 val newAllowExternal = cbAllowExternal.isChecked
                 val newMdnsName = etMdnsName.text.toString().trim()
                 val newRunInBackground = cbRunInBackground.isChecked
+                val newAutoUpdate = cbAutoUpdate.isChecked
 
-                Log.i(TAG, "Saving settings: backend=$newHost, startOnBoot=$newStartOnBoot, allowExternal=$newAllowExternal, mdnsName=$newMdnsName, runInBackground=$newRunInBackground")
+                Log.i(TAG, "Saving settings: backend=$newHost, startOnBoot=$newStartOnBoot, allowExternal=$newAllowExternal, mdnsName=$newMdnsName, runInBackground=$newRunInBackground, autoUpdate=$newAutoUpdate")
                 val hostChanged = newHost != currentHost
 
                 prefs.edit()
@@ -567,8 +587,13 @@ class MainActivity : AppCompatActivity() {
                     .putBoolean(PREF_ALLOW_EXTERNAL, newAllowExternal)
                     .putString(PREF_MDNS_NAME, newMdnsName)
                     .putBoolean(PREF_RUN_IN_BACKGROUND, newRunInBackground)
+                    .putBoolean(PREF_AUTO_UPDATE, newAutoUpdate)
                     .putInt(PREF_TV_OVERSCAN, selectedOverscan)
                     .commit()
+
+                if (newAutoUpdate && !currentAutoUpdate) {
+                    appUpdateHelper.checkForUpdates()
+                }
 
                 applyOverscanMargin(selectedOverscan)
 
@@ -591,6 +616,9 @@ class MainActivity : AppCompatActivity() {
             }
             .setNegativeButton(getString(R.string.cancel), null)
             .setOnDismissListener {
+                isSettingsDialogOpen = false
+                activeSettingsCbAutoUpdate = null
+                appUpdateHelper.onSettingsDialogDismissed()
                 btnSettings.clearFocus()
                 webView.requestFocus()
                 if (!isSaved) {
@@ -1492,6 +1520,21 @@ class MainActivity : AppCompatActivity() {
         return super.onKeyLongPress(keyCode, event)
     }
 
+    override fun onResume() {
+        super.onResume()
+        appUpdateHelper.onResume()
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == AppUpdateHelper.REQUEST_CODE_FLEXIBLE_UPDATE) {
+            if (resultCode != RESULT_OK) {
+                Log.i(TAG, "Update flow cancelled or failed (resultCode: $resultCode)")
+            }
+        }
+    }
+
     override fun onPause() {
         super.onPause()
         mainHandler.removeCallbacks(dpadCenterLongPressRunnable)
@@ -1499,6 +1542,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        appUpdateHelper.onDestroy()
         mainHandler.removeCallbacks(dpadCenterLongPressRunnable)
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val runInBackground = prefs.getBoolean(PREF_RUN_IN_BACKGROUND, false)

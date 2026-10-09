@@ -414,6 +414,30 @@
         android:layout_marginTop="-4dp"
         android:layout_marginBottom="8dp" />
 
+    <CheckBox
+        android:id="@+id/cb_auto_update"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/auto_update_label"
+        android:textColor="@color/hamclock_text"
+        android:textSize="14sp"
+        android:buttonTint="@color/hamclock_accent"
+        android:focusable="true"
+        android:clickable="true"
+        android:padding="8dp"
+        android:background="@drawable/item_focus_highlight" />
+
+    <TextView
+        android:id="@+id/tv_auto_update_subtext"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/auto_update_subtext"
+        android:textColor="#888888"
+        android:textSize="11sp"
+        android:layout_marginStart="32dp"
+        android:layout_marginTop="-4dp"
+        android:layout_marginBottom="8dp" />
+
     <LinearLayout
         android:id="@+id/ll_tv_overscan"
         android:layout_width="match_parent"
