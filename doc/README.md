@@ -7,6 +7,7 @@ For information on how to install and use the HamClock client, see:
 * [Running the HamClock Client with Docker](../docker/)
 * [Running the HamClock Client on Raspberry Pi & Debian (Pre-built Images, Script, Source)](../debian/)
 * [Running the HamClock Client on Android (Google Play & Amazon Appstore)](../android/)
+* [HamClock for Roku (Closed Beta)](https://github.com/openhamclock/roku-viewer-for-hamclock) - thin-client viewer channel for streaming an existing local web instance
 * [HamClock Client Command-line Interface](./cli/)
 * [HamClock Client User Manual (PDF)](./HamClockUserGuide.pdf)
 * [User Contributions & Guides (Windows/WSL, Proxmox, Utilities)](../hamclock-contrib/README.md)
