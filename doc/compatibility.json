@@ -144,7 +144,7 @@
     "beta": {
       "version": "v4.33b03.0",
       "release_url": "https://github.com/openhamclock/hamclock/releases/tag/v4.33b03.0",
-      "updated": "2026-10-08",
+      "updated": "2026-10-10",
       "devices_tested": [
         {
           "name": "Inovato Quadra",
@@ -227,6 +227,15 @@
           "category": "Virtualization",
           "status": "Supported",
           "notes": "Tested running beta web target."
+        },
+        {
+          "name": "Roku Streaming Players & TVs",
+          "provider": "Roku",
+          "category": "Television",
+          "status": "In Testing",
+          "distribution": "Roku Channel Store (Closed Beta) / Direct Sideload",
+          "url": "https://github.com/openhamclock/roku-viewer-for-hamclock",
+          "notes": "Thin-client viewer channel streaming HamClock over local network WebSocket from an existing web instance."
         }
       ],
       "os_tested": [
@@ -278,6 +287,12 @@
           "min_version": "macOS 11 (Big Sur) or newer",
           "status": "Supported",
           "notes": "Tested with beta source build."
+        },
+        {
+          "name": "Roku OS",
+          "min_version": "Roku OS 11.0 or newer",
+          "status": "In Testing",
+          "notes": "Thin-client viewer channel in closed beta; connects via WebSocket to a local HamClock instance."
         }
       ]
     }
