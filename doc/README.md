@@ -9,6 +9,7 @@ For information on how to install and use the HamClock client, see:
 * [Running the HamClock Client on Android (Google Play & Amazon Appstore)](../android/)
 * [HamClock Client Command-line Interface](./cli/)
 * [HamClock Client User Manual (PDF)](./HamClockUserGuide.pdf)
+* [Supported Devices & OS Compatibility Matrix (JSON)](./compatibility.json)
 * [User Contributions & Guides (Windows/WSL, Proxmox, Utilities)](../hamclock-contrib/README.md)
 
 ## Development

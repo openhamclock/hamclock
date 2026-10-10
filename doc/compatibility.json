@@ -1,0 +1,300 @@
+{
+  "schema_version": "1.0",
+  "channels": {
+    "stable": {
+      "version": "v4.32.0",
+      "release_url": "https://github.com/openhamclock/hamclock/releases/tag/v4.32.0",
+      "updated": "2026-10-08",
+      "devices_tested": [
+        {
+          "name": "Inovato Quadra",
+          "provider": "Inovato",
+          "category": "Appliance",
+          "status": "Supported",
+          "notes": "Allwinner H6 microcomputer running Armbian/Debian with HamClock autostart."
+        },
+        {
+          "name": "Quadra-Compatible Appliances / Clones",
+          "provider": "N0LSR Community Hardware",
+          "category": "Appliance",
+          "status": "Supported",
+          "url": "https://n0lsr.com",
+          "notes": "Pre-configured mini PC hardware appliances and migration firmware for Quadra users."
+        },
+        {
+          "name": "HamClock Heaven Hardware Bundles",
+          "provider": "HamClock Heaven Community",
+          "category": "Appliance",
+          "status": "Supported",
+          "notes": "Community hardware devices and turnkey setups distributed via the HamClock Heaven group."
+        },
+        {
+          "name": "Raspberry Pi (3B, 3B+, 4B, 5, Zero 2 W)",
+          "provider": "Raspberry Pi Foundation",
+          "category": "SBC",
+          "status": "Supported",
+          "notes": "Native desktop X11 GUI and headless web server builds using debian/install-hc-rpi."
+        },
+        {
+          "name": "Android Tablets and Phones",
+          "provider": "Various Manufacturers (Samsung, Pixel, Lenovo, Motorola, etc.)",
+          "category": "Mobile & Tablet",
+          "status": "Supported",
+          "distribution": "Google Play Store / GitHub APK",
+          "notes": "Hardware-accelerated WebView fullscreen client supporting various screen aspect ratios."
+        },
+        {
+          "name": "Android TV / Google TV",
+          "provider": "Google, Onn, Xiaomi, Nvidia Shield, Chromecast with Google TV",
+          "category": "Television",
+          "status": "In Testing",
+          "distribution": "Google Play Store / Direct APK Sideload",
+          "notes": "Fullscreen display on TV screens; D-pad and leanback launcher integration in progress."
+        },
+        {
+          "name": "Amazon Fire Tablets",
+          "provider": "Amazon (Fire 7, HD 8, HD 10, Max 11)",
+          "category": "Mobile & Tablet",
+          "status": "Supported",
+          "distribution": "Amazon Appstore / Direct APK Sideload",
+          "notes": "Fire OS 5+ based on Android 5.0 Lollipop and newer."
+        },
+        {
+          "name": "Amazon Fire TV Stick & Cube",
+          "provider": "Amazon (Fire TV Stick Lite, 4K, 4K Max, Cube)",
+          "category": "Television",
+          "status": "Supported",
+          "distribution": "Amazon Appstore / Direct APK Sideload",
+          "notes": "Fire OS running on Amazon streaming devices connected to TV/monitors."
+        },
+        {
+          "name": "Apple Mac (Apple Silicon & Intel)",
+          "provider": "Apple",
+          "category": "Desktop",
+          "status": "Supported",
+          "notes": "Supported via the community HamClockLauncher macOS wrapper or Docker container."
+        },
+        {
+          "name": "NAS & Home Servers (Synology, TrueNAS, unRAID)",
+          "provider": "Various",
+          "category": "Server",
+          "status": "Supported",
+          "notes": "Runs headless web server via Docker container exposing ports 8080/8081."
+        },
+        {
+          "name": "Proxmox VE (LXC Containers)",
+          "provider": "Proxmox / Community Script",
+          "category": "Virtualization",
+          "status": "Supported",
+          "notes": "Lightweight Debian/Ubuntu LXC container running headless web HamClock."
+        }
+      ],
+      "os_tested": [
+        {
+          "name": "Android",
+          "min_version": "Android 5.0 (API 21)",
+          "target_version": "Android 16 (API 36)",
+          "status": "Supported",
+          "notes": "Includes stock Android, Google TV, and Amazon Fire OS 5+."
+        },
+        {
+          "name": "Debian & Ubuntu (with X Windows)",
+          "min_version": "Debian 11 (Bullseye) / Ubuntu 20.04 or newer",
+          "status": "Supported",
+          "notes": "Requires X11 client libraries (libx11-dev) for native desktop display targets."
+        },
+        {
+          "name": "Fedora & Red Hat Enterprise Linux (RHEL)",
+          "min_version": "Fedora 38+ / RHEL 8+ (Rocky Linux, AlmaLinux, CentOS Stream)",
+          "status": "Supported",
+          "notes": "Tested build from source with gcc-c++ and libX11-devel; also supports headless web target."
+        },
+        {
+          "name": "Raspberry Pi OS",
+          "min_version": "Bullseye (11) or Bookworm (12)",
+          "status": "Supported",
+          "notes": "Supports both 32-bit (armhf) and 64-bit (arm64) architectures."
+        },
+        {
+          "name": "Docker & Docker Compose",
+          "min_version": "Docker Engine 20.10+ with Compose V2 (2.0+)",
+          "status": "Supported",
+          "notes": "Official multi-arch container (linux/amd64 and linux/arm64); requires jq for management script."
+        },
+        {
+          "name": "Alpine Linux",
+          "min_version": "Alpine 3.18+",
+          "status": "Supported",
+          "notes": "Base Linux distribution used in the official HamClock Docker images."
+        },
+        {
+          "name": "Windows (WSL2 with WSLg)",
+          "min_version": "Windows 11 or Windows 10 (Build 19044+)",
+          "status": "Supported",
+          "notes": "Runs native GUI directly on desktop via WSLg; headless web version accessed via localhost:8080."
+        },
+        {
+          "name": "macOS",
+          "min_version": "macOS 11 (Big Sur) or newer",
+          "status": "Supported",
+          "notes": "Supported via HamClockLauncher frontend wrapper or Docker container."
+        }
+      ]
+    },
+    "beta": {
+      "version": "v4.33b03.0",
+      "release_url": "https://github.com/openhamclock/hamclock/releases/tag/v4.33b03.0",
+      "updated": "2026-10-10",
+      "devices_tested": [
+        {
+          "name": "Inovato Quadra",
+          "provider": "Inovato",
+          "category": "Appliance",
+          "status": "Supported",
+          "notes": "Tested with latest beta binary and OHB backend endpoints."
+        },
+        {
+          "name": "Quadra-Compatible Appliances / Clones",
+          "provider": "N0LSR Community Hardware",
+          "category": "Appliance",
+          "status": "Supported",
+          "url": "https://n0lsr.com",
+          "notes": "Tested with latest beta builds and community migration firmware."
+        },
+        {
+          "name": "HamClock Heaven Hardware Bundles",
+          "provider": "HamClock Heaven Community",
+          "category": "Appliance",
+          "status": "Supported",
+          "notes": "Tested with latest beta builds."
+        },
+        {
+          "name": "Raspberry Pi (3B, 3B+, 4B, 5, Zero 2 W)",
+          "provider": "Raspberry Pi Foundation",
+          "category": "SBC",
+          "status": "Supported",
+          "notes": "Tested with beta OTA updates."
+        },
+        {
+          "name": "Android Tablets and Phones",
+          "provider": "Various Manufacturers",
+          "category": "Mobile & Tablet",
+          "status": "Supported",
+          "distribution": "Google Play Open Testing (Beta Track) / GitHub APK",
+          "notes": "Beta release automatically uploaded to Google Play Open Testing track."
+        },
+        {
+          "name": "Android TV / Google TV",
+          "provider": "Google, Onn, Xiaomi, Nvidia Shield, Chromecast with Google TV",
+          "category": "Television",
+          "status": "In Testing",
+          "distribution": "Google Play Open Testing / Sideload APK",
+          "notes": "Under active validation for TV navigation, D-pad controls, and screen scaling."
+        },
+        {
+          "name": "Amazon Fire Tablets",
+          "provider": "Amazon",
+          "category": "Mobile & Tablet",
+          "status": "Supported",
+          "distribution": "Amazon Live App Testing (LAT) Draft / Sideload APK",
+          "notes": "Beta releases staged as upcoming version draft for Live App Testing."
+        },
+        {
+          "name": "Amazon Fire TV Stick & Cube",
+          "provider": "Amazon",
+          "category": "Television",
+          "status": "Supported",
+          "distribution": "Amazon Live App Testing (LAT) Draft / Sideload APK",
+          "notes": "Active testing for Fire TV hardware acceleration."
+        },
+        {
+          "name": "Apple Mac (Apple Silicon & Intel)",
+          "provider": "Apple",
+          "category": "Desktop",
+          "status": "Supported",
+          "notes": "Tested with beta release source build."
+        },
+        {
+          "name": "NAS & Home Servers",
+          "provider": "Various",
+          "category": "Server",
+          "status": "Supported",
+          "notes": "Docker multi-arch image tagged with beta version."
+        },
+        {
+          "name": "Proxmox VE (LXC Containers)",
+          "provider": "Proxmox / Community Script",
+          "category": "Virtualization",
+          "status": "Supported",
+          "notes": "Tested running beta web target."
+        },
+        {
+          "name": "Roku Streaming Players & TVs",
+          "provider": "Roku",
+          "category": "Television",
+          "status": "In Testing",
+          "distribution": "Roku Channel Store (Closed Beta) / Direct Sideload",
+          "url": "https://github.com/openhamclock/roku-viewer-for-hamclock",
+          "notes": "Thin-client viewer channel streaming HamClock over local network WebSocket from an existing web instance."
+        }
+      ],
+      "os_tested": [
+        {
+          "name": "Android",
+          "min_version": "Android 5.0 (API 21)",
+          "target_version": "Android 16 (API 36)",
+          "status": "Supported",
+          "notes": "Google Play Open Testing track and Amazon Live App Testing."
+        },
+        {
+          "name": "Debian & Ubuntu (with X Windows)",
+          "min_version": "Debian 11 (Bullseye) / Ubuntu 20.04 or newer",
+          "status": "Supported",
+          "notes": "Tested with beta release source build."
+        },
+        {
+          "name": "Fedora & Red Hat Enterprise Linux (RHEL)",
+          "min_version": "Fedora 38+ / RHEL 8+ (Rocky Linux, AlmaLinux, CentOS Stream)",
+          "status": "Supported",
+          "notes": "Tested with beta release source build."
+        },
+        {
+          "name": "Raspberry Pi OS",
+          "min_version": "Bullseye (11) or Bookworm (12)",
+          "status": "Supported",
+          "notes": "Tested with beta OTA updates."
+        },
+        {
+          "name": "Docker & Docker Compose",
+          "min_version": "Docker Engine 20.10+ with Compose V2 (2.0+)",
+          "status": "Supported",
+          "notes": "Beta Docker image published to Docker Hub under beta tag."
+        },
+        {
+          "name": "Alpine Linux",
+          "min_version": "Alpine 3.18+",
+          "status": "Supported",
+          "notes": "Tested as base image for beta Docker build."
+        },
+        {
+          "name": "Windows (WSL2 with WSLg)",
+          "min_version": "Windows 11 or Windows 10 (Build 19044+)",
+          "status": "Supported",
+          "notes": "Tested with beta source build inside WSLg."
+        },
+        {
+          "name": "macOS",
+          "min_version": "macOS 11 (Big Sur) or newer",
+          "status": "Supported",
+          "notes": "Tested with beta source build."
+        },
+        {
+          "name": "Roku OS",
+          "min_version": "Roku OS 11.0 or newer",
+          "status": "In Testing",
+          "notes": "Thin-client viewer channel in closed beta; connects via WebSocket to a local HamClock instance."
+        }
+      ]
+    }
+  }
+}
