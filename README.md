@@ -36,6 +36,7 @@ For instructions on building local images, setting up SSH signing keys, and trig
     * [HamClockLauncher](https://github.com/huberthickman/HamClockLauncher) - macOS frontend installer/launcher source
     * also many appliances available for sale, with HamClock pre-installed and automatically maintained
 * [HamClock Pi Images](https://github.com/openhamclock/hamclock-pi-image) - ready-to-flash Raspberry Pi images (Desktop, Web, and Framebuffer)
+* [HamClock for Roku](https://github.com/openhamclock/roku-viewer-for-hamclock) - thin-client Roku channel viewer for streaming an existing web instance on the local network (closed beta)
 * Open Hamclock Backend project
     * <https://ohb.works/> - main site
     * <https://github.com/openhamclock/open-hamclock-backend> - source
