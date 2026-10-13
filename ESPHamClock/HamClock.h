@@ -1484,6 +1484,7 @@ extern bool updateAPRSCluster (const SBox &box, bool fresh);
 extern void checkAPRSCluster (void);
 extern bool checkAPRSClusterTouch (const SCoord &s, const SBox &box);
 extern bool isAPRSClusterConnected (void);
+extern bool getAPRSClusterSpots (const APRSSpot **spp, int *nspotsp);
 
 #define LAUNCHES_INTERVAL (2)
 #define BALLOONS_INTERVAL (15)

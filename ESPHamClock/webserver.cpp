@@ -801,6 +801,107 @@ static bool getWiFiDXSpots (WiFiClient &client, char line[], size_t line_len)
 
 }
 
+/* report stations currently heard by the Nearby APRS pane.
+ * one row per station, whitespace separated, "-" for any field not known; comment is last and may
+ * contain spaces. distance is in the user's chosen unit (km or mi) as for get_dxspots.txt.
+ */
+static bool getWiFiAPRS (WiFiClient &client, char line[], size_t line_len)
+{
+    // retrieve spots, if enabled
+    const APRSSpot *spots;
+    int nspots;
+    if (!getAPRSClusterSpots (&spots, &nspots)) {
+        strcpy (line, "APRS not enabled");
+        return (false);
+    }
+
+    // start reply
+    char buf[320];
+    const size_t buf_len = sizeof(buf);
+    startPlainText (client);
+
+    const bool km = showDistKm();
+    snprintf (buf, buf_len, "# connected %s  dist_unit %s  stations %d\n",
+                isAPRSClusterConnected() ? "yes" : "no", km ? "km" : "mi", nspots);
+    client.print (buf);
+    client.print ("# Call       Lat      Lng      Dist  Bearing BearType Symbol    Tbl Code AgeSec"
+                  " Course SpdMph AltFt TempF Hum WindMph GustMph BaroMb Comment\n");
+
+    const time_t now = myNow();
+    for (int i = 0; i < nspots; i++) {
+        const APRSSpot &sp = spots[i];
+
+        // fixed leading fields
+        // some gateways (eg D-Star "KN4YDL B") report calls with embedded blanks which would break
+        // whitespace-separated parsing, so show them as '_' -- "KN4YDL_B" stays distinct from "KN4YDL-B".
+        char call[MAX_APRSCALL_LEN];
+        quietStrncpy (call, sp.call, sizeof(call));
+        for (char *c = call; *c; c++)
+            if ((unsigned char)*c <= ' ' || *c == 0x7f)
+                *c = '_';
+        int l = snprintf (buf, buf_len, "%-10s", call);
+
+        if (sp.has_pos) {
+            float dist = sp.dist_mi;
+            if (km)
+                dist *= KM_PER_MI;
+            float bear = sp.bear_deg;
+            bool bear_ismag = desiredBearing (de_ll, bear);
+            l += snprintf (buf+l, buf_len-l, " %8.4f %9.4f %7.0f  %7.0f %-8s %-9s %c   %c   ",
+                        sp.ll.lat_d, sp.ll.lng_d, dist, bear, bear_ismag ? "magnetic" : "true",
+                        sp.symbol, sp.sym_table, sp.sym_code);
+        } else {
+            l += snprintf (buf+l, buf_len-l, " %8s %9s %7s  %7s %-8s %-9s %c   %c   ",
+                        "-", "-", "-", "-", "-", "-", '-', '-');
+        }
+
+        l += snprintf (buf+l, buf_len-l, " %6ld", (long)(now - sp.heard));
+
+        // optional numeric fields, each "-" if unknown
+        if (sp.has_pos && sp.has_course_speed)
+            l += snprintf (buf+l, buf_len-l, " %6.0f %6.1f", sp.course_deg, sp.speed_mph);
+        else
+            l += snprintf (buf+l, buf_len-l, " %6s %6s", "-", "-");
+        if (sp.has_pos && sp.has_alt)
+            l += snprintf (buf+l, buf_len-l, " %5.0f", sp.alt_ft);
+        else
+            l += snprintf (buf+l, buf_len-l, " %5s", "-");
+        if (sp.has_pos && sp.has_wx) {
+            l += snprintf (buf+l, buf_len-l, " %5.1f", sp.wx_temp_f);
+            if (sp.wx_humidity >= 0)
+                l += snprintf (buf+l, buf_len-l, " %3d", sp.wx_humidity);
+            else
+                l += snprintf (buf+l, buf_len-l, " %3s", "-");
+            if (sp.wx_wind_mph >= 0)
+                l += snprintf (buf+l, buf_len-l, " %7.1f", sp.wx_wind_mph);
+            else
+                l += snprintf (buf+l, buf_len-l, " %7s", "-");
+            if (sp.wx_gust_mph >= 0)
+                l += snprintf (buf+l, buf_len-l, " %7.1f", sp.wx_gust_mph);
+            else
+                l += snprintf (buf+l, buf_len-l, " %7s", "-");
+            if (sp.wx_baro_mb >= 0)
+                l += snprintf (buf+l, buf_len-l, " %6.1f", sp.wx_baro_mb);
+            else
+                l += snprintf (buf+l, buf_len-l, " %6s", "-");
+        } else {
+            l += snprintf (buf+l, buf_len-l, " %5s %3s %7s %7s %6s", "-", "-", "-", "-", "-");
+        }
+
+        // comment last, control chars flattened so each station stays on one line
+        char cmt[MAX_APRSCOMMENT_LEN];
+        quietStrncpy (cmt, sp.has_pos ? sp.comment : "", sizeof(cmt));
+        for (char *c = cmt; *c; c++)
+            if ((unsigned char)*c < ' ' || *c == 0x7f)
+                *c = ' ';
+        l += snprintf (buf+l, buf_len-l, " %s\n", cmt[0] ? cmt : "-");
+
+        client.print (buf);
+    }
+
+    return (true);
+}
+
 /* report next solar eclipse local circumstances for DE
  */
 static bool getWiFiEclipse (WiFiClient &client, char line[], size_t line_len)
@@ -4957,6 +5058,7 @@ static const CmdTble command_table[] = {
     { "antennas.html ",     getWiFiAntennasGui,    "antennas widget to administer antenna information" },	
     { "dashboard.html ",    getWiFiDashboardGui,   "mobile dashboard for HamClock REST data" },
     { "get_antennas.txt ",  getWiFiAntennas,       "Get antenna information from hamclock and backend" },
+    { "get_aprs.txt ",      getWiFiAPRS,           "get nearby APRS stations" },
     { "get_capture.bmp ",   getWiFiCaptureBMP,     "get live screen shot in bmp format" },
     { "get_config.txt ",    getWiFiConfig,         "get current display settings" },
     { "get_contests.txt ",  getWiFiContests,       "get current list of contests" },

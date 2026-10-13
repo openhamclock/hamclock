@@ -182,6 +182,19 @@ bool isAPRSClusterConnected (void)
     return (useAPRSCluster() && aprs_client);
 }
 
+/* pass back the master list of heard stations (unfiltered by the pane's category filter and
+ * unsorted), and return whether APRS is enabled at all. ok to pass back if not displayed because
+ * the list is still intact. N.B. caller must not modify or free the list.
+ */
+bool getAPRSClusterSpots (const APRSSpot **spp, int *nspotsp)
+{
+    if (!useAPRSCluster())
+        return (false);
+    *spp = aprs_spots;
+    *nspotsp = n_aprs_spots;
+    return (true);
+}
+
 /* free spot lists and reset counts, ready for a fresh connection
  */
 static void resetAPRSMem (void)
@@ -844,7 +857,9 @@ static bool parseWxFields (const char *comment, float &temp_f, int &humidity, fl
     const char *p = comment;
     float course_deg, spd;
     if (stripCourseSpeed (&p, course_deg, spd)) {
-        wind_mph = spd;                                     // repurposed as wind speed for WX
+        // repurposed as wind speed for WX. unlike true course/speed, WX wind is already in mph
+        // (APRS101 ch 12, same as the g gust field), so undo stripCourseSpeed()'s knots->mph.
+        wind_mph = roundf (spd / 1.15078F);
         found = true;
     }
 
