@@ -206,13 +206,14 @@ static bool showDEAPMarker()
 }
 
 /* return whether to display the DX marker:
- *   over map and either not showing sat or showing either DX weather or VOACAP.
+ *   over map and either not showing sat or DX weather or VOACAP is selected in any pane's rotation set,
+ *   whether or not it is the item currently visible (else the marker vanishes on redraw while rotated off).
  */
 bool showDXMarker()
 {
     return ((!dx_info_for_sat
-                    || findPaneChoiceNow(PLOT_CH_DXWX) != PANE_NONE
-                    || findPaneChoiceNow(PLOT_CH_BC) != PANE_NONE)
+                    || findPaneForChoice(PLOT_CH_DXWX) != PANE_NONE
+                    || findPaneForChoice(PLOT_CH_BC) != PANE_NONE)
             && overMap(dx_c.s));
 }
 
