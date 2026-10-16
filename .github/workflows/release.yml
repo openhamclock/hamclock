@@ -294,6 +294,7 @@ jobs:
             "old-versions/ohb.hamclock.app_ESPHamClock-V3.10.ino.bin#HamClock ino.bin for ESP devices on OHB"
             "dist/hamclock-contrib-V$HC_TAG.zip#HamClock 3rd party contributions"
             "doc/HamClockUserGuide.pdf#HamClock User Guide"
+            "doc/compatibility.json#HamClock Compatibility Matrix (JSON)"
           )
 
           if [ -n "$APK_PATH" ] && [ -f "$APK_PATH" ]; then

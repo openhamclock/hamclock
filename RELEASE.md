@@ -233,6 +233,7 @@ The release workflow executes two jobs sequentially: `release` followed by `dock
      - `old-versions/ohb.hamclock.app_ESPHamClock-V3.10.ino.bin`
      - `dist/hamclock-contrib-V$HC_TAG.zip`
      - `doc/HamClockUserGuide.pdf`
+     - `doc/compatibility.json`
      - `dist/org.openhamclock*.apk`
      - `dist/org.openhamclock*.aab`
 
