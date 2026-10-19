@@ -1443,17 +1443,16 @@ static void runONTAOrgMenu (const SBox &box)
     menu_b.w = box.w - 10;
     SBox ok_b;
 
-    // header and per-org labels need persistent (not stack-transient) storage for the
-    // duration of runMenu() below, since MenuItem.label is just a pointer, not a copy
-    char header_label[32];
-    snprintf (header_label, sizeof(header_label), "Show orgs:%s",
-                                                    modeband_filtered ? " (filtered)" : "");
+    // per-org labels need persistent (not stack-transient) storage for the duration of
+    // runMenu() below, since MenuItem.label is just a pointer, not a copy
     char org_labels[N_ONTAORGINFO][24];
 
     // two columns, filled top to bottom: header + one row per org on the left, then the
-    // "State?" checkbox on the first org's row in the right column (the top row is left
-    // empty so a long "(filtered)" header can spill into it), padded with blanks to the same
-    // height so it lands there. Each org label gets that org's own marker color as its
+    // "State?" checkbox on the first org's row in the right column, padded with blanks to the
+    // same height so it lands there. The header is split across the two top cells -- "Show
+    // orgs:" on the left, "(filtered)" (if applicable) on the right -- because runMenu() sizes
+    // every column to the widest label, so one long header would make the whole 2-column
+    // dialog about twice as wide as the pane. Each org label gets that org's own marker color as its
     // background, the same color its park/summit field has in the spot list, so the op can
     // see at a glance which listed rows each checkbox controls.
     #define ONTAORGMENU_COL     (1 + N_ONTAORGINFO)                 // items per column
@@ -1462,7 +1461,7 @@ static void runONTAOrgMenu (const SBox &box)
     uint16_t label_bgs[ONTAORGMENU_N];
     memset (label_bgs, 0, sizeof(label_bgs));
 
-    mitems[0] = {MENU_LABEL, false, 0, 2, header_label, NULL};
+    mitems[0] = {MENU_LABEL, false, 0, 2, "Show orgs:", NULL};
     for (size_t i = 0; i < N_ONTAORGINFO; i++) {
         snprintf (org_labels[i], sizeof(org_labels[i]), "%s (%u)",
                                                     onta_org_info[i].org, (unsigned)counts[i]);
@@ -1473,11 +1472,14 @@ static void runONTAOrgMenu (const SBox &box)
     #define ONTAORGMENU_STATE_I (ONTAORGMENU_COL + 1)
     for (size_t i = ONTAORGMENU_COL; i < ONTAORGMENU_N; i++)
         mitems[i] = {MENU_BLANK, false, 0, 0, NULL, NULL, false};
+    if (modeband_filtered)
+        mitems[ONTAORGMENU_COL] = {MENU_LABEL, false, 0, 2, "(filtered)", NULL, false};
     mitems[ONTAORGMENU_STATE_I] = {MENU_TOGGLE, onta_showstate, 2, 2, "State?", NULL, false};
 
     MenuInfo menu = {menu_b, ok_b, UF_CLOCKSOK, M_CANCELOK, 2, ONTAORGMENU_N, mitems};
     menu.no_parent = true;                      // indents are visual only, State? is not a child of anything
     menu.label_bgs = label_bgs;
+    menu.fit_cols = true;                       // State? column only as wide as it needs, never overlaps long counts
     if (runMenu (menu)) {
         uint32_t new_mask = 0;
         for (size_t i = 0; i < N_ONTAORGINFO; i++)

@@ -2271,6 +2271,11 @@ typedef struct {
                                  // that item. Used to tie a label to a same-colored thing elsewhere.
                                  // Kept out of MenuItem so callers that fill MenuItems field by field
                                  // can't pick up uninitialized garbage; set it after initialization.
+    bool fit_cols;              // false (default): every column is as wide as the widest label of ANY
+                                 // column, so n_cols columns need n_cols*widest pixels. true: each
+                                 // column is only as wide as its own widest label, so a short column
+                                 // (eg a lone checkbox) doesn't cost a full-width one. Ignored if
+                                 // n_cols > 8. Set it after initialization.
 } MenuInfo;
 
 extern bool runMenu (MenuInfo &menu);

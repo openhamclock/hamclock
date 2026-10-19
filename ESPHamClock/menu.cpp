@@ -86,8 +86,8 @@ static void menuPrintLabel (const MenuItem &mi, uint16_t x, uint16_t y, const ch
         bg = label_menu->label_bgs[&mi - label_menu->items];
 
     if (bg) {
-        // inside the 1px kb focus outline drawn around the pick box, 2px margin to the text
-        tft.fillRect (x - 2, y - MENU_BDROP + 1, getTextWidth(txt) + 4, MENU_RH - 2, bg);
+        // inside the 1px kb focus outline drawn around the pick box, 1px margin to the text
+        tft.fillRect (x - 1, y - MENU_BDROP + 1, getTextWidth(txt) + 2, MENU_RH - 2, bg);
         tft.setTextColor (getGoodTextColor (bg));
     }
     tft.setCursor (x, y);
@@ -793,6 +793,33 @@ bool runMenu (MenuInfo &menu)
     // number of rows in each table column
     int n_tblrows = (n_table + menu.n_cols - 1)/menu.n_cols;
 
+    // if fitting columns individually, find each column's own widest item, and where each starts.
+    // N.B. must agree with how items are assigned to table cells further below.
+    #define MENU_MAXFITCOLS 8
+    bool fit = menu.fit_cols && menu.n_cols <= MENU_MAXFITCOLS;
+    uint16_t col_ws[MENU_MAXFITCOLS] = {0};             // width of each column, if fit
+    uint16_t col_xs[MENU_MAXFITCOLS] = {0};             // offset of each column from menu_b.x+1, if fit
+    uint16_t fit_total = 0;
+    if (fit) {
+        int tc = 0;
+        for (int i = 0; i < menu.n_items; i++) {
+            MenuItem &mi = menu.items[i];
+            if (mi.type == MENU_IGNORE || mi.type == MENU_TEXT)
+                continue;
+            int w = mi.label ? getTextWidth(mi.label) + mi.indent + 3*MENU_IS/2 : 0;
+            if (mi.label && menu.label_bgs)
+                w += 3;                                 // room for the colored background around the text
+            int c = tc/n_tblrows;
+            if (c < menu.n_cols && w > col_ws[c])
+                col_ws[c] = w;
+            tc++;
+        }
+        for (int c = 0; c < menu.n_cols; c++) {
+            col_xs[c] = fit_total;
+            fit_total += col_ws[c];
+        }
+    }
+
     // one more row if there's a footer status line -- 0 for every caller that doesn't set one
     int n_footer = menu.footer_text ? 1 : 0;
 
@@ -809,8 +836,9 @@ bool runMenu (MenuInfo &menu)
     cancel_b.h = MENU_RH;
 
     // width is duplicated for each column plus add a bit of right margin
-    if (menu.menu_b.w < widest * menu.n_cols + MENU_RM)
-        menu.menu_b.w = widest * menu.n_cols + MENU_RM;
+    uint16_t min_menu_w = (fit ? fit_total : widest * menu.n_cols) + MENU_RM;
+    if (menu.menu_b.w < min_menu_w)
+        menu.menu_b.w = min_menu_w;
 
     // insure menu width accommodates ok and/or cancel buttons
     if (menu.cancel == M_NOCANCEL) {
@@ -903,9 +931,10 @@ bool runMenu (MenuInfo &menu)
             menuDrawItem (mi, pb, true, false);
             mt_i++;
         } else if (mi.type != MENU_IGNORE) {
-            pb.x = menu.menu_b.x + 1 + (tblcell_i/n_tblrows)*col_w;
+            int c = tblcell_i/n_tblrows;
+            pb.x = menu.menu_b.x + 1 + (fit && c < menu.n_cols ? col_xs[c] : c*col_w);
             pb.y = menu.menu_b.y + MENU_TBM + (tblcell_i%n_tblrows)*MENU_RH;
-            pb.w = col_w;
+            pb.w = fit && c < menu.n_cols ? col_ws[c] : col_w;
             pb.h = MENU_RH;
             menuDrawItem (mi, pb, true, false);
             tblcell_i++;
