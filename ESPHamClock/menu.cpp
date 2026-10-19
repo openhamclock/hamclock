@@ -837,8 +837,15 @@ bool runMenu (MenuInfo &menu)
 
     // width is duplicated for each column plus add a bit of right margin
     uint16_t min_menu_w = (fit ? fit_total : widest * menu.n_cols) + MENU_RM;
-    if (menu.menu_b.w < min_menu_w)
+    if (menu.menu_b.w < min_menu_w) {
+        // growing a fitted menu: keep the right edge where the caller put it and grow leftward
+        // instead, so a popup sized to fit a pane doesn't spill into the neighbor on its right
+        if (fit) {
+            uint16_t grow = min_menu_w - menu.menu_b.w;
+            menu.menu_b.x = menu.menu_b.x > grow ? menu.menu_b.x - grow : 0;
+        }
         menu.menu_b.w = min_menu_w;
+    }
 
     // insure menu width accommodates ok and/or cancel buttons
     if (menu.cancel == M_NOCANCEL) {

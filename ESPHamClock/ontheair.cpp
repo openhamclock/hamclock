@@ -1439,8 +1439,8 @@ static void runONTAOrgMenu (const SBox &box)
 
     SBox menu_b = box;                          // copy, not ref!
     menu_b.y = box.y + 2;                        // open near the top of the pane
-    menu_b.x = box.x + 5;
-    menu_b.w = box.w - 10;
+    menu_b.x = box.x + 1;                        // nearly the full pane width: org labels + State? are tight
+    menu_b.w = box.w - 2;
     SBox ok_b;
 
     // per-org labels need persistent (not stack-transient) storage for the duration of
