@@ -72,6 +72,29 @@
 #define MENU_TW(pb,mi)  (pb.w - MENU_LW(mi))                            // MenuText text width, pixels
 
 
+// menu whose items are currently being drawn by runMenu(), if any -- lets menuDrawItem() find the
+// optional MenuInfo.label_bgs entry for an item without changing its public signature.
+static const MenuInfo *label_menu;
+
+/* print txt at x,y, first painting the item's label_bg behind it, if it has one.
+ */
+static void menuPrintLabel (const MenuItem &mi, uint16_t x, uint16_t y, const char *txt)
+{
+    uint16_t bg = 0;
+    if (label_menu && label_menu->label_bgs && &mi >= label_menu->items
+                        && &mi < label_menu->items + label_menu->n_items)
+        bg = label_menu->label_bgs[&mi - label_menu->items];
+
+    if (bg) {
+        // inside the 1px kb focus outline drawn around the pick box, 2px margin to the text
+        tft.fillRect (x - 2, y - MENU_BDROP + 1, getTextWidth(txt) + 4, MENU_RH - 2, bg);
+        tft.setTextColor (getGoodTextColor (bg));
+    }
+    tft.setCursor (x, y);
+    tft.print (txt);
+    tft.setTextColor (MENU_FGC);
+}
+
 static const char ok_label[] = "Ok";
 static const char cancel_label[] = "Cancel";
 
@@ -205,8 +228,7 @@ void menuDrawItem (const MenuItem &mi, const SBox &pb, bool draw_label, bool kb_
             tft.drawCircle (pb.x + mi.indent + MENU_IS/2, pb.y + MENU_RH/2, MENU_IS/2, MENU_FGC);
         }
         if (draw_label) {
-            tft.setCursor (pb.x + mi.indent + MENU_IS + MENU_IS/2, pb.y + MENU_BDROP);
-            tft.print (no__copy);
+            menuPrintLabel (mi, pb.x + mi.indent + MENU_IS + MENU_IS/2, pb.y + MENU_BDROP, no__copy);
         }
         drawSBox (pb, kb_focus ? MENU_FOCC : MENU_BGC);
         break;
@@ -220,8 +242,7 @@ void menuDrawItem (const MenuItem &mi, const SBox &pb, bool draw_label, bool kb_
             tft.drawRect (pb.x + mi.indent, pb.y + (MENU_RH-MENU_IS)/2, MENU_IS, MENU_IS, MENU_FGC);
         }
         if (draw_label) {
-            tft.setCursor (pb.x + mi.indent + MENU_IS + MENU_IS/2, pb.y + MENU_BDROP);
-            tft.print (no__copy);
+            menuPrintLabel (mi, pb.x + mi.indent + MENU_IS + MENU_IS/2, pb.y + MENU_BDROP, no__copy);
         }
         drawSBox (pb, kb_focus ? MENU_FOCC : MENU_BGC);
         break;
@@ -832,6 +853,8 @@ bool runMenu (MenuInfo &menu)
     // menu_b is now properly positioned
     const SBox *prev_menu_box = active_menu_box;
     active_menu_box = &menu.menu_b;
+    const MenuInfo *prev_label_menu = label_menu;
+    label_menu = &menu;
 
     // capture what we are about to clobber
     uint8_t *backing_store;
@@ -1014,6 +1037,7 @@ bool runMenu (MenuInfo &menu)
     }
 
     active_menu_box = prev_menu_box;
+    label_menu = prev_label_menu;
 
     return (ok);
 }

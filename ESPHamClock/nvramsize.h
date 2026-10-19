@@ -451,6 +451,9 @@ static const uint8_t nv_sizes[NV_N] = {
     // 270
     1,                          // NV_PSK_SHOWONMAP
 
+    // 271
+    1,                          // NV_ONTA_SHOWSTATE
+
 };
 
 #endif // _NVRAMSIZE_H

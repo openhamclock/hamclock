@@ -237,6 +237,7 @@ static DXSpot *ontawl_spots;                            // filtered malloced lis
 static ScrollState onta_ss;                             // scrolling state
 static uint8_t onta_sortby;                             // one of ONTASort
 static bool onta_showbio;                               // whether click shows bio
+static bool onta_showstate = true;                           // whether rows show state/country; else callsign gets the room
 static uint32_t spots_hash;                             // hash of onta_spots as last fully loaded
 static uint32_t onta_loaded_sig;                        // content signature of source files when last fully loaded
 static uint32_t onta_peek_sig;                          // latest signature seen while refresh is deferred
@@ -392,6 +393,13 @@ static void loadONTASettings (void)
         NVWriteUInt32 (NV_ONTA_BANDS, onta_bands);
     }
 
+    uint8_t showst;
+    if (!NVReadUInt8 (NV_ONTA_SHOWSTATE, &showst)) {
+        showst = 1;                                     // as before this setting existed
+        NVWriteUInt8 (NV_ONTA_SHOWSTATE, showst);
+    }
+    onta_showstate = (showst != 0);
+
     // determine onta_showbio
     uint8_t bio = 0;
     if (getQRZId() != QRZ_NONE) {
@@ -411,6 +419,7 @@ static void saveONTASettings (void)
     NVWriteUInt8 (NV_ONTABIO, onta_showbio);
     NVWriteUInt8 (NV_ONTA_MODES, onta_modes);
     NVWriteUInt32 (NV_ONTA_BANDS, onta_bands);
+    NVWriteUInt8 (NV_ONTA_SHOWSTATE, onta_showstate);
 }
 
 /* fill out[3] with the 2-letter state/province for the given reference if we have
@@ -445,6 +454,18 @@ static void ontaStateOrCountry (const char *ref, char out[3])
 #define ONTA_PX_FREQ_LEN  6
 #define ONTA_PX_CALL_LEN  5
 #define ONTA_PX_ID_LEN    9
+#define ONTA_P0_CALL_NOST_LEN  5                // call len when state column is hidden: gets its 2 chars
+#define ONTA_PX_CALL_NOST_LEN  8                // call len when state column is hidden: gets its 2 chars + 1 blank
+
+/* return number of chars for the callsign field, wider when the state column is hidden
+ */
+static int ontaCallLen (const SBox &box)
+{
+    if (BOX_IS_PANE_0(box))
+        return (onta_showstate ? ONTA_P0_CALL_LEN : ONTA_P0_CALL_NOST_LEN);
+    else
+        return (onta_showstate ? ONTA_PX_CALL_LEN : ONTA_PX_CALL_NOST_LEN);
+}
 
 /* create a line of text for the given spot that fits within the box known to be for PANE_0 or PANE_123.
  * pass back n chars assigned to frequency.
@@ -454,60 +475,62 @@ static void formatONTASpot (const DXSpot &spot, const SBox &box, char *line, siz
     const char *id = spot.rx_call;                      // repurposed
     int age = myNow() - spot.spotted;                   // seconds old
 
-    char st[3];
-    ontaStateOrCountry (id, st);
+    // state/country column, empty when hidden -- its room then goes to the callsign instead
+    char st[3] = "";
+    if (onta_showstate)
+        ontaStateOrCountry (id, st);
+
+    int call_len = ontaCallLen (box);
 
     if (BOX_IS_PANE_0(box)) {
 
         // box is 22 wide: freq(5) call(3) " " id(9) " " state(2) age(1)
         // callsign is the field trimmed to make room for state/country (park
         // reference kept full-length); tap directly on the callsign to see it
-        // in full via a tooltip, see checkOnTheAirTouch().
+        // in full via a tooltip, see checkOnTheAirTouch(). With state hidden
+        // the callsign is 5 instead, ie, freq(5) call(5) " " id(9) " " age(1)
 
         freq_len     = ONTA_P0_FREQ_LEN;
-        int call_len = ONTA_P0_CALL_LEN;
-                    // 1 blank
         int id_len   = ONTA_P0_ID_LEN;
-                    // 1 blank
-                    // 2 state/country
-                    // 1 age code
 
         // 5 chars for freq requires MHz when > 99999
+        size_t ns;
         if (spot.kHz > 99999) {
-            size_t ns = snprintf (line, l_len, "%4.0fM%*.*s %*.*s %2.2s",
+            ns = snprintf (line, l_len, "%4.0fM%*.*s %*.*s %s",
                     spot.kHz * 1e-3,
                     call_len, call_len, spot.tx_call,
                     id_len, id_len, id,
                     st);
-            formatAge (age, line+ns, l_len-ns, 1);
         } else {
-            size_t ns = snprintf (line, l_len, "%*.0f%*.*s %*.*s %2.2s",
+            ns = snprintf (line, l_len, "%*.0f%*.*s %*.*s %s",
                     freq_len, spot.kHz,
                     call_len, call_len, spot.tx_call,
                     id_len, id_len, id,
                     st);
-            formatAge (age, line+ns, l_len-ns, 1);
         }
+        formatAge (age, line+ns, l_len-ns, 1);
 
     } else {
 
         // box is 26 wide: freq(6) call(5) " " id(9) " " state(2) " " age(1)
-        // same trade-off as above
+        // same trade-off as above; with state hidden the callsign is 8 instead,
+        // ie, freq(6) call(8) " " id(9) " " age(1)
 
         freq_len     = ONTA_PX_FREQ_LEN;
-        int call_len = ONTA_PX_CALL_LEN;
-                    // 1 blank
         int id_len   = ONTA_PX_ID_LEN;
-                    // 1 blank
-                    // 2 state/country
-                    // 1 blank
-                    // 1 age mark
 
-        size_t ns = snprintf (line, l_len, "%*.0f%*.*s %*.*s %2.2s ",
-                freq_len, spot.kHz,
-                call_len, call_len, spot.tx_call,
-                id_len, id_len, id,
-                st);
+        size_t ns;
+        if (onta_showstate)
+            ns = snprintf (line, l_len, "%*.0f%*.*s %*.*s %2.2s ",
+                    freq_len, spot.kHz,
+                    call_len, call_len, spot.tx_call,
+                    id_len, id_len, id,
+                    st);
+        else
+            ns = snprintf (line, l_len, "%*.0f%*.*s %*.*s ",
+                    freq_len, spot.kHz,
+                    call_len, call_len, spot.tx_call,
+                    id_len, id_len, id);
 
         formatAge (age, line+ns, l_len-ns, 1);
     }
@@ -676,7 +699,7 @@ static void drawONTAVisSpots (const SBox &box)
                 // already ignores spotted state.
                 bool spotted = ontaWasSpottedByMe (spot);
                 uint16_t rem_color = spotted ? RA8875_GREEN : RA8875_WHITE;
-                int call_len = BOX_IS_PANE_0(box) ? ONTA_P0_CALL_LEN : ONTA_PX_CALL_LEN;
+                int call_len = ontaCallLen (box);
                 int id_len   = BOX_IS_PANE_0(box) ? ONTA_P0_ID_LEN   : ONTA_PX_ID_LEN;
 
                 // call field + 1 trailing blank, plain
@@ -1427,22 +1450,34 @@ static void runONTAOrgMenu (const SBox &box)
                                                     modeband_filtered ? " (filtered)" : "");
     char org_labels[N_ONTAORGINFO][24];
 
-    MenuItem mitems[1 + N_ONTAORGINFO];
+    // two columns, filled top to bottom: header + one row per org on the left, then the
+    // "State?" checkbox on the first org's row in the right column (the top row is left
+    // empty so a long "(filtered)" header can spill into it), padded with blanks to the same
+    // height so it lands there. Each org label gets that org's own marker color as its
+    // background, the same color its park/summit field has in the spot list, so the op can
+    // see at a glance which listed rows each checkbox controls.
+    #define ONTAORGMENU_COL     (1 + N_ONTAORGINFO)                 // items per column
+    #define ONTAORGMENU_N       (2 * ONTAORGMENU_COL)
+    MenuItem mitems[ONTAORGMENU_N];
+    uint16_t label_bgs[ONTAORGMENU_N];
+    memset (label_bgs, 0, sizeof(label_bgs));
+
     mitems[0] = {MENU_LABEL, false, 0, 2, header_label, NULL};
     for (size_t i = 0; i < N_ONTAORGINFO; i++) {
         snprintf (org_labels[i], sizeof(org_labels[i]), "%s (%u)",
                                                     onta_org_info[i].org, (unsigned)counts[i]);
-        mitems[1+i].type    = MENU_AL1OFN;
-        mitems[1+i].set     = (onta_orgmask & onta_org_info[i].bit) != 0;
-        mitems[1+i].group   = 1;
-        mitems[1+i].indent  = 12;
-        mitems[1+i].label   = org_labels[i];
-        mitems[1+i].textf   = NULL;
-        mitems[1+i].submenu = false;
+        mitems[1+i] = {MENU_AL1OFN, (onta_orgmask & onta_org_info[i].bit) != 0, 1, 12,
+                                                    org_labels[i], NULL, false};
+        label_bgs[1+i] = onta_org_info[i].color;
     }
-    #define ONTAORGMENU_N   NARRAY(mitems)
+    #define ONTAORGMENU_STATE_I (ONTAORGMENU_COL + 1)
+    for (size_t i = ONTAORGMENU_COL; i < ONTAORGMENU_N; i++)
+        mitems[i] = {MENU_BLANK, false, 0, 0, NULL, NULL, false};
+    mitems[ONTAORGMENU_STATE_I] = {MENU_TOGGLE, onta_showstate, 2, 2, "State?", NULL, false};
 
-    MenuInfo menu = {menu_b, ok_b, UF_CLOCKSOK, M_CANCELOK, 1, ONTAORGMENU_N, mitems};
+    MenuInfo menu = {menu_b, ok_b, UF_CLOCKSOK, M_CANCELOK, 2, ONTAORGMENU_N, mitems};
+    menu.no_parent = true;                      // indents are visual only, State? is not a child of anything
+    menu.label_bgs = label_bgs;
     if (runMenu (menu)) {
         uint32_t new_mask = 0;
         for (size_t i = 0; i < N_ONTAORGINFO; i++)
@@ -1451,6 +1486,7 @@ static void runONTAOrgMenu (const SBox &box)
         // MENU_AL1OFN guarantees at least 1 stays checked, but fall back to All defensively
         // rather than ever persist a mask that would hide every spot
         onta_orgmask = new_mask ? new_mask : ONTA_ORGMASK_ALL;
+        onta_showstate = mitems[ONTAORGMENU_STATE_I].set;
 
         saveONTASettings();
 
@@ -1764,7 +1800,7 @@ bool checkOnTheAirTouch (TouchType tt, const SCoord &s, const SBox &box)
         if (tt == TT_TAP_BX) {
             runONTASpotMenu (box, sp);
         } else {
-            int call_len = BOX_IS_PANE_0(box) ? ONTA_P0_CALL_LEN : ONTA_PX_CALL_LEN;
+            int call_len = ontaCallLen (box);
             bool shown = false;
             if ((int)strlen(sp.tx_call) > call_len) {
                 int freq_len = BOX_IS_PANE_0(box) ? ONTA_P0_FREQ_LEN : ONTA_PX_FREQ_LEN;
