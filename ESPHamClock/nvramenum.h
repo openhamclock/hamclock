@@ -454,6 +454,10 @@ typedef enum {
                                      // and farthest-spot targets); independent of NV_PSK_SHOWPATH,
                                      // which only toggles the path lines within that map display
 
+    // 271
+    NV_ONTA_SHOWSTATE,              // whether ONTA rows show the 2-letter state/country column;
+                                     // when off that width goes to the callsign instead
+
     NV_N
 
 } NV_Name;

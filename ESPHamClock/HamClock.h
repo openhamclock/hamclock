@@ -2265,6 +2265,17 @@ typedef struct {
                                  // merely happens to follow a smaller-indented item in items[] order.
                                  // Like footer_text above, callers that don't know about this field
                                  // get false, ie unchanged behavior; set it after initialization.
+    const uint16_t *label_bgs;  // optional, NULL (default) means none. else an array parallel to items[]
+                                 // giving a background color to paint behind each item's label text,
+                                 // with the text color chosen for contrast; 0 means no background for
+                                 // that item. Used to tie a label to a same-colored thing elsewhere.
+                                 // Kept out of MenuItem so callers that fill MenuItems field by field
+                                 // can't pick up uninitialized garbage; set it after initialization.
+    bool fit_cols;              // false (default): every column is as wide as the widest label of ANY
+                                 // column, so n_cols columns need n_cols*widest pixels. true: each
+                                 // column is only as wide as its own widest label, so a short column
+                                 // (eg a lone checkbox) doesn't cost a full-width one. Ignored if
+                                 // n_cols > 8. Set it after initialization.
 } MenuInfo;
 
 extern bool runMenu (MenuInfo &menu);
