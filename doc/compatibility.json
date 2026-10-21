@@ -87,6 +87,15 @@
           "category": "Virtualization",
           "status": "Supported",
           "notes": "Lightweight Debian/Ubuntu LXC container running headless web HamClock."
+        },
+        {
+          "name": "Roku Streaming Players & TVs",
+          "provider": "Roku",
+          "category": "Television",
+          "status": "Supported",
+          "distribution": "Roku Channel Store / Direct Sideload",
+          "url": "https://github.com/openhamclock/roku-viewer-for-hamclock",
+          "notes": "Thin-client viewer channel streaming HamClock over local network WebSocket from an existing web instance."
         }
       ],
       "os_tested": [
@@ -138,6 +147,12 @@
           "min_version": "macOS 11 (Big Sur) or newer",
           "status": "Supported",
           "notes": "Supported via HamClockLauncher frontend wrapper or Docker container."
+        },
+        {
+          "name": "Roku OS",
+          "min_version": "Roku OS 11.0 or newer",
+          "status": "Supported",
+          "notes": "Thin-client viewer channel connects via WebSocket to a local HamClock instance."
         }
       ]
     },
@@ -232,8 +247,8 @@
           "name": "Roku Streaming Players & TVs",
           "provider": "Roku",
           "category": "Television",
-          "status": "In Testing",
-          "distribution": "Roku Channel Store (Closed Beta) / Direct Sideload",
+          "status": "Supported",
+          "distribution": "Roku Channel Store / Direct Sideload",
           "url": "https://github.com/openhamclock/roku-viewer-for-hamclock",
           "notes": "Thin-client viewer channel streaming HamClock over local network WebSocket from an existing web instance."
         }
@@ -291,8 +306,8 @@
         {
           "name": "Roku OS",
           "min_version": "Roku OS 11.0 or newer",
-          "status": "In Testing",
-          "notes": "Thin-client viewer channel in closed beta; connects via WebSocket to a local HamClock instance."
+          "status": "Supported",
+          "notes": "Thin-client viewer channel connects via WebSocket to a local HamClock instance."
         }
       ]
     }
