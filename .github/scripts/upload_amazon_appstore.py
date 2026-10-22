@@ -107,7 +107,40 @@ def create_or_get_edit(app_id: str, token: str) -> str:
         sys.exit(1)
 
 
-def upload_apk(app_id: str, edit_id: str, token: str, apk_path: str):
+def set_apk_drm(app_id: str, edit_id: str, token: str, apply_drm: bool):
+    """Set the applyDrm value on the uploaded APK."""
+    apks_url = f"{API_BASE_URL}/{app_id}/edits/{edit_id}/apks"
+    _, _, data = api_request(apks_url, token, method="GET")
+    parsed = json.loads(data.decode("utf-8"))
+    apks_list = parsed if isinstance(parsed, list) else parsed.get("apks", [])
+    if not apks_list:
+        print("Error: No APK found in edit session to set DRM.", file=sys.stderr)
+        sys.exit(1)
+
+    apk_id = apks_list[0].get("id")
+    single_apk_url = f"{API_BASE_URL}/{app_id}/edits/{edit_id}/apks/{apk_id}"
+
+    _, headers, data = api_request(single_apk_url, token, method="GET")
+    etag = headers.get("ETag")
+    try:
+        apk_json = json.loads(data.decode("utf-8"))
+        if not etag:
+            etag = apk_json.get("etag") or apk_json.get("eTag")
+    except Exception:
+        apk_json = {}
+
+    apk_json["applyDrm"] = apply_drm
+
+    put_headers = {"Content-Type": "application/json"}
+    if etag:
+        put_headers["If-Match"] = etag
+
+    payload = json.dumps(apk_json).encode("utf-8")
+    api_request(single_apk_url, token, method="PUT", data=payload, headers=put_headers)
+    print(f"DRM configuration (applyDrm={apply_drm}) updated successfully.")
+
+
+def upload_apk(app_id: str, edit_id: str, token: str, apk_path: str, apply_drm: bool):
     """Upload or replace APK in the active edit session."""
     print(f"Checking existing APKs in edit session {edit_id}...")
     apks_url = f"{API_BASE_URL}/{app_id}/edits/{edit_id}/apks"
@@ -163,6 +196,7 @@ def upload_apk(app_id: str, edit_id: str, token: str, apk_path: str):
         api_request(upload_url, token, method="POST", data=apk_bytes, headers=headers)
 
     print("APK upload complete.")
+    set_apk_drm(app_id, edit_id, token, apply_drm)
 
 
 def update_release_notes(app_id: str, edit_id: str, token: str, notes_file: str):
@@ -309,6 +343,7 @@ def main():
     parser.add_argument("--client-secret", required=True, help="Amazon LWA Client Secret")
     parser.add_argument("--app-id", required=True, help="Amazon Appstore App ID")
     parser.add_argument("--apk", required=True, help="Path or glob pattern for the release APK")
+    parser.add_argument("--apply-drm", required=True, help="Apply Amazon DRM protection (true/false)")
     parser.add_argument("--notes-file", default="", help="Path to release notes text file")
     parser.add_argument(
         "--skip-commit",
@@ -318,13 +353,22 @@ def main():
 
     args = parser.parse_args()
 
+    drm_input = str(args.apply_drm).strip().lower()
+    if drm_input in ("true", "1", "yes"):
+        apply_drm = True
+    elif drm_input in ("false", "0", "no"):
+        apply_drm = False
+    else:
+        print(f"Error: Invalid value for --apply-drm: '{args.apply_drm}'. Must be True or False.", file=sys.stderr)
+        sys.exit(1)
+
     apk_file = resolve_apk_path(args.apk)
     print(f"Target APK: {apk_file}")
 
     token = get_lwa_token(args.client_id, args.client_secret)
     edit_id = create_or_get_edit(args.app_id, token)
 
-    upload_apk(args.app_id, edit_id, token, apk_file)
+    upload_apk(args.app_id, edit_id, token, apk_file, apply_drm)
 
     if args.notes_file:
         update_release_notes(args.app_id, edit_id, token, args.notes_file)
