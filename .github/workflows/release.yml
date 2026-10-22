@@ -66,13 +66,21 @@ on:
           - 'true'
           - 'false'
         default: 'auto'
+      amazon_apply_drm:
+        description: 'Apply Amazon DRM to uploaded APK'
+        required: true
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+        default: 'false'
 
 jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
       contents: write  # Required to create releases
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -246,6 +254,7 @@ jobs:
         if: ${{ github.event.inputs.push_amazon_appstore == 'true' || github.event.inputs.push_amazon_appstore == true || inputs.push_amazon_appstore == 'true' || inputs.push_amazon_appstore == true }}
         run: |
           AMAZON_SUBMIT="${{ github.event.inputs.amazon_submit_for_review || inputs.amazon_submit_for_review || 'auto' }}"
+          AMAZON_DRM="${{ github.event.inputs.amazon_apply_drm || inputs.amazon_apply_drm || 'false' }}"
           TAG="${{ github.event.inputs.tag_name }}"
 
           if [ "$AMAZON_SUBMIT" = "auto" ]; then
@@ -270,6 +279,7 @@ jobs:
             --app-id "${{ secrets.AMAZON_APPSTORE_APP_ID }}" \
             --apk "dist/org.openhamclock*.apk" \
             --notes-file "dist/whatsnew/whatsnew-en-US" \
+            --apply-drm "$AMAZON_DRM" \
             "${EXTRA_ARGS[@]}"
 
       - name: Create Release and Upload Asset
@@ -348,4 +358,3 @@ jobs:
           export TAG
           chmod +x docker/build-image.sh
           ./docker/build-image.sh -m
-
