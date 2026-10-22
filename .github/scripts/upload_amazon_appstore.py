@@ -189,7 +189,7 @@ def upload_apk(app_id: str, edit_id: str, token: str, apk_path: str, apply_drm: 
             print(f"Replacing existing APK (ID: {apk_id}, no ETag found)...")
 
         upload_url = f"{API_BASE_URL}/{app_id}/edits/{edit_id}/apks/{apk_id}/replace"
-        api_request(upload_url, token, method="PUT", data=apk_bytes, headers=replace_headers)
+        api_request(upload_url, token, method="POST", data=apk_bytes, headers=replace_headers)
     else:
         print("Uploading new APK...")
         upload_url = f"{API_BASE_URL}/{app_id}/edits/{edit_id}/apks/upload"
