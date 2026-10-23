@@ -1,16 +1,3 @@
 Changes with latest release:
-- Android/Google TV support
-- both Physical and Terrain maps
-- POTA schedules
-- get local aprs in REST
-- embed Wind in HamClock
-- ADS-B button on all maps
-- align clouds and wx map buttons
-- factory reset
-- Upgrade detect in Android
-- fix broken chars in lat/lon
-- fix poss. Android crash in sleep
-- fix pointer config select on TV
-- fix various display refresh issues
-- fix crash on empty dxped/cntst
-- fix wx wind speed units
+- start the next beta series
+- no changes yet
