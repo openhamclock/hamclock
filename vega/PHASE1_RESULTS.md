@@ -60,6 +60,6 @@ On-device self-test (`src/engine/selfTest.ts`, enable `ENGINE_SELFTEST` in `inde
 
 ## Open items
 
-- `curl` on the device (used by the engine's popen paths) is unverified.
+- `curl`: `/usr/bin/curl` exists on the device (seen via `run-cmd`). Not yet verified from inside the app sandbox (engine `popen` paths; Amazon binaries do run there).
 - LAN reachability from a laptop with `lanAccess` on is not yet re-checked (the bind to `0.0.0.0` is confirmed).
 - `getLogTail` is polluted by the app's stdout (finding 7).
