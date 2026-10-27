@@ -74,6 +74,11 @@ void ESP::restart (bool minus_K, bool minus_0)
             printf ("  argv[%d]: %s\n", i, tmp_argv[i]);
         printf ("see you there!\n\n");
 
+        // embedded host: hand over the new args; the hook does not return.
+        // N.B. must come before closing fds, which belong to the host process too.
+        if (hamclock_restart_hook)
+            hamclock_restart_hook (tmp_argv);
+
         // close all but basic fd
         for (int i = 3; i < 100; i++)
             (void) ::close(i);

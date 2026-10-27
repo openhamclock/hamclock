@@ -3,4 +3,6 @@
     "compilerOptions": {
         "types": ["jest", "@amazon-devices/react-native-kepler"], // Override "jest", "react-native" from @react-native/typescript-config
     },
+    // hcengine is a separate package (own tsconfig); the app uses its built dist/ types.
+    "exclude": ["node_modules", "hcengine"],
 }

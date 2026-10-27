@@ -21,6 +21,9 @@ static float max_cpu_usage = DEF_CPU_USAGE;
 #define DEF_MIN_IDLE_LOOP_US 1000
 
 char **our_argv;                // our argv for restarting
+volatile bool hamclock_stop_requested;          // see Arduino.h
+void (*hamclock_restart_hook) (char *argv[]);   // see Arduino.h
+void (*hamclock_stop_hook) (void);              // see Arduino.h
 std::string our_dir;            // our storage directory, including trailing /
 bool rm_eeprom;                 // set by -0 to rm eeprom to restore defaults
 bool ignore_x11geom;            // set by -q to ignore startup loc and size
@@ -130,6 +133,9 @@ uint32_t millis(void)
 
 void delay (uint32_t ms)
 {
+    // embedded host: let it end the engine thread from inside nested wait loops too
+    if (hamclock_stop_requested && hamclock_stop_hook)
+        hamclock_stop_hook();
     usleep (ms*1000);
 }
 
@@ -744,6 +750,8 @@ int hamclock_main (int ac, char *av[])
 
         // pure loop, but still yield briefly when loop() returns faster than our minimum idle cadence.
         for (;;) {
+            if (hamclock_stop_requested)
+                break;
             struct timeval tv0;
             gettimeofday (&tv0, NULL);
             loop();
@@ -763,6 +771,9 @@ int hamclock_main (int ac, char *av[])
         const int max_sleep = 50000;    // max sleep each loop, usecs
 
         for (;;) {
+
+            if (hamclock_stop_requested)
+                break;
 
             // get time and usage before calling loop()
             struct rusage ru0;

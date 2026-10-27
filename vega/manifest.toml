@@ -13,10 +13,22 @@ target = "1.2"
 [[needs.module]]
 id = "/com.amazon.vega.os@IVega_1_2"
 
-# Required for useTVEventHandler (D-Pad / remote key events).
+# Turbo Modules (the embedded HamClock engine, libHcEngine.so).
+[[needs.module]]
+id = "/com.amazon.kepler.keplerscript_4@IKeplerScript_0"
+
+# WebView that shows the engine's live.html.
+[[needs.module]]
+id = "/com.amazon.kepler.webview_4@IWebview_4"
+
 [wants]
+# Required for useTVEventHandler (D-Pad / remote key events).
 [[wants.service]]
 id = "com.amazon.inputd.service"
+
+# Web renderer service used by the WebView.
+[[wants.service]]
+id = "com.amazon.webview.renderer_service"
 
 [components]
 [[components.interactive]]
@@ -24,3 +36,7 @@ id = "com.openhamclock.hamclock.main"
 runtime-module = "/com.amazon.kepler.runtime.react_native_kepler_4@IReactNativeKepler_0"
 launch-type = "singleton"
 categories = ["com.amazon.category.main"]
+
+# Allow plain HTTP to the in-app HamClock engine only.
+[network-traffic-policy.cleartext]
+allowed-domains = ["127.0.0.1", "localhost"]

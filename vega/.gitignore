@@ -12,3 +12,4 @@ CMakeUserPresets.json
 npm-debug.log
 # Vega ESLint plugin cache
 generated
+buildinfo.json
