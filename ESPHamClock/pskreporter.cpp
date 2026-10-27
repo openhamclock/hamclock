@@ -772,6 +772,12 @@ bool checkPSKTouch (const SCoord &s, const SBox &box)
     // run
     SBox ok_b;
     MenuInfo menu = {menu_b, ok_b, UF_CLOCKSOK, M_CANCELOK, 4, MI_N, mitems};
+
+    // indent here is layout only. Without this runMenu() treats the nearest preceding item with a
+    // smaller indent as a band checkbox's "parent" and forces it on -- so tapping a band silently
+    // selected the Age radio above it (1hr/6hr/24hr) or Map Off, see MenuInfo.no_parent.
+    menu.no_parent = true;
+
     if (runMenu (menu)) {
 
         // handy
