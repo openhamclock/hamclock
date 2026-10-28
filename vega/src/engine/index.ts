@@ -10,12 +10,16 @@ export type {EngineOptions, EngineState, EngineStatus};
 /**
  * Production defaults. The backend is user-configurable later (settings panel).
  * lanAccess is left out on purpose: the engine then uses the user's saved choice.
+ * firstRunLanAccess: with no callsign stored, the engine turns LAN access on (and saves it)
+ * before it binds, so the first-run screen's QR code works without a restart.
+ * The app never seeds a callsign; the user enters it in HamClock's Setup.
  */
 export const DEFAULT_ENGINE_OPTIONS: EngineOptions = {
   dataDir: '/data/hamclock',
   backend: 'ohb.hamclock.app:80',
   restPort: 8080,
   liveRwPort: 8081,
+  firstRunLanAccess: true,
 };
 
 /** Start the engine unless it is already starting or running. */

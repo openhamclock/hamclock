@@ -41,4 +41,6 @@ std::string HcEngine::getLogTail(double maxBytes) {
   return EngineHost::instance().logTail((size_t)maxBytes);
 }
 
+std::string HcEngine::qrMatrix(std::string text) { return hcengine::qrMatrix(text); }
+
 }  // namespace HcEngineTurboModule

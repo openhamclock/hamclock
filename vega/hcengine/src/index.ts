@@ -22,13 +22,15 @@ export interface EngineOptions {
   /** Diagnostics only: abort the app (to get a crash report) if getStatus() isn't called for this many seconds. */
   watchdogSec?: number;
   /**
-   * First-run seed, written only if no callsign is stored yet. Without a callsign the engine
-   * forces Setup (even with -k) and the RESTful server doesn't start until Setup is done.
+   * If no callsign is stored (Setup needed), turn LAN access on and save it before the engine
+   * binds, so the first-run QR code works at once. Applied at most once per app process.
    */
-  seedCallsign?: string;
-  /** DE latitude/longitude to seed with seedCallsign (degrees, +N/+E). Both or neither. */
-  seedLat?: number;
-  seedLng?: number;
+  firstRunLanAccess?: boolean;
+  /**
+   * Tests only (selfTest.ts): store this callsign if none is stored, so REST comes up without
+   * Setup. The app never seeds; the user enters their own callsign in HamClock's Setup.
+   */
+  testSeedCallsign?: string;
 }
 
 export type EngineState =
@@ -48,6 +50,11 @@ export interface EngineStatus {
   exitCode: number | null;
   lastError: string;
   lanAccess: boolean;
+  /**
+   * false: no callsign was stored when this run started, so HamClock shows Setup. Turns true
+   * once the REST port listens (HamClock starts REST only after Setup). null until checked.
+   */
+  setupComplete: boolean | null;
   restPort: number;
   liveRwPort: number;
   liveRoPort: number;
@@ -94,6 +101,11 @@ export const HcEngine = {
   },
   getLogTail(maxBytes = 4096): string {
     return NativeHcEngine.getLogTail(maxBytes);
+  },
+  /** QR code modules for text: rows of booleans (true = dark), no quiet zone; [] if too long. */
+  qrMatrix(text: string): boolean[][] {
+    const m = NativeHcEngine.qrMatrix(text);
+    return m ? m.split('\n').map(row => Array.from(row, c => c === '1')) : [];
   },
 };
 

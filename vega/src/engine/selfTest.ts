@@ -18,10 +18,8 @@ const opts = (extra: string[] = []): EngineOptions => ({
   lanAccess: false,
   extraArgs: extra,
   watchdogSec: 20,
-  // A fresh data dir has no callsign, which forces Setup and keeps REST 8080 down.
-  seedCallsign: 'N0CALL',
-  seedLat: 40.0,
-  seedLng: -105.3,
+  // A fresh data dir has no callsign, which forces Setup and keeps REST 8080 down. Test-only seed.
+  testSeedCallsign: 'N0CALL',
 });
 
 const log = (msg: string) => console.log(`${TAG} ${msg}`);

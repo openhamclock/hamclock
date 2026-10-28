@@ -8,13 +8,16 @@
  *   - gives a small native settings panel (Back or Menu) with LAN access, restart, exit.
  *     With LAN access on it shows the address to browse to from another device; the choice is
  *     saved by the engine and reused at the next launch.
+ *   - shows a first-run screen (QR code + address) while HamClock needs Setup, so the user can
+ *     enter the callsign from a phone. It closes by itself once the engine reports Setup done.
  *
  * D-Pad: remote keys go to the page as DOM key events (allowSystemKeyEvents). KEY_ROUTER_JS
  * (injected) sends arrows/OK to live.html's virtual cursor and posts Back to this shell, because
- * with allowSystemKeyEvents Back reaches only the page. The engine is started in index.js.
+ * with allowSystemKeyEvents Back reaches only the page. While a native overlay (first-run screen
+ * or settings panel) is up, keys go to RN instead. The engine is started in index.js.
  */
 import React, {useCallback, useEffect, useMemo, useReducer, useRef, useState} from 'react';
-import {BackHandler, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions} from 'react-native';
+import {Animated, BackHandler, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions} from 'react-native';
 import {TVFocusGuideView, useTVEventHandler} from '@amazon-devices/react-native-kepler';
 import type {HWEvent} from '@amazon-devices/react-native-kepler';
 import {WebView} from '@amazon-devices/webview';
@@ -25,6 +28,7 @@ import type {
 } from '@amazon-devices/webview/dist/types/WebViewTypes';
 import {DEFAULT_ENGINE_OPTIONS, HcEngine, ensureEngineStarted} from './engine';
 import type {EngineStatus} from './engine';
+import {QrCode} from './QrCode';
 
 /* ────────────────────────────────────────────────────────────────────────── */
 /* Constants                                                                 */
@@ -84,6 +88,8 @@ interface AppState {
   webError: string | null;
   webLoaded: boolean;
   settingsOpen: boolean;
+  /** The user chose "Set up on this TV instead" on the first-run screen (this launch only). */
+  setupOnTv: boolean;
 }
 
 type AppEvent =
@@ -94,7 +100,8 @@ type AppEvent =
   | {type: 'WEB_ERROR'; message: string}
   | {type: 'WEB_RELOAD'}
   | {type: 'OPEN_SETTINGS'}
-  | {type: 'CLOSE_SETTINGS'};
+  | {type: 'CLOSE_SETTINGS'}
+  | {type: 'SETUP_ON_TV'};
 
 const initialState: AppState = {
   lifecycle: 'STARTING',
@@ -103,7 +110,15 @@ const initialState: AppState = {
   webError: null,
   webLoaded: false,
   settingsOpen: false,
+  setupOnTv: false,
 };
+
+/** First-run screen: Setup needed, the user hasn't chosen the TV, and the engine is up or coming up. */
+export function firstRunVisible(s: AppState): boolean {
+  return (
+    s.status?.setupComplete === false && !s.setupOnTv && s.lifecycle !== 'STOPPED' && s.lifecycle !== 'ERROR'
+  );
+}
 
 function lifecycleFromStatus(prev: Lifecycle, s: EngineStatus): Lifecycle {
   const liveUp = s.listening.includes(s.liveRwPort);
@@ -151,6 +166,8 @@ function lifecycleReducer(s: AppState, e: AppEvent): AppState {
       return {...s, settingsOpen: true};
     case 'CLOSE_SETTINGS':
       return {...s, settingsOpen: false};
+    case 'SETUP_ON_TV':
+      return {...s, setupOnTv: true};
   }
 }
 
@@ -253,6 +270,146 @@ function FocusButton(props: {
   );
 }
 
+/** URLs another device can open: mDNS name first once announced, then the IP addresses. */
+function lanUrls(s: EngineStatus): {mdnsUrl: string | null; ipUrls: string[]} {
+  const mdnsUrl = s.mdnsState === 'announced' && s.mdnsHost ? `http://${s.mdnsHost}:${s.liveRwPort}/live.html` : null;
+  const ipUrls = (s.lanAddresses ?? []).map(a => `http://${a}:${s.liveRwPort}/live.html`);
+  return {mdnsUrl, ipUrls};
+}
+
+/** A slowly pulsing dot for "waiting" status lines. */
+function PulseDot({size, color}: {size: number; color: string}) {
+  const v = useRef(new Animated.Value(0.25)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(v, {toValue: 1, duration: 800, useNativeDriver: true}),
+        Animated.timing(v, {toValue: 0.25, duration: 800, useNativeDriver: true}),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [v]);
+  return <Animated.View style={{width: size, height: size, borderRadius: size / 2, backgroundColor: color, opacity: v}} />;
+}
+
+const FIRST_RUN_STEPS = [
+  'Scan the QR code with your phone, or open the address below in a browser.',
+  'Enter your callsign in HamClock’s Setup page.',
+  'Select Done. This TV switches to the clock by itself.',
+];
+
+/**
+ * Shown over the WebView while HamClock needs Setup (no callsign stored). The engine turned LAN
+ * access on before binding (firstRunLanAccess), so the QR code works at once.
+ */
+function FirstRunScreen(props: {state: AppState; metrics: TvMetrics; dispatch: React.Dispatch<AppEvent>}) {
+  const {state, metrics: m, dispatch} = props;
+  const s = state.status;
+  const {mdnsUrl, ipUrls} = s ? lanUrls(s) : {mdnsUrl: null, ipUrls: []};
+  const qrUrl = s?.lanAccess ? mdnsUrl ?? ipUrls[0] ?? null : null;
+  const matrix = useMemo(() => {
+    if (!qrUrl) return [];
+    try {
+      return HcEngine.qrMatrix(qrUrl);
+    } catch {
+      return [];
+    }
+  }, [qrUrl]);
+  const ready = state.lifecycle === 'READY';
+  const qrSize = 560 * m.dp;
+
+  const turnLanOn = () => {
+    try {
+      HcEngine.setLanAccess(true);
+    } catch (err) {
+      dispatch({type: 'ENGINE_ERROR', message: String(err)});
+    }
+  };
+
+  let qrNote: string | null = null;
+  if (!s?.lanAccess) qrNote = 'LAN access is off, so other devices can’t reach HamClock.';
+  else if (!qrUrl) qrNote = 'No network address found. Check the TV’s network connection.';
+
+  return (
+    <View style={[styles.firstRunRoot, {paddingHorizontal: m.safeX + 24 * m.dp, paddingVertical: m.safeY + 24 * m.dp}]}>
+      <View style={styles.firstRunText}>
+        <Text style={[styles.firstRunTitle, {fontSize: 60 * m.dp}]}>Welcome to HamClock on TV</Text>
+        <Text style={[styles.firstRunLead, {fontSize: 30 * m.dp, marginTop: 20 * m.dp}]}>
+          HamClock needs a one-time setup with your callsign. The easiest way is from a phone, tablet or
+          computer on the same network:
+        </Text>
+        {FIRST_RUN_STEPS.map((t, i) => (
+          <View key={i} style={[styles.stepRow, {marginTop: 18 * m.dp}]}>
+            <View style={[styles.stepNum, {width: 48 * m.dp, height: 48 * m.dp, borderRadius: 24 * m.dp}]}>
+              <Text style={[styles.stepNumText, {fontSize: 26 * m.dp}]}>{i + 1}</Text>
+            </View>
+            <Text style={[styles.stepText, {fontSize: 30 * m.dp, marginLeft: 20 * m.dp}]}>{t}</Text>
+          </View>
+        ))}
+
+        <View style={[styles.lanBox, {marginTop: 32 * m.dp, padding: 24 * m.dp, borderRadius: 16 * m.dp}]}>
+          {mdnsUrl && s?.lanAccess && (
+            <Text style={[styles.lanUrl, {fontSize: 34 * m.dp}]}>{mdnsUrl}</Text>
+          )}
+          {s?.lanAccess &&
+            ipUrls.map((u, i) => (
+              <Text
+                key={u}
+                style={[
+                  mdnsUrl ? styles.lanUrlAlt : styles.lanUrl,
+                  {fontSize: (mdnsUrl ? 28 : 34) * m.dp},
+                  (mdnsUrl || i > 0) && {marginTop: 8 * m.dp},
+                ]}>
+                {`${mdnsUrl ? 'or ' : ''}${u}`}
+              </Text>
+            ))}
+          {qrNote && <Text style={[styles.lanNoAddr, {fontSize: 28 * m.dp}]}>{qrNote}</Text>}
+        </View>
+
+        <View style={[styles.stepRow, {marginTop: 28 * m.dp}]}>
+          <PulseDot size={18 * m.dp} color={ready ? C.accent : C.muted} />
+          <Text style={[styles.firstRunStatus, {fontSize: 28 * m.dp, marginLeft: 16 * m.dp}]}>
+            {ready ? 'Waiting for setup…' : LIFECYCLE_COPY[state.lifecycle]}
+          </Text>
+        </View>
+
+        <TVFocusGuideView
+          autoFocus
+          trapFocusUp
+          trapFocusDown
+          trapFocusLeft
+          trapFocusRight
+          style={[styles.firstRunButtons, {marginTop: 20 * m.dp, columnGap: 24 * m.dp}]}>
+          {!s?.lanAccess && (
+            <FocusButton metrics={m} label="Turn on LAN access" onPress={turnLanOn} preferred={!state.settingsOpen} />
+          )}
+          <FocusButton
+            metrics={m}
+            label="Set up on this TV instead"
+            onPress={() => dispatch({type: 'SETUP_ON_TV'})}
+            preferred={!!s?.lanAccess && !state.settingsOpen}
+          />
+          <FocusButton metrics={m} label="Exit app" onPress={() => BackHandler.exitApp()} tone="danger" />
+        </TVFocusGuideView>
+      </View>
+
+      <View style={[styles.firstRunQrCol, {marginLeft: 64 * m.dp}]}>
+        <View style={[styles.qrFrame, {width: qrSize + 48 * m.dp, height: qrSize + 48 * m.dp, borderRadius: 28 * m.dp}]}>
+          {matrix.length > 0 ? (
+            <QrCode matrix={matrix} size={qrSize} />
+          ) : (
+            <Text style={[styles.qrPlaceholder, {fontSize: 26 * m.dp}]}>QR code appears when HamClock is reachable</Text>
+          )}
+        </View>
+        <Text style={[styles.panelMeta, styles.qrCaption, {fontSize: 24 * m.dp, marginTop: 18 * m.dp}]}>
+          Scan with a phone or tablet
+        </Text>
+      </View>
+    </View>
+  );
+}
+
 /** Where to browse from another device (LAN access on), or what LAN access does (off). */
 function LanInfo({status: s, metrics: m}: {status: EngineStatus | null; metrics: TvMetrics}) {
   if (!s) return null;
@@ -264,7 +421,7 @@ function LanInfo({status: s, metrics: m}: {status: EngineStatus | null; metrics:
     );
   }
   const addrs = s.lanAddresses ?? [];
-  const mdnsUrl = s.mdnsState === 'announced' && s.mdnsHost ? `http://${s.mdnsHost}:${s.liveRwPort}/live.html` : null;
+  const {mdnsUrl} = lanUrls(s);
   return (
     <View style={[styles.lanBox, {marginTop: 20 * m.dp, padding: 20 * m.dp, borderRadius: 14 * m.dp}]}>
       <Text style={[styles.panelMeta, {fontSize: 22 * m.dp}]}>On a computer or phone on your network, open:</Text>
@@ -382,6 +539,12 @@ export const App = () => {
     if (lanSummary) console.info(`[HCLAN] ${lanSummary}`);
   }, [lanSummary]);
 
+  const firstRun = firstRunVisible(state);
+  const setupSummary = `setupComplete=${String(state.status?.setupComplete ?? 'unknown')} firstRun=${firstRun} onTv=${state.setupOnTv}`;
+  useEffect(() => {
+    console.info(`[HCSETUP] ${setupSummary}`);
+  }, [setupSummary]);
+
   // Retry loading the page after a WebView error while the engine is up.
   useEffect(() => {
     if (!state.webError || state.lifecycle !== 'READY') return;
@@ -410,7 +573,9 @@ export const App = () => {
   const s = state.status;
   const liveUri = s ? `http://${ENGINE_HOST}:${s.liveRwPort}/live.html` : null;
   const showWeb = state.lifecycle === 'READY' && liveUri !== null;
-  const showStatus = !showWeb || !state.webLoaded;
+  const showStatus = (!showWeb || !state.webLoaded) && !firstRun;
+  // Keys (incl. Back) go to RN while a native overlay is up, else to the page.
+  const webHasKeys = !state.settingsOpen && !firstRun;
 
   return (
     <View style={styles.root}>
@@ -419,15 +584,14 @@ export const App = () => {
           key={state.webGeneration}
           style={styles.webview}
           source={{uri: liveUri}}
-          // While the settings panel is open, keys (incl. Back) must reach RN instead.
-          allowSystemKeyEvents={!state.settingsOpen}
+          allowSystemKeyEvents={webHasKeys}
           injectedJavaScriptBeforeContentLoaded={KEY_ROUTER_JS}
           onMessage={(e: WebViewMessageEvent) => {
             const data = e.nativeEvent.data;
             if (data === 'back') toggleSettings();
             else console.info(`[HCWEB] ${data}`);
           }}
-          hasTVPreferredFocus={!state.settingsOpen}
+          hasTVPreferredFocus={webHasKeys}
           javaScriptEnabled
           domStorageEnabled
           onLoad={() => dispatch({type: 'WEB_LOADED'})}
@@ -444,6 +608,7 @@ export const App = () => {
           <StatusCard state={state} metrics={metrics} />
         </View>
       )}
+      {firstRun && <FirstRunScreen state={state} metrics={metrics} dispatch={dispatch} />}
       {state.settingsOpen && <SettingsPanel state={state} metrics={metrics} dispatch={dispatch} />}
     </View>
   );
@@ -482,6 +647,21 @@ const styles = StyleSheet.create({
   lanUrl: {color: C.accent, fontWeight: '700'},
   lanUrlAlt: {color: C.text, fontWeight: '600'},
   lanNoAddr: {color: C.text},
+
+  firstRunRoot: {...StyleSheet.absoluteFillObject, backgroundColor: C.bg, flexDirection: 'row', alignItems: 'center'},
+  firstRunText: {flex: 1},
+  firstRunTitle: {color: C.text, fontWeight: '700'},
+  firstRunLead: {color: C.muted},
+  stepRow: {flexDirection: 'row', alignItems: 'center'},
+  stepNum: {backgroundColor: 'rgba(255, 181, 71, 0.16)', alignItems: 'center', justifyContent: 'center'},
+  stepNumText: {color: C.accent, fontWeight: '700'},
+  stepText: {color: C.text, flex: 1},
+  firstRunStatus: {color: C.text},
+  firstRunButtons: {flexDirection: 'row', flexWrap: 'wrap'},
+  firstRunQrCol: {alignItems: 'center'},
+  qrFrame: {backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center'},
+  qrPlaceholder: {color: '#5a6478', textAlign: 'center', paddingHorizontal: 40},
+  qrCaption: {textAlign: 'center'},
 
   button: {backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 2, borderColor: 'transparent'},
   buttonFocused: {backgroundColor: C.accent, borderColor: '#fff'},

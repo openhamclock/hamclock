@@ -18,6 +18,8 @@ export interface HcEngine extends KeplerTurboModule {
   getStatus: () => string;
   /** Last maxBytes of the engine's diagnostic log. */
   getLogTail: (maxBytes: number) => string;
+  /** QR code for text: rows of '0'/'1' (1 = dark) joined by '\n', no quiet zone; '' if too long. */
+  qrMatrix: (text: string) => string;
 }
 
 export default TurboModuleRegistry.getEnforcing<HcEngine>('HcEngine');

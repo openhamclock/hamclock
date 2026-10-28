@@ -14,11 +14,16 @@
  * The LAN access choice is saved in <dataDir>/vega-lan-access and used when start() is called
  * without an explicit lanAccess.
  *
+ * Setup state (status "setupComplete"): before each run, on the engine thread and before
+ * hamclock_main, the host reads the stored callsign through HamClock's NV API (NvSeed.cpp).
+ * No callsign -> false (HamClock forces Setup, even with -k). It turns true when the REST port
+ * starts listening, because HamClock starts REST only after Setup is done. null until the
+ * first check. Nothing reads NV while the engine runs.
+ *
  * Thread model: one supervisor thread per start(); it creates an engine thread per run and joins it.
  */
 #pragma once
 
-#include <cmath>
 #include <string>
 #include <sys/socket.h>
 #include <vector>
@@ -45,10 +50,12 @@ struct EngineOptions {
   bool lanAccessSet = false;                     // lanAccess given; else the saved choice is used
   std::vector<std::string> extraArgs;            // appended verbatim
   int watchdogSec = 0;                           // diagnostics only: abort() if JS stops polling
-  // First-run seed, written only if no callsign is stored yet. Without a callsign HamClock forces
-  // Setup (even with -k) and the RESTful server doesn't start until Setup is done.
-  std::string seedCallsign;                      // '' = don't seed
-  double seedLat = NAN, seedLng = NAN;           // DE location; NaN = don't seed
+  // Turn LAN access on (and save it) if Setup is needed, before the engine binds. Applied at most
+  // once per app process, so a user who turns LAN off again isn't overridden by a restart.
+  bool firstRunLanAccess = false;
+  // Tests only (selfTest.ts): store this callsign if none is stored, so REST comes up without
+  // Setup. The app never seeds; the user enters their own callsign in HamClock's Setup.
+  std::string testSeedCallsign;                  // '' = don't seed
 };
 
 enum class EngineState { Idle, Starting, Running, Stopping, Stopped, Exited, Error };
@@ -67,6 +74,16 @@ bool peerAllowed(const sockaddr *sa, bool lan);
 std::string peerString(const sockaddr *sa);
 /** The TV's IPv4 addresses that LAN peers can use (private ranges, interface up). */
 std::vector<std::string> lanIPv4Addresses();
+
+// ---- NvSeed.cpp (engine thread only, before hamclock_main) ----
+/** True if a non-empty callsign is stored in dataDir's eeprom file. */
+bool hasStoredCallsign(const std::string &dataDir);
+/** Tests only: store call if no callsign is stored. Returns what was written, or ''. */
+std::string testSeedCallsign(const std::string &dataDir, const std::string &call);
+
+// ---- QrMatrix.cpp ----
+/** QR code for text: rows of '0'/'1' joined by '\n', no quiet zone ('' if it doesn't fit). */
+std::string qrMatrix(const std::string &text);
 
 // ---- MdnsResponder.cpp ----
 /** Start the responder thread once; it advertises while mdnsWanted() is true. */

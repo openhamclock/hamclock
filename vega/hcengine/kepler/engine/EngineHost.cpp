@@ -31,8 +31,6 @@ extern const char *hc_version;
 namespace hcengine {
 
 void retireEngineSockets();  // SysWraps.cpp
-std::string seedFirstRun(const std::string &dataDir, const std::string &call, double lat,
-                         double lng);  // NvSeed.cpp
 
 namespace {
 
@@ -55,6 +53,8 @@ std::set<int> g_listening;
 std::deque<std::string> g_events;
 int g_rejected = 0;                      // connections dropped by the LAN filter (this session)
 std::string g_lastRejected;
+int g_setup = -1;                        // -1 unknown, 0 Setup needed, 1 Setup done
+bool g_firstRunLanUsed = false;          // firstRunLanAccess applied (once per process)
 thread_local bool t_isEngine = false;
 
 // argv storage for the current run; hamclock keeps a pointer to it (our_argv).
@@ -218,7 +218,7 @@ std::string parseOptions(const std::string &json, EngineOptions &o) {
       if (!j.str(v)) return "options: " + j.err;
       if (key == "dataDir") o.dataDir = v;
       else if (key == "backend") o.backend = v;
-      else if (key == "seedCallsign") o.seedCallsign = v;
+      else if (key == "testSeedCallsign") o.testSeedCallsign = v;
     } else if (c == '[') {
       ++j.i;
       std::vector<std::string> arr;
@@ -235,6 +235,7 @@ std::string parseOptions(const std::string &json, EngineOptions &o) {
       bool v = json[j.i] == 't';
       j.i += v ? 4 : 5;
       if (key == "lanAccess") { o.lanAccess = v; o.lanAccessSet = true; }
+      else if (key == "firstRunLanAccess") o.firstRunLanAccess = v;
     } else if (json.compare(j.i, 4, "null") == 0) {
       j.i += 4;
     } else {
@@ -246,8 +247,6 @@ std::string parseOptions(const std::string &json, EngineOptions &o) {
       else if (key == "liveRwPort") o.liveRwPort = (int)v;
       else if (key == "liveRoPort") o.liveRoPort = (int)v;
       else if (key == "watchdogSec") o.watchdogSec = (int)v;
-      else if (key == "seedLat") o.seedLat = v;
-      else if (key == "seedLng") o.seedLng = v;
     }
   } while (j.eat(','));
   if (!j.eat('}')) return "options: expected '}'";
@@ -283,6 +282,11 @@ void EngineHost::noteListening(int port) {
   g_listening.insert(port);
   event("listening on " + std::string(g_lan ? "0.0.0.0" : "127.0.0.1") + ":" + std::to_string(port));
   if (port == g_opts.liveRwPort && g_state == EngineState::Starting) g_state = EngineState::Running;
+  // HamClock starts REST only after Setup, so REST listening means Setup is done.
+  if (port == g_opts.restPort && g_setup != 1) {
+    if (g_setup == 0) event("setup complete");
+    g_setup = 1;
+  }
 }
 
 void EngineHost::noteRejected(const std::string &peer) {
@@ -328,10 +332,22 @@ void *EngineHost::engineThreadMain(void *) {
       std::lock_guard<std::mutex> l(mu);
       o = g_opts;
     }
-    std::string seeded = seedFirstRun(o.dataDir, o.seedCallsign, o.seedLat, o.seedLng);
-    if (!seeded.empty()) {
+    std::string seeded = testSeedCallsign(o.dataDir, o.testSeedCallsign);
+    bool stored = hasStoredCallsign(o.dataDir);
+    {
       std::lock_guard<std::mutex> l(mu);
-      event(seeded);
+      if (!seeded.empty()) event(seeded);
+      g_setup = stored ? 1 : 0;
+      if (!stored) {
+        event("setup needed: no callsign stored");
+        // Before hamclock_main binds anything, so no restart is needed for LAN access.
+        if (o.firstRunLanAccess && !g_firstRunLanUsed && !g_lan) {
+          g_lan = g_opts.lanAccess = true;
+          saveLan(g_opts.dataDir, true);
+          event("LAN access on for first-run setup");
+        }
+      }
+      if (o.firstRunLanAccess) g_firstRunLanUsed = true;
     }
     int rc = hamclock_main((int)g_argv.size() - 1, g_argv.data());
     how = "hamclock_main returned " + std::to_string(rc);
@@ -505,6 +521,7 @@ std::string EngineHost::statusJson() {
   if (g_exitCode == INT_MIN) o << "null"; else o << g_exitCode;
   o << ",\"lastError\":"; jsonStr(o, g_lastError);
   o << ",\"lanAccess\":" << (g_lan ? "true" : "false");
+  o << ",\"setupComplete\":" << (g_setup < 0 ? "null" : g_setup ? "true" : "false");
   o << ",\"restPort\":" << g_opts.restPort;
   o << ",\"liveRwPort\":" << g_opts.liveRwPort;
   o << ",\"liveRoPort\":" << g_opts.liveRoPort;

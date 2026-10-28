@@ -21,6 +21,7 @@ public:
   void setLanAccess(bool enabled) override;
   std::string getStatus() override;
   std::string getLogTail(double maxBytes) override;
+  std::string qrMatrix(std::string text) override;
 };
 
 } // namespace HcEngineTurboModule

@@ -38,6 +38,7 @@ public:
   virtual void setLanAccess(bool enabled) = 0;
   virtual std::string getStatus() = 0;
   virtual std::string getLogTail(double maxBytes) = 0;
+  virtual std::string qrMatrix(std::string text) = 0;
 };
 
 } // namespace HcEngineTurboModule
