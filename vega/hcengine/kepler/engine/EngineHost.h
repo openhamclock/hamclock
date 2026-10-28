@@ -7,8 +7,12 @@
  *   - exit()            -> ends the engine thread (linker --wrap, see SysWraps.cpp)
  *   - ESP.restart()     -> engine thread ends, supervisor starts it again with the new args
  *   - bind()            -> loopback unless LAN access is on; retries while the port is busy
+ *   - accept()          -> peers outside the allowed ranges are dropped (LanFilter.cpp)
  *   - fork()            -> fails with ENOSYS (unsafe in a multi-threaded app)
  *   - sockets           -> tracked, and retired on stop so old server threads end cleanly
+ *
+ * The LAN access choice is saved in <dataDir>/vega-lan-access and used when start() is called
+ * without an explicit lanAccess.
  *
  * Thread model: one supervisor thread per start(); it creates an engine thread per run and joins it.
  */
@@ -16,6 +20,7 @@
 
 #include <cmath>
 #include <string>
+#include <sys/socket.h>
 #include <vector>
 
 namespace hcengine {
@@ -37,6 +42,7 @@ struct EngineOptions {
   int liveRwPort = 8081;                         // -w; serves live.html
   int liveRoPort = 0;                            // -r; 0 = engine default, -1 disables
   bool lanAccess = false;                        // bind 0.0.0.0 instead of 127.0.0.1
+  bool lanAccessSet = false;                     // lanAccess given; else the saved choice is used
   std::vector<std::string> extraArgs;            // appended verbatim
   int watchdogSec = 0;                           // diagnostics only: abort() if JS stops polling
   // First-run seed, written only if no callsign is stored yet. Without a callsign HamClock forces
@@ -54,6 +60,13 @@ std::string parseOptions(const std::string &json, EngineOptions &base);
 
 /** Build argv (including argv[0]) for hamclock_main from options. */
 std::vector<std::string> buildArgs(const EngineOptions &o);
+
+// ---- LanFilter.cpp ----
+/** Loopback always; with lan also RFC 1918, 169.254/16, fe80::/10, fc00::/7 (ARCHITECTURE §3.3). */
+bool peerAllowed(const sockaddr *sa, bool lan);
+std::string peerString(const sockaddr *sa);
+/** The TV's IPv4 addresses that LAN peers can use (private ranges, interface up). */
+std::vector<std::string> lanIPv4Addresses();
 
 class EngineHost {
 public:
@@ -75,6 +88,7 @@ public:
   bool lanAccess() const;
   bool isEngineThread() const;
   void noteListening(int port);
+  void noteRejected(const std::string &peer);
   /** Called on the engine thread by exit()/ESP.restart()/stop hook. Ends the thread. */
   [[noreturn]] void endEngineThread(int exitCode, std::vector<std::string> *restartArgs);
 

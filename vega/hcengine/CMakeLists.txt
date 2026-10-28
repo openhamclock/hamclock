@@ -87,6 +87,7 @@ set(SOURCES
     kepler/turbo-modules/HcEngine.cpp
     kepler/engine/EngineHost.cpp
     kepler/engine/SysWraps.cpp
+    kepler/engine/LanFilter.cpp
     kepler/AutoLinkInit.cpp
 )
 

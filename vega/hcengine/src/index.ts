@@ -12,7 +12,10 @@ export interface EngineOptions {
   liveRwPort?: number;
   /** Read-only live web port (-r); 0 = engine default, -1 disables. */
   liveRoPort?: number;
-  /** Listen on all interfaces instead of loopback only. Default false. */
+  /**
+   * Listen on all interfaces instead of loopback only; only loopback and private LAN addresses
+   * may connect. Saved in dataDir; omit it to use the saved choice (false if none).
+   */
   lanAccess?: boolean;
   /** Extra engine command-line arguments, appended as-is. */
   extraArgs?: string[];
@@ -50,6 +53,10 @@ export interface EngineStatus {
   liveRoPort: number;
   /** Ports the engine is listening on right now. */
   listening: number[];
+  /** The TV's private IPv4 addresses (for showing the LAN URL). */
+  lanAddresses: string[];
+  /** Connections refused by the address filter this app session. */
+  rejectedConnections: number;
   dataDir: string;
   backend: string;
   version: string;

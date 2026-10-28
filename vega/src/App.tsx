@@ -5,7 +5,9 @@
  * live.html on 127.0.0.1. This shell:
  *   - waits until the engine is listening on its live port, then shows live.html in a WebView;
  *   - shows a status card while starting, restarting or after an error;
- *   - gives a small native settings panel (Back or Menu) with LAN access, reload, restart, exit.
+ *   - gives a small native settings panel (Back or Menu) with LAN access, restart, exit.
+ *     With LAN access on it shows the address to browse to from another device; the choice is
+ *     saved by the engine and reused at the next launch.
  *
  * D-Pad: remote keys go to the page as DOM key events (allowSystemKeyEvents). KEY_ROUTER_JS
  * (injected) sends arrows/OK to live.html's virtual cursor and posts Back to this shell, because
@@ -251,6 +253,40 @@ function FocusButton(props: {
   );
 }
 
+/** Where to browse from another device (LAN access on), or what LAN access does (off). */
+function LanInfo({status: s, metrics: m}: {status: EngineStatus | null; metrics: TvMetrics}) {
+  if (!s) return null;
+  if (!s.lanAccess) {
+    return (
+      <Text style={[styles.panelMeta, {fontSize: 22 * m.dp, marginTop: 16 * m.dp}]}>
+        Turn on LAN access to open HamClock from a computer or phone on your home network.
+      </Text>
+    );
+  }
+  const addrs = s.lanAddresses ?? [];
+  return (
+    <View style={[styles.lanBox, {marginTop: 20 * m.dp, padding: 20 * m.dp, borderRadius: 14 * m.dp}]}>
+      <Text style={[styles.panelMeta, {fontSize: 22 * m.dp}]}>On a computer or phone on your network, open:</Text>
+      {addrs.length > 0 ? (
+        addrs.map(a => (
+          <Text key={a} style={[styles.lanUrl, {fontSize: 28 * m.dp, marginTop: 8 * m.dp}]}>
+            {`http://${a}:${s.liveRwPort}/live.html`}
+          </Text>
+        ))
+      ) : (
+        <Text style={[styles.lanNoAddr, {fontSize: 24 * m.dp, marginTop: 8 * m.dp}]}>
+          No network address found. Check the TV's network connection.
+        </Text>
+      )}
+      {s.rejectedConnections > 0 && (
+        <Text style={[styles.panelMeta, {fontSize: 20 * m.dp, marginTop: 8 * m.dp}]}>
+          {`Refused ${s.rejectedConnections} connection${s.rejectedConnections === 1 ? '' : 's'} from outside your network.`}
+        </Text>
+      )}
+    </View>
+  );
+}
+
 function SettingsPanel(props: {
   state: AppState;
   metrics: TvMetrics;
@@ -284,7 +320,7 @@ function SettingsPanel(props: {
         trapFocusRight
         style={[
           styles.panel,
-          {width: 560 * m.dp, right: m.safeX, top: m.safeY, bottom: m.safeY, padding: 40 * m.dp, borderRadius: 24 * m.dp},
+          {width: 680 * m.dp, right: m.safeX, top: m.safeY, bottom: m.safeY, padding: 40 * m.dp, borderRadius: 24 * m.dp},
         ]}>
         <Text style={[styles.panelTitle, {fontSize: 44 * m.dp}]}>HamClock</Text>
         <Text style={[styles.panelMeta, {fontSize: 24 * m.dp, marginTop: 8 * m.dp}]}>
@@ -295,16 +331,9 @@ function SettingsPanel(props: {
           {s ? `Live :${s.liveRwPort}  ·  REST :${s.restPort}` : ''}
           {lan ? '  ·  LAN on' : '  ·  loopback only'}
         </Text>
-        <View style={{height: 24 * m.dp}} />
+        <LanInfo status={s} metrics={m} />
+        <View style={{height: 16 * m.dp}} />
         <FocusButton metrics={m} label="Resume clock" onPress={close} preferred />
-        <FocusButton
-          metrics={m}
-          label="Reload display"
-          onPress={() => {
-            dispatch({type: 'WEB_RELOAD'});
-            close();
-          }}
-        />
         <FocusButton
           metrics={m}
           label={lan ? 'LAN access: On' : 'LAN access: Off'}
@@ -337,6 +366,15 @@ export const App = () => {
   }, []);
 
   useEngineStatus(state.lifecycle, dispatch);
+
+  // Diagnostics: log LAN state changes to the device log (native stderr doesn't reach it).
+  const lanSummary = state.status
+    ? `lan=${state.status.lanAccess} addrs=${(state.status.lanAddresses ?? []).join(',') || '-'} ` +
+      `refused=${state.status.rejectedConnections ?? 0}`
+    : '';
+  useEffect(() => {
+    if (lanSummary) console.info(`[HCLAN] ${lanSummary}`);
+  }, [lanSummary]);
 
   // Retry loading the page after a WebView error while the engine is up.
   useEffect(() => {
@@ -434,6 +472,9 @@ const styles = StyleSheet.create({
   panel: {position: 'absolute', backgroundColor: C.panel, borderWidth: 1, borderColor: C.border},
   panelTitle: {color: C.text, fontWeight: '700'},
   panelMeta: {color: C.muted},
+  lanBox: {backgroundColor: 'rgba(255, 181, 71, 0.08)', borderWidth: 1, borderColor: 'rgba(255, 181, 71, 0.35)'},
+  lanUrl: {color: C.accent, fontWeight: '700'},
+  lanNoAddr: {color: C.text},
 
   button: {backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 2, borderColor: 'transparent'},
   buttonFocused: {backgroundColor: C.accent, borderColor: '#fff'},

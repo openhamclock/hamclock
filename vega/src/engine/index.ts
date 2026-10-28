@@ -7,13 +7,15 @@ import type {EngineOptions, EngineState, EngineStatus} from '@openhamclock/hceng
 export {HcEngine};
 export type {EngineOptions, EngineState, EngineStatus};
 
-/** Production defaults. The backend is user-configurable later (settings panel). */
+/**
+ * Production defaults. The backend is user-configurable later (settings panel).
+ * lanAccess is left out on purpose: the engine then uses the user's saved choice.
+ */
 export const DEFAULT_ENGINE_OPTIONS: EngineOptions = {
   dataDir: '/data/hamclock',
   backend: 'ohb.hamclock.app:80',
   restPort: 8080,
   liveRwPort: 8081,
-  lanAccess: false,
 };
 
 /** Start the engine unless it is already starting or running. */

@@ -10,7 +10,9 @@
  *              some features shell out to curl.
  *   bind       TCP listeners go to 127.0.0.1 unless LAN access is on; retries while the port is
  *              still held (e.g. by the previous app process during a relaunch).
- *   accept     tracks connections; a thread accepting on a retired listener ends.
+ *   accept     tracks connections; a thread accepting on a retired listener ends. Peers outside
+ *              the allowed ranges (LanFilter.cpp) are closed at once: loopback only, or private
+ *              LAN addresses too when LAN access is on.
  *   close      keeps the tracking sets accurate so we never touch a reused descriptor.
  *   getrusage  RUSAGE_SELF on the engine thread becomes RUSAGE_THREAD, so the engine's CPU
  *              throttle measures itself rather than the whole app (JS, WebView, ...).
@@ -149,36 +151,58 @@ int __wrap_bind(int fd, const struct sockaddr *addr, socklen_t len) {
 }
 
 int __wrap_accept(int fd, struct sockaddr *addr, socklen_t *len) {
-  std::unique_lock<std::mutex> l(hcengine::smu);
-  if (hcengine::isRetired(fd)) {
-    l.unlock();
-    // The engine thread polls with select()+accept() (WiFiServer::available()). The previous run's
-    // restful_server pointer is still polled until initWebServer() replaces it, so just fail.
-    // Helper threads block in accept loops and must end instead.
-    if (EngineHost::instance().isEngineThread()) {
-      errno = EINVAL;
-      return -1;
+  for (;;) {
+    std::unique_lock<std::mutex> l(hcengine::smu);
+    if (hcengine::isRetired(fd)) {
+      l.unlock();
+      // The engine thread polls with select()+accept() (WiFiServer::available()). The previous run's
+      // restful_server pointer is still polled until initWebServer() replaces it, so just fail.
+      // Helper threads block in accept loops and must end instead.
+      if (EngineHost::instance().isEngineThread()) {
+        errno = EINVAL;
+        return -1;
+      }
+      throw hcengine::EngineThreadExit{"accept on retired listener"};
     }
-    throw hcengine::EngineThreadExit{"accept on retired listener"};
-  }
-  l.unlock();
-  int c = __real_accept(fd, addr, len);
-  int err = errno;
-  hcengine::SockId cid{};
-  bool haveId = c >= 0 && hcengine::sockId(c, cid);
-  l.lock();
-  if (hcengine::isRetired(fd)) {
-    if (c >= 0) __real_close(c);
     l.unlock();
-    if (EngineHost::instance().isEngineThread()) {
-      errno = EINVAL;
-      return -1;
+    int c = __real_accept(fd, addr, len);
+    int err = errno;
+
+    // LAN filter. Check the peer before the engine sees the connection.
+    if (c >= 0) {
+      sockaddr_storage peer{};
+      socklen_t pl = sizeof peer;
+      sockaddr *pa = reinterpret_cast<sockaddr *>(&peer);
+      bool known = getpeername(c, pa, &pl) == 0;
+      if (!known || !hcengine::peerAllowed(pa, EngineHost::instance().lanAccess())) {
+        __real_close(c);
+        EngineHost::instance().noteRejected(known ? hcengine::peerString(pa) : std::string("unknown peer"));
+        // The engine thread polls (select+accept) and must not block here; helper threads wait
+        // in blocking accept loops, so let them wait for the next connection.
+        if (EngineHost::instance().isEngineThread()) {
+          errno = ECONNABORTED;
+          return -1;
+        }
+        continue;
+      }
     }
-    throw hcengine::EngineThreadExit{"listener retired during accept"};
+
+    hcengine::SockId cid{};
+    bool haveId = c >= 0 && hcengine::sockId(c, cid);
+    l.lock();
+    if (hcengine::isRetired(fd)) {
+      if (c >= 0) __real_close(c);
+      l.unlock();
+      if (EngineHost::instance().isEngineThread()) {
+        errno = EINVAL;
+        return -1;
+      }
+      throw hcengine::EngineThreadExit{"listener retired during accept"};
+    }
+    if (haveId) hcengine::clientFds[c] = cid;
+    errno = err;
+    return c;
   }
-  if (haveId) hcengine::clientFds[c] = cid;
-  errno = err;
-  return c;
 }
 
 int __wrap_close(int fd) {

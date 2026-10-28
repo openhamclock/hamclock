@@ -5,6 +5,7 @@
 
 #include <atomic>
 #include <cctype>
+#include <cerrno>
 #include <climits>
 #include <cstdio>
 #include <cstdlib>
@@ -52,6 +53,8 @@ int g_exitCode = INT_MIN;                // INT_MIN = none
 std::string g_lastError;
 std::set<int> g_listening;
 std::deque<std::string> g_events;
+int g_rejected = 0;                      // connections dropped by the LAN filter (this session)
+std::string g_lastRejected;
 thread_local bool t_isEngine = false;
 
 // argv storage for the current run; hamclock keeps a pointer to it (our_argv).
@@ -118,6 +121,27 @@ void mkdirs(const std::string &path) {
     cur += (cur.empty() || cur.back() == '/' ? "" : "/") + part;
     mkdir(cur.c_str(), 0755);
   }
+}
+
+// ---- saved LAN access choice ----
+std::string lanFile(const std::string &dataDir) { return dataDir + "/vega-lan-access"; }
+
+bool readSavedLan(const std::string &dataDir) {
+  FILE *f = fopen(lanFile(dataDir).c_str(), "r");
+  if (!f) return false;
+  int c = fgetc(f);
+  fclose(f);
+  return c == '1';
+}
+
+void saveLan(const std::string &dataDir, bool on) {  // caller holds mu
+  if (dataDir.empty()) return;
+  std::string path = lanFile(dataDir), tmp = path + ".tmp";
+  FILE *f = fopen(tmp.c_str(), "w");
+  if (!f) { event("can't save LAN setting: " + std::string(strerror(errno))); return; }
+  fputs(on ? "1\n" : "0\n", f);
+  fclose(f);
+  rename(tmp.c_str(), path.c_str());
 }
 
 // ---- engine hooks (run on the engine thread) ----
@@ -210,7 +234,7 @@ std::string parseOptions(const std::string &json, EngineOptions &o) {
     } else if (json.compare(j.i, 4, "true") == 0 || json.compare(j.i, 5, "false") == 0) {
       bool v = json[j.i] == 't';
       j.i += v ? 4 : 5;
-      if (key == "lanAccess") o.lanAccess = v;
+      if (key == "lanAccess") { o.lanAccess = v; o.lanAccessSet = true; }
     } else if (json.compare(j.i, 4, "null") == 0) {
       j.i += 4;
     } else {
@@ -259,6 +283,14 @@ void EngineHost::noteListening(int port) {
   g_listening.insert(port);
   event("listening on " + std::string(g_lan ? "0.0.0.0" : "127.0.0.1") + ":" + std::to_string(port));
   if (port == g_opts.liveRwPort && g_state == EngineState::Starting) g_state = EngineState::Running;
+}
+
+void EngineHost::noteRejected(const std::string &peer) {
+  std::lock_guard<std::mutex> l(mu);
+  ++g_rejected;
+  // One event per new address, so a scanner can't flush the event ring.
+  if (peer != g_lastRejected) event("refused connection from " + peer + (g_lan ? " (not a LAN address)" : " (LAN access off)"));
+  g_lastRejected = peer;
 }
 
 void EngineHost::endEngineThread(int exitCode, std::vector<std::string> *restartArgs) {
@@ -365,12 +397,14 @@ std::string EngineHost::start(const EngineOptions &opts) {
   hamclock_restart_hook = restartHook;
   hamclock_stop_hook = stopHook;
   g_opts = opts;
-  g_lan = opts.lanAccess;
-  g_runArgs = buildArgs(opts);
+  mkdirs(opts.dataDir);
+  if (!opts.lanAccessSet) g_opts.lanAccess = readSavedLan(opts.dataDir);
+  g_lan = g_opts.lanAccess;
+  saveLan(g_opts.dataDir, g_lan);
+  g_runArgs = buildArgs(g_opts);
   g_stopRequested = false;
   g_restartPending = false;
   g_lastError.clear();
-  mkdirs(opts.dataDir);
 
   if (opts.watchdogSec > 0) {
     g_lastStatusMs = nowMs();
@@ -410,8 +444,14 @@ std::string EngineHost::restart(const EngineOptions *opts) {
   EngineOptions next;
   {
     std::lock_guard<std::mutex> l(mu);
-    if (opts) g_opts = *opts;
+    if (opts) {
+      bool keepLan = g_opts.lanAccess;
+      g_opts = *opts;
+      if (!opts->lanAccessSet) g_opts.lanAccess = keepLan;
+      g_opts.lanAccessSet = true;
+    }
     g_lan = g_opts.lanAccess;
+    saveLan(g_opts.dataDir, g_lan);
     next = g_opts;
     if (g_supervisorAlive) {
       g_pendingArgs = buildArgs(g_opts);
@@ -433,6 +473,7 @@ void EngineHost::setLanAccess(bool on) {
     if (g_opts.lanAccess == on && g_lan == on) return;
     g_opts.lanAccess = on;
     g_lan = on;
+    saveLan(g_opts.dataDir, on);
     alive = g_supervisorAlive;
     event(std::string("LAN access ") + (on ? "on" : "off"));
   }
@@ -441,6 +482,7 @@ void EngineHost::setLanAccess(bool on) {
 
 std::string EngineHost::statusJson() {
   g_lastStatusMs = nowMs();
+  std::vector<std::string> addrs = lanIPv4Addresses();  // outside mu: may do socket calls
   std::lock_guard<std::mutex> l(mu);
   std::ostringstream o;
   o << "{\"state\":\"" << stateName(g_state) << "\"";
@@ -455,7 +497,11 @@ std::string EngineHost::statusJson() {
   o << ",\"listening\":[";
   bool first = true;
   for (int p : g_listening) { o << (first ? "" : ",") << p; first = false; }
-  o << "],\"dataDir\":"; jsonStr(o, g_opts.dataDir);
+  o << "],\"lanAddresses\":[";
+  first = true;
+  for (auto &a : addrs) { o << (first ? "" : ","); jsonStr(o, a); first = false; }
+  o << "],\"rejectedConnections\":" << g_rejected;
+  o << ",\"dataDir\":"; jsonStr(o, g_opts.dataDir);
   o << ",\"backend\":"; jsonStr(o, g_opts.backend);
   o << ",\"version\":"; jsonStr(o, hc_version ? hc_version : "");
   o << ",\"events\":[";
