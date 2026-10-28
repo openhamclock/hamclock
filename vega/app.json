@@ -1,5 +1,5 @@
 {
   "//": "The declared app name must follow this pattern to be KRL-compatible",
-  "name": "com.openhamclock.hamclock.main",
+  "name": "org.openhamclock.hamclock.main",
   "displayName": "HamClock"
 }

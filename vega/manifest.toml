@@ -3,7 +3,7 @@ schema-version = 1
 [package]
 title = "HamClock"
 version = "0.1.0"
-id = "com.openhamclock.hamclock"
+id = "org.openhamclock.hamclock"
 
 [os.version]
 min = "1.2"
@@ -32,7 +32,7 @@ id = "com.amazon.webview.renderer_service"
 
 [components]
 [[components.interactive]]
-id = "com.openhamclock.hamclock.main"
+id = "org.openhamclock.hamclock.main"
 runtime-module = "/com.amazon.kepler.runtime.react_native_kepler_4@IReactNativeKepler_0"
 launch-type = "singleton"
 categories = ["com.amazon.category.main"]

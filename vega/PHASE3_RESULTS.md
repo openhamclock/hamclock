@@ -81,3 +81,7 @@ Device: Fire TV Stick "calypso", armv7l, `192.168.1.237`. Laptop: `192.168.1.1` 
 - **To do: user-editable mDNS name** (the Android app has a text field). It needs text entry on the TV and a saved setting; the base name is fixed at `hamclock` for now.
 - Look over the settings panel on the TV with the `.local` URL (layout and URL size at 10 ft).
 - Carried over: D-pad acceleration on hold; screensaver backgrounds the app; `getLogTail` noise; curl in sandbox unverified; first-run callsign seed decision.
+
+## Package ID
+
+Changed to `org.openhamclock.hamclock` (main component `org.openhamclock.hamclock.main`), matching the Android app and the openhamclock.org domain. The old `com.openhamclock.hamclock` install was removed from the TV. A leftover `org.` build from `feat/vega-support` blocked the install ("Package version decrease") and had to be uninstalled first.
