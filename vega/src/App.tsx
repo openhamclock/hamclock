@@ -264,13 +264,19 @@ function LanInfo({status: s, metrics: m}: {status: EngineStatus | null; metrics:
     );
   }
   const addrs = s.lanAddresses ?? [];
+  const mdnsUrl = s.mdnsState === 'announced' && s.mdnsHost ? `http://${s.mdnsHost}:${s.liveRwPort}/live.html` : null;
   return (
     <View style={[styles.lanBox, {marginTop: 20 * m.dp, padding: 20 * m.dp, borderRadius: 14 * m.dp}]}>
       <Text style={[styles.panelMeta, {fontSize: 22 * m.dp}]}>On a computer or phone on your network, open:</Text>
+      {mdnsUrl && (
+        <Text style={[styles.lanUrl, {fontSize: 28 * m.dp, marginTop: 8 * m.dp}]}>{mdnsUrl}</Text>
+      )}
       {addrs.length > 0 ? (
         addrs.map(a => (
-          <Text key={a} style={[styles.lanUrl, {fontSize: 28 * m.dp, marginTop: 8 * m.dp}]}>
-            {`http://${a}:${s.liveRwPort}/live.html`}
+          <Text
+            key={a}
+            style={[mdnsUrl ? styles.lanUrlAlt : styles.lanUrl, {fontSize: (mdnsUrl ? 24 : 28) * m.dp, marginTop: 8 * m.dp}]}>
+            {`${mdnsUrl ? 'or ' : ''}http://${a}:${s.liveRwPort}/live.html`}
           </Text>
         ))
       ) : (
@@ -370,7 +376,7 @@ export const App = () => {
   // Diagnostics: log LAN state changes to the device log (native stderr doesn't reach it).
   const lanSummary = state.status
     ? `lan=${state.status.lanAccess} addrs=${(state.status.lanAddresses ?? []).join(',') || '-'} ` +
-      `refused=${state.status.rejectedConnections ?? 0}`
+      `refused=${state.status.rejectedConnections ?? 0} mdns=${state.status.mdnsState ?? '?'}:${state.status.mdnsHost || '-'}`
     : '';
   useEffect(() => {
     if (lanSummary) console.info(`[HCLAN] ${lanSummary}`);
@@ -474,6 +480,7 @@ const styles = StyleSheet.create({
   panelMeta: {color: C.muted},
   lanBox: {backgroundColor: 'rgba(255, 181, 71, 0.08)', borderWidth: 1, borderColor: 'rgba(255, 181, 71, 0.35)'},
   lanUrl: {color: C.accent, fontWeight: '700'},
+  lanUrlAlt: {color: C.text, fontWeight: '600'},
   lanNoAddr: {color: C.text},
 
   button: {backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 2, borderColor: 'transparent'},

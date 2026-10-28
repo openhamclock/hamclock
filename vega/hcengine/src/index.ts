@@ -57,6 +57,10 @@ export interface EngineStatus {
   lanAddresses: string[];
   /** Connections refused by the address filter this app session. */
   rejectedConnections: number;
+  /** mDNS responder: 'off' | 'probing' | 'announced' | 'error: …'. */
+  mdnsState: string;
+  /** Host name claimed on the LAN, e.g. 'hamclock.local' or 'hamclock-2.local' ('' if none). */
+  mdnsHost: string;
   dataDir: string;
   backend: string;
   version: string;

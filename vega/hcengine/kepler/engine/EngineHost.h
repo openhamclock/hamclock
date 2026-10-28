@@ -68,6 +68,12 @@ std::string peerString(const sockaddr *sa);
 /** The TV's IPv4 addresses that LAN peers can use (private ranges, interface up). */
 std::vector<std::string> lanIPv4Addresses();
 
+// ---- MdnsResponder.cpp ----
+/** Start the responder thread once; it advertises while mdnsWanted() is true. */
+void startMdnsResponder();
+/** state: off | probing | announced | error: ...; host: e.g. hamclock-2.local ('' if none). */
+void mdnsStatus(std::string &state, std::string &host);
+
 class EngineHost {
 public:
   static EngineHost &instance();
@@ -89,6 +95,9 @@ public:
   bool isEngineThread() const;
   void noteListening(int port);
   void noteRejected(const std::string &peer);
+  void noteEvent(const std::string &msg);
+  /** True while LAN access is on and the engine supervisor is alive; port = live web port. */
+  bool mdnsWanted(int &port) const;
   /** Called on the engine thread by exit()/ESP.restart()/stop hook. Ends the thread. */
   [[noreturn]] void endEngineThread(int exitCode, std::vector<std::string> *restartArgs);
 

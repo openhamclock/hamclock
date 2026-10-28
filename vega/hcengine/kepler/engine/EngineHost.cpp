@@ -293,6 +293,17 @@ void EngineHost::noteRejected(const std::string &peer) {
   g_lastRejected = peer;
 }
 
+void EngineHost::noteEvent(const std::string &msg) {
+  std::lock_guard<std::mutex> l(mu);
+  event(msg);
+}
+
+bool EngineHost::mdnsWanted(int &port) const {
+  std::lock_guard<std::mutex> l(mu);
+  port = g_opts.liveRwPort;
+  return g_lan && g_supervisorAlive;
+}
+
 void EngineHost::endEngineThread(int exitCode, std::vector<std::string> *restartArgs) {
   {
     std::lock_guard<std::mutex> l(mu);
@@ -427,6 +438,7 @@ std::string EngineHost::start(const EngineOptions &opts) {
   }
   g_supervisorAlive = true;
   g_state = EngineState::Starting;
+  startMdnsResponder();
   return "";
 }
 
@@ -483,6 +495,8 @@ void EngineHost::setLanAccess(bool on) {
 std::string EngineHost::statusJson() {
   g_lastStatusMs = nowMs();
   std::vector<std::string> addrs = lanIPv4Addresses();  // outside mu: may do socket calls
+  std::string mState, mHost;
+  mdnsStatus(mState, mHost);
   std::lock_guard<std::mutex> l(mu);
   std::ostringstream o;
   o << "{\"state\":\"" << stateName(g_state) << "\"";
@@ -501,6 +515,8 @@ std::string EngineHost::statusJson() {
   first = true;
   for (auto &a : addrs) { o << (first ? "" : ","); jsonStr(o, a); first = false; }
   o << "],\"rejectedConnections\":" << g_rejected;
+  o << ",\"mdnsState\":"; jsonStr(o, mState);
+  o << ",\"mdnsHost\":"; jsonStr(o, mHost);
   o << ",\"dataDir\":"; jsonStr(o, g_opts.dataDir);
   o << ",\"backend\":"; jsonStr(o, g_opts.backend);
   o << ",\"version\":"; jsonStr(o, hc_version ? hc_version : "");

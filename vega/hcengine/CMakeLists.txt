@@ -88,6 +88,7 @@ set(SOURCES
     kepler/engine/EngineHost.cpp
     kepler/engine/SysWraps.cpp
     kepler/engine/LanFilter.cpp
+    kepler/engine/MdnsResponder.cpp
     kepler/AutoLinkInit.cpp
 )
 

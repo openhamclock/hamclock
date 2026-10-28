@@ -35,8 +35,49 @@ Device: Fire TV Stick "calypso", armv7l, `192.168.1.237`. Laptop: `192.168.1.1` 
 - **Removed "Reload display"** from the panel. The user reported it crashes, and the Android app has no such option. Panel now: Resume, LAN access, Restart HamClock, Exit app.
   - The crash wasn't diagnosed. The same WebView remount (`WEB_RELOAD`) still runs automatically after a page load error, so look at it if that path ever misbehaves.
 
+## mDNS
+
+### Findings
+
+1. **The TV already runs avahi-daemon** (uid 997) on `0.0.0.0:5353` and `[::]:5353`, and `wlan0` has joined `224.0.0.251`.
+   - Its D-Bus API is unreachable from the app (no `/run/dbus`), there's no static services dir, and the SDK has no avahi/dbus client libraries. So the app runs its own responder.
+   - Avahi already publishes the TV as `firestick-2.local`.
+2. **The app sandbox allows the multicast socket.** It binds `224.0.0.251:5353` with `SO_REUSEADDR` alongside avahi, joins the group on the LAN interface, and sends and receives normally.
+3. **`hamclock.local` was already taken** on this LAN (by .68, later .101.61: other HamClock devices). Probing is required, not optional.
+
+### Design (`kepler/engine/MdnsResponder.cpp`)
+
+- **When it runs:** a responder thread, started on the first engine start, advertises while LAN access is on and the engine supervisor is alive.
+  - An engine restart doesn't interrupt it.
+  - LAN off or engine stop sends goodbyes (TTL 0).
+  - It re-announces if the TV's IP or the live port changes.
+- **Names:** probes 3× at 250 ms for `hamclock.local` and the service name `HamClock`, using ANY plus A questions (simple responders such as the Android app's only answer A).
+  - On a conflict it moves to `hamclock-N.local` and `HamClock (N)`.
+  - If another host claims our name later, it re-probes.
+- **Records:** A `<host>` → TV IP (120 s, cache-flush); `_http._tcp` PTR → `HamClock (N)`; SRV → `<host>:8081`; TXT `path=/live.html`; plus `_services._dns-sd._udp` PTR.
+  - It answers ANY/A/PTR/SRV/TXT.
+  - Legacy (non-5353 source port) queries get a unicast reply with the question echoed and TTL ≤ 10.
+- **Avahi stays unaffected:** the socket is bound to the group address, so it receives only multicast. Unicast to `:5353` still reaches avahi (checked: `dig @192.168.1.237 -p 5353 firestick-2.local` answers).
+- **Status and panel:**
+  - `getStatus()` adds `mdnsState` (`off` | `probing` | `announced` | `error: …`) and `mdnsHost`.
+  - Once the name is announced, the panel shows `http://<mdnsHost>:8081/live.html` first, then "or http://<ip>:8081/live.html".
+- **Not implemented** (optional or unneeded): known-answer suppression, response delays, probe tie-break, AAAA/NSEC.
+
+### Verification (from the laptop)
+
+| Check | Result |
+|:--|:--|
+| Probe conflict with existing `hamclock.local` → claims `hamclock-2.local` | ✅ |
+| `avahi-resolve -n hamclock-2.local` | ✅ 192.168.1.237 |
+| `avahi-browse -r _http._tcp` shows "HamClock (2)" → `hamclock-2.local:8081` | ✅ |
+| `curl http://hamclock-2.local:8081/live.html` | ✅ 200 |
+| LAN off: service and name gone at once (goodbye) | ✅ |
+| LAN on again: re-probes and re-announces; status off → probing → announced → off | ✅ |
+| TV's own avahi still answers `firestick-2.local` | ✅ |
+| Legacy unicast reply path | Not verified: `dig @224.0.0.251` times out from this multi-homed laptop for avahi too |
+
 ## Open items
 
-- **mDNS** (`_http._tcp`, `<name>.local`) is not done. It needs its own sandbox check: can the app join `224.0.0.251:5353`, and does a system responder already own the port?
-- Look over the settings panel on the TV (layout and URL size at 10 ft).
+- **To do: user-editable mDNS name** (the Android app has a text field). It needs text entry on the TV and a saved setting; the base name is fixed at `hamclock` for now.
+- Look over the settings panel on the TV with the `.local` URL (layout and URL size at 10 ft).
 - Carried over: D-pad acceleration on hold; screensaver backgrounds the app; `getLogTail` noise; curl in sandbox unverified; first-run callsign seed decision.
