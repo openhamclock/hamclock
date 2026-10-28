@@ -99,8 +99,10 @@ uint32_t ESP::getChipId()
         if (sn)
             return (sn);
 
-#if defined(_IS_LINUX)
-        // try cpu serial number
+#if defined(_IS_LINUX) && !defined(_IS_VEGA)
+        // try cpu serial number.
+        // not on Vega: there the S/N always comes from the per-install virtual MAC (see the app's
+        // VirtualMac.cpp) so it can never change to a cpu serial later.
         FILE *fp = fopen ("/proc/cpuinfo", "r");
         if (fp) {
             static const char serial[] = "Serial";

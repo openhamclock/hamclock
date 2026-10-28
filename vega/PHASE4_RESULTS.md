@@ -61,6 +61,24 @@ Device: Fire TV Stick "calypso", armv7l, `192.168.1.237`. Package `org.openhamcl
 2. **The screensaver can come up over the first-run screen** and stays until a key press (known Phase 1 finding 6; fix is Phase 6.2). Setup from the phone still worked once the user woke the TV.
 3. **Device log stream** stalls on journal rotation now and then (`Journal header limits reached … rotating`). Restarting the stream helps; checking from the laptop (curl, `avahi-browse`) was more reliable.
 
+## Phase 4B: Engine identity (User-Agent platform and S/N)
+
+HamClock sends `User-Agent: <platform>/<version> (id <S/N> …)` to the backend; the S/N is `ESP.getChipId()`, derived from the MAC.
+
+- **Before:** `Platform HamClock-linux`, `MACaddr FF:FF:FF:FF:FF:FF`, `S/N 4294967295` (unknown) on every Vega install. HamClock's MAC lookup shells out to `/sbin/ip`/`ifconfig`, which the TV doesn't have, and the app sandbox doesn't expose a CPU serial.
+- **Platform:** `ESPHamClock/webserver.cpp` gains `#elif defined(_IS_VEGA)` → `HamClock-vega`, before the Android/Linux branches (Vega also defines `_IS_LINUX`).
+- **Virtual MAC** (`kepler/engine/VirtualMac.cpp`, linker `--wrap=_ZN4WiFi10macAddressEv`, same approach and file name as the Android app): reads `<dataDir>/.mac_address`. If it's missing or invalid, it generates a random locally administered unicast MAC (first byte `(b & 0xFE) | 0x02`), saves it (tmp + rename) and caches it in memory.
+- **S/N never switches source on Vega:** `ArduinoLib/ESP.cpp` skips the `/proc/cpuinfo` serial when `_IS_VEGA` is defined, so the S/N always comes from the install's virtual MAC. Other platforms are unchanged (a Pi still uses its CPU serial).
+
+| Check (`GET :8080/get_sys.txt`) | Result |
+|:--|:--|
+| First run of the new build (no `.mac_address` yet) | ✅ `Platform HamClock-vega`, `MACaddr AE:B2:D1:0B:47:7D`, `S/N 3507177341` (= `0xD10B477D`, last 4 bytes) |
+| Terminate + relaunch | ✅ same MAC and S/N |
+| App update (install over the existing app) | ✅ same MAC and S/N |
+| Uninstall + install → new MAC/S/N | Not run (REST needs Setup first). Uninstall wipes `/data` (Phase 0), so a new MAC is generated. |
+
+Anything added later that clears app data (e.g. a "clear cache" option) must keep `.mac_address`, as the Android app does.
+
 ## Open items
 
 - **Decided (to do in Phase 5): the QR code always uses the IP URL.** The mDNS name is for convenience when someone has to remember or type the address; a QR code can go straight to the IP, which also avoids phones that can't resolve `.local`. Change `qrUrl` in `FirstRunScreen` to `ipUrls[0]` only, and use the same rule for the settings-panel QR (Phase 5.5). The `.local` URL stays as text above the IP URL.

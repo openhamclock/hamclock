@@ -60,7 +60,8 @@ message(STATUS "HamClock engine: ${HC_ENGINE_COUNT} sources from ${HC_DIR}")
 # Same as `make hamclock-web-1600x960`, plus the switches for an app-store build.
 add_library(hamclock_engine OBJECT ${HC_ENGINE_SRCS}
     kepler/engine/NvSeed.cpp      # host code that needs HamClock headers, so built with the engine flags
-    kepler/engine/QrMatrix.cpp)
+    kepler/engine/QrMatrix.cpp
+    kepler/engine/VirtualMac.cpp) # --wrap target for WiFi::macAddress (per-install S/N)
 set_source_files_properties(${HC_ENGINE_SRCS} PROPERTIES LANGUAGE CXX)
 target_include_directories(hamclock_engine PRIVATE
     ${HC_DIR} ${HC_DIR}/ArduinoLib ${HC_DIR}/wsServer/include ${HC_DIR}/zlib-hc)
@@ -107,6 +108,7 @@ target_link_options(HcEngine PRIVATE
     "LINKER:--wrap=accept"
     "LINKER:--wrap=close"
     "LINKER:--wrap=getrusage"
-    "LINKER:--wrap=pthread_create")
+    "LINKER:--wrap=pthread_create"
+    "LINKER:--wrap=_ZN4WiFi10macAddressEv")  # WiFi::macAddress -> VirtualMac.cpp
 
 install(TARGETS HcEngine)
