@@ -11,3 +11,6 @@ tmp/
 *.o
 *.a
 *.d
+
+# Local editor settings
+.vscode/

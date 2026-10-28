@@ -37,6 +37,7 @@ Device: Fire TV Stick "calypso", armv7l, `192.168.1.237`. This file takes preced
 ## Open items
 
 - **D-pad acceleration on hold.** Wanted: roughly the Android app's feel. live.html only speeds up when presses are under 200 ms apart, so check whether Vega key repeat arrives at all, and at what rate, while a button is held. The Android app may add its own repeat on hold.
+  - Branch `feat/vega-support` (earlier attempt) found key-timing issues and worked around them. It wasn't as smooth as Android: don't copy it. Review it only if it saves time.
 - No callsign seed on first run (the user does Setup in HamClock); decide whether to keep it that way.
 - LAN setting is not persisted across launches; TV IP not shown yet (Phase 3).
 - Carried over from Phase 1: screensaver backgrounds the app; `getLogTail` noise; curl in sandbox unverified.
