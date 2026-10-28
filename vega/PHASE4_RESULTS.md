@@ -10,7 +10,7 @@ Device: Fire TV Stick "calypso", armv7l, `192.168.1.237`. Package `org.openhamcl
 |:--|:--|
 | Fresh install: first-run screen appears (title, 3 steps, URLs, QR, "Waiting for setup…" with pulsing dot) | ✅ (by eye) |
 | Fresh install: LAN access is on without a restart (`live.html` answers on `192.168.1.237:8081` from the laptop; REST `:8080` down) | ✅ |
-| mDNS announces `hamclock-2.local`; the QR switches to it | ✅ (`avahi-browse`, `[HCLAN]`) |
+| mDNS announces `hamclock-2.local`; the QR switches to it (to be changed: QR always uses the IP; see Open items) | ✅ (`avahi-browse`, `[HCLAN]`) |
 | Phone scans the QR and opens live.html | ✅ |
 | Focus starts on "Set up on this TV instead"; Left/Right moves between buttons | ✅ |
 | Back on the first-run screen opens the settings panel; Back again returns to the first-run screen | ✅ |
@@ -42,7 +42,7 @@ Device: Fire TV Stick "calypso", armv7l, `192.168.1.237`. Package `org.openhamcl
 
 - Shown when `setupComplete === false`, the user hasn't chosen "Set up on this TV instead" (this launch), and the engine isn't stopped/errored. It covers the WebView, which keeps loading underneath, so choosing the TV path is instant.
 - Left: "Welcome to HamClock on TV", a one-line lead, 3 numbered steps (wording after the Android app), the URLs (`.local` once announced, then IP), a status line with a pulsing dot. Buttons: "Set up on this TV instead" (preferred focus) and "Exit app". If LAN access is off, it says so and adds "Turn on LAN access".
-- Right: the QR for the `.local` URL once announced, else the IP URL.
+- Right: the QR for the `.local` URL once announced, else the IP URL. (Superseded by decision: always the IP URL; see Open items.)
 - Keys: while the screen (or the settings panel) is up, the WebView gets `allowSystemKeyEvents=false` and no preferred focus, so Back reaches RN's `BackHandler` and opens the settings panel. The buttons sit in a `TVFocusGuideView` with focus trapped, so focus can't move into the WebView.
 - It closes by itself when `setupComplete` turns true; focus goes back to the WebView.
 - Diagnostics: `[HCSETUP] setupComplete=… firstRun=… onTv=…` on change.
@@ -63,5 +63,5 @@ Device: Fire TV Stick "calypso", armv7l, `192.168.1.237`. Package `org.openhamcl
 
 ## Open items
 
-- Phone browsers and `.local`: iOS resolves it; some Android phones/Chrome versions don't. The QR uses `.local` once announced (plan 4.4). If that turns out to fail on Android phones, switch the QR to the IP URL and keep `.local` as text.
+- **Decided (to do in Phase 5): the QR code always uses the IP URL.** The mDNS name is for convenience when someone has to remember or type the address; a QR code can go straight to the IP, which also avoids phones that can't resolve `.local`. Change `qrUrl` in `FirstRunScreen` to `ipUrls[0]` only, and use the same rule for the settings-panel QR (Phase 5.5). The `.local` URL stays as text above the IP URL.
 - Carried over: D-pad acceleration on hold; screensaver; `getLogTail` noise; curl in sandbox; editable mDNS name (Phase 5).
