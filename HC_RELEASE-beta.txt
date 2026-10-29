@@ -1,3 +1,4 @@
 Changes with latest release:
-- start the next beta series
-- no changes yet
+- fix band/age interaction in pskr
+- no start on boot when not supported
+- occasionally stuck android save

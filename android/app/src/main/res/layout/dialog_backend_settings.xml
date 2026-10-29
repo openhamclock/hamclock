@@ -330,57 +330,64 @@
         android:paddingBottom="8dp"
         android:background="@drawable/edit_text_background" />
 
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:layout_marginTop="12dp"
-        android:layout_marginBottom="12dp"
-        android:background="#33FFFFFF" />
-
-    <CheckBox
-        android:id="@+id/cb_start_on_boot"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/start_on_boot_label"
-        android:textColor="@color/hamclock_text"
-        android:textSize="14sp"
-        android:buttonTint="@color/hamclock_accent"
-        android:focusable="true"
-        android:clickable="true"
-        android:padding="8dp"
-        android:background="@drawable/item_focus_highlight" />
-
     <LinearLayout
-        android:id="@+id/ll_autostart_helper"
+        android:id="@+id/ll_start_on_boot_section"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:focusable="false"
-        android:layout_marginTop="8dp"
-        android:layout_marginStart="8dp"
-        android:layout_marginEnd="8dp"
-        android:padding="8dp"
-        android:background="#22FFFFFF"
-        android:visibility="gone">
+        android:orientation="vertical">
 
-        <TextView
-            android:id="@+id/tv_autostart_notice"
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="12dp"
+            android:background="#33FFFFFF" />
+
+        <CheckBox
+            android:id="@+id/cb_start_on_boot"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/autostart_oem_notice"
-            android:textColor="#FFB74D"
-            android:textSize="12sp"
-            android:layout_marginBottom="8dp" />
-
-        <Button
-            android:id="@+id/btn_open_autostart"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/open_autostart_settings"
+            android:text="@string/start_on_boot_label"
             android:textColor="@color/hamclock_text"
-            android:textSize="12sp"
-            android:background="@drawable/btn_neutral_selector"
-            android:focusable="true" />
+            android:textSize="14sp"
+            android:buttonTint="@color/hamclock_accent"
+            android:focusable="true"
+            android:clickable="true"
+            android:padding="8dp"
+            android:background="@drawable/item_focus_highlight" />
+
+        <LinearLayout
+            android:id="@+id/ll_autostart_helper"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:focusable="false"
+            android:layout_marginTop="8dp"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
+            android:padding="8dp"
+            android:background="#22FFFFFF"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/tv_autostart_notice"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/autostart_oem_notice"
+                android:textColor="#FFB74D"
+                android:textSize="12sp"
+                android:layout_marginBottom="8dp" />
+
+            <Button
+                android:id="@+id/btn_open_autostart"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/open_autostart_settings"
+                android:textColor="@color/hamclock_text"
+                android:textSize="12sp"
+                android:background="@drawable/btn_neutral_selector"
+                android:focusable="true" />
+        </LinearLayout>
     </LinearLayout>
 
     <View
