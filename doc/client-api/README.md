@@ -24,6 +24,7 @@ All implementations that intended to be fully compatible with the HamClock Clien
       get_livespots.txt     get live spots list
       get_livestats.txt     get live spots statistics
       get_ontheair.txt      get POTA/SOTA activators
+      get_parks.txt         get POTA hunted parks status
       get_satellite.txt     get current sat info
       get_satellites.txt    get list of all sats
       get_sensors.txt       get sensor data
@@ -48,6 +49,7 @@ All implementations that intended to be fully compatible with the HamClock Clien
       set_newde?            grid=AB12&lat=X&lng=Y&call=AA0XYZ
       set_newdx?            grid=AB12&lat=X&lng=Y
       set_once_alarm?       state=off|armed&time=YYYY-MM-DDTHR:MN&tz=DE|UTC
+      set_parks?            save (POST)
       set_pane?             Pane[0123]=X,Y,Z... any from:
          VOACAP_DEDX DE_Wx DX_Wx Solar_Flux Planetary_K Moon NOAA_SpcWx Sunspot_N
          X-Ray SDO Solar_Wind DRAP Contests Live_Spots Bz_Bt On_The_Air Aurora
@@ -160,6 +162,17 @@ by Next Up and the ADIF pane. The same thing can be done from a browser at http:
 Show how many QSOs and DXCC entities the current log has:
 
         curl 'http://192.168.7.101:8080/get_adif.txt'
+
+Save the POTA Hunted Parks CSV on HamClock so Next Up and the On The Air pane can flag parks you have not hunted yet.
+Download it from https://pota.app/#stats/ (log in, scroll to the bottom, Hunted Parks tab, Export CSV). The Activated
+Parks CSV is refused. It survives restarts. The same thing can be done from a browser at
+http://192.168.7.101:8080/parks.html
+
+        curl --data-binary '@hunter_parks.csv' 'http://192.168.7.101:8080/set_parks?save'
+
+Show how many hunted parks are loaded:
+
+        curl 'http://192.168.7.101:8080/get_parks.txt'
 
 Load the BMP file named myimage.bmp in data pane 3 (right pane), cropping to center if necessary:
 

@@ -298,7 +298,7 @@ static void scrollDXCDown (const SBox &box)
 static void engageDXCRow (DXSpot &s)
 {
     newDX (s.tx_ll, NULL, s.tx_call);
-    setRadioSpot(s.kHz);
+    setRadioSpot(s.kHz, s.mode);
     if (dxc_showbio)
         openQRZBio (s);
 }
