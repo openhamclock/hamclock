@@ -416,6 +416,7 @@ static void usage (const char *errfmt, ...)
             fprintf (stderr, " -S s : set Software server host for OTA download; default is %s\nMust come after -b if used\n",software_host);
             fprintf (stderr, " -t p : throttle max cpu to p percent; default is %.0f\n", DEF_CPU_USAGE*100);
             fprintf (stderr, " -T t : set max timeout for responses from backend\n");
+            fprintf (stderr, " -u   : open Setup at once, without the countdown; overrides -k; not kept on restart\n");
             fprintf (stderr, " -v   : show version info then exit\n");
             fprintf (stderr, " -w p : set read-write live web server port to p or -1 to disable; default %d\n",
                                     LIVEWEB_RW_PORT);
@@ -567,6 +568,9 @@ static void crackArgs (int ac, char *av[])
                 case 'k':                       // fallthru
                 case 'K':
                     skip_skip = true;
+                    break;
+                case 'u':
+                    setup_now = true;
                     break;
                 case 'l':
                     if (ac < 2)

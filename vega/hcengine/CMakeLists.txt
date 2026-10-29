@@ -83,6 +83,7 @@ set(HEADERS
   kepler/turbo-modules/generated/HcEngineSpec.h
   kepler/turbo-modules/HcEngine.h
   kepler/engine/EngineHost.h
+  kepler/engine/FlatJson.h
 )
 set(SOURCES
     kepler/turbo-modules/generated/HcEngineSpec.cpp
@@ -91,6 +92,7 @@ set(SOURCES
     kepler/engine/SysWraps.cpp
     kepler/engine/LanFilter.cpp
     kepler/engine/MdnsResponder.cpp
+    kepler/engine/Settings.cpp
     kepler/AutoLinkInit.cpp
 )
 

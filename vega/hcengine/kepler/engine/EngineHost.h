@@ -11,8 +11,9 @@
  *   - fork()            -> fails with ENOSYS (unsafe in a multi-threaded app)
  *   - sockets           -> tracked, and retired on stop so old server threads end cleanly
  *
- * The LAN access choice is saved in <dataDir>/vega-lan-access and used when start() is called
- * without an explicit lanAccess.
+ * Settings (LAN access, mDNS name, backend, overscan) are saved in <dataDir>/vega-settings.json
+ * (Settings.cpp) and loaded at engine start. Options passed to start()/restart() override and
+ * update them; options left out use the saved values. updateSettings() changes them at run time.
  *
  * Setup state (status "setupComplete"): before each run, on the engine thread and before
  * hamclock_main, the host reads the stored callsign through HamClock's NV API (NvSeed.cpp).
@@ -40,9 +41,14 @@ struct EngineThreadExit {
   const char *why = "";  // static string; reported in the status events
 };
 
+constexpr const char *kDefaultBackend = "ohb.hamclock.app:80";
+constexpr const char *kDefaultMdnsName = "hamclock";
+constexpr size_t kMaxMdnsName = 40;
+
 struct EngineOptions {
   std::string dataDir = "/data/hamclock";
-  std::string backend = "ohb.hamclock.app:80";  // -b host:port
+  std::string backend;                           // -b host:port; '' = saved setting
+  std::string mdnsName;                          // mDNS host name base; '' = saved setting
   int restPort = 8080;                           // -e; -1 disables
   int liveRwPort = 8081;                         // -w; serves live.html
   int liveRoPort = 0;                            // -r; 0 = engine default, -1 disables
@@ -56,6 +62,9 @@ struct EngineOptions {
   // Tests only (selfTest.ts): store this callsign if none is stored, so REST comes up without
   // Setup. The app never seeds; the user enters their own callsign in HamClock's Setup.
   std::string testSeedCallsign;                  // '' = don't seed
+  // One run straight into HamClock's Setup (the panel's "Setup HamClock"): that run gets -u.
+  // Applies to the next run only; every run gets -k (no Setup offer, no Skip waits).
+  bool openSetup = false;
 };
 
 enum class EngineState { Idle, Starting, Running, Stopping, Stopped, Exited, Error };
@@ -85,6 +94,27 @@ std::string testSeedCallsign(const std::string &dataDir, const std::string &call
 /** QR code for text: rows of '0'/'1' joined by '\n', no quiet zone ('' if it doesn't fit). */
 std::string qrMatrix(const std::string &text);
 
+// ---- Settings.cpp ----
+/** Saved settings (<dataDir>/vega-settings.json). */
+struct VegaSettings {
+  bool lanAccess = false;
+  std::string mdnsName = kDefaultMdnsName;  // DNS label; the responder adds -2, -3... on conflict
+  std::string backend = kDefaultBackend;    // host:port
+  int overscan = 0;                         // screen safe margin in percent: 0, 3 or 5 (app only)
+};
+/** Trim, lower-case, drop ".local"; '' becomes the default. Returns '' or a message for the user. */
+std::string normalizeMdnsName(std::string &name);
+/** Trim; '' becomes the default; ":80" is added if no port. Returns '' or a message for the user. */
+std::string normalizeBackend(std::string &backend);
+bool validOverscan(int pct);
+std::string settingsJson(const VegaSettings &s);
+/** Merge a flat JSON object into s. strict: any bad field rejects all; else bad fields are skipped. */
+std::string mergeSettingsJson(const std::string &json, VegaSettings &s, bool strict);
+/** Read the file (defaults if missing); migrates vega-lan-access. note: what happened, or ''. */
+VegaSettings loadSettings(const std::string &dataDir, std::string &note);
+/** Atomic write. Returns '' or an error. */
+std::string saveSettings(const std::string &dataDir, const VegaSettings &s);
+
 // ---- MdnsResponder.cpp ----
 /** Start the responder thread once; it advertises while mdnsWanted() is true. */
 void startMdnsResponder();
@@ -103,6 +133,14 @@ public:
   std::string restart(const EngineOptions *opts);
   /** Change bind policy; restarts if running. */
   void setLanAccess(bool on);
+  /** Saved settings as JSON (loads them if the engine hasn't started yet). */
+  std::string settings();
+  /**
+   * Change some settings (flat JSON with any of lanAccess, mdnsName, backend, overscan) and save
+   * them. A LAN or backend change restarts a running engine; a name change makes the mDNS
+   * responder probe the new name. Returns '' or a message for the user (nothing is changed).
+   */
+  std::string updateSettings(const std::string &json);
 
   std::string statusJson();
   std::string logTail(size_t maxBytes);
@@ -113,8 +151,9 @@ public:
   void noteListening(int port);
   void noteRejected(const std::string &peer);
   void noteEvent(const std::string &msg);
-  /** True while LAN access is on and the engine supervisor is alive; port = live web port. */
-  bool mdnsWanted(int &port) const;
+  /** True while LAN access is on and the engine supervisor is alive; port = live web port,
+   *  name = the configured mDNS host name base. */
+  bool mdnsWanted(int &port, std::string &name) const;
   /** Called on the engine thread by exit()/ESP.restart()/stop hook. Ends the thread. */
   [[noreturn]] void endEngineThread(int exitCode, std::vector<std::string> *restartArgs);
 

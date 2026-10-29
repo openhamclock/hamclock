@@ -20,6 +20,13 @@ export interface HcEngine extends KeplerTurboModule {
   getLogTail: (maxBytes: number) => string;
   /** QR code for text: rows of '0'/'1' (1 = dark) joined by '\n', no quiet zone; '' if too long. */
   qrMatrix: (text: string) => string;
+  /** Saved settings (VegaSettings) as JSON, from <dataDir>/vega-settings.json. */
+  getSettings: () => string;
+  /**
+   * Change and save some settings (partial VegaSettings JSON). LAN or backend changes restart a
+   * running engine; a name change re-probes mDNS. Returns '' or a message for the user.
+   */
+  updateSettings: (settingsJson: string) => string;
 }
 
 export default TurboModuleRegistry.getEnforcing<HcEngine>('HcEngine');

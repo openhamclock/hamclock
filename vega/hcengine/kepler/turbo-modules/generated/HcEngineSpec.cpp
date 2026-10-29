@@ -25,6 +25,8 @@ void HcEngineSpec::aggregateMethods(MethodAggregator<KeplerTurboModule>& methodA
   methodAggregator.addMethod("getStatus", &HcEngineSpec::getStatus);
   methodAggregator.addMethod("getLogTail", &HcEngineSpec::getLogTail);
   methodAggregator.addMethod("qrMatrix", &HcEngineSpec::qrMatrix);
+  methodAggregator.addMethod("getSettings", &HcEngineSpec::getSettings);
+  methodAggregator.addMethod("updateSettings", &HcEngineSpec::updateSettings);
 }
 
 } // namespace HcEngineTurboModule

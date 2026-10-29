@@ -1,22 +1,21 @@
 /**
  * App-side access to the embedded HamClock engine (@openhamclock/hcengine).
  */
-import {HcEngine} from '@openhamclock/hcengine';
-import type {EngineOptions, EngineState, EngineStatus} from '@openhamclock/hcengine';
+import {DEFAULT_BACKEND, DEFAULT_MDNS_NAME, HcEngine} from '@openhamclock/hcengine';
+import type {EngineOptions, EngineState, EngineStatus, VegaSettings} from '@openhamclock/hcengine';
 
-export {HcEngine};
-export type {EngineOptions, EngineState, EngineStatus};
+export {DEFAULT_BACKEND, DEFAULT_MDNS_NAME, HcEngine};
+export type {EngineOptions, EngineState, EngineStatus, VegaSettings};
 
 /**
- * Production defaults. The backend is user-configurable later (settings panel).
- * lanAccess is left out on purpose: the engine then uses the user's saved choice.
+ * Production defaults. lanAccess, backend and mdnsName are left out on purpose: the engine then
+ * uses the saved settings (<dataDir>/vega-settings.json; changed with HcEngine.updateSettings).
  * firstRunLanAccess: with no callsign stored, the engine turns LAN access on (and saves it)
  * before it binds, so the first-run screen's QR code works without a restart.
  * The app never seeds a callsign; the user enters it in HamClock's Setup.
  */
 export const DEFAULT_ENGINE_OPTIONS: EngineOptions = {
   dataDir: '/data/hamclock',
-  backend: 'ohb.hamclock.app:80',
   restPort: 8080,
   liveRwPort: 8081,
   firstRunLanAccess: true,

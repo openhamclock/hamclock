@@ -5,19 +5,33 @@
  * live.html on 127.0.0.1. This shell:
  *   - waits until the engine is listening on its live port, then shows live.html in a WebView;
  *   - shows a status card while starting, restarting or after an error;
- *   - gives a small native settings panel (Back or Menu) with LAN access, restart, exit.
- *     With LAN access on it shows the address to browse to from another device; the choice is
- *     saved by the engine and reused at the next launch.
+ *   - gives a native settings panel (Back or Menu) in two pages:
+ *       main: resume, LAN access, Setup HamClock, exit, plus the address and a QR code to open HamClock
+ *             from another device while LAN access is on;
+ *       settings: mDNS name, backend host, screen safe margin (overscan).
+ *     Settings are saved natively in <dataDir>/vega-settings.json (HcEngine.updateSettings).
+ *   - applies the screen safe margin inside the page (the clock canvas is fitted, see pageScript);
  *   - shows a first-run screen (QR code + address) while HamClock needs Setup, so the user can
  *     enter the callsign from a phone. It closes by itself once the engine reports Setup done.
+ *   QR codes always encode the IP URL (phones may not resolve .local); the .local URL is text.
  *
  * D-Pad: remote keys go to the page as DOM key events (allowSystemKeyEvents). KEY_ROUTER_JS
  * (injected) sends arrows/OK to live.html's virtual cursor and posts Back to this shell, because
  * with allowSystemKeyEvents Back reaches only the page. While a native overlay (first-run screen
  * or settings panel) is up, keys go to RN instead. The engine is started in index.js.
  */
-import React, {useCallback, useEffect, useMemo, useReducer, useRef, useState} from 'react';
-import {Animated, BackHandler, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions} from 'react-native';
+import React, {useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState} from 'react';
+import {
+  Animated,
+  BackHandler,
+  Keyboard,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import {TVFocusGuideView, useTVEventHandler} from '@amazon-devices/react-native-kepler';
 import type {HWEvent} from '@amazon-devices/react-native-kepler';
 import {WebView} from '@amazon-devices/webview';
@@ -26,8 +40,8 @@ import type {
   WebViewHttpErrorEvent,
   WebViewMessageEvent,
 } from '@amazon-devices/webview/dist/types/WebViewTypes';
-import {DEFAULT_ENGINE_OPTIONS, HcEngine, ensureEngineStarted} from './engine';
-import type {EngineStatus} from './engine';
+import {DEFAULT_BACKEND, DEFAULT_ENGINE_OPTIONS, DEFAULT_MDNS_NAME, HcEngine, ensureEngineStarted} from './engine';
+import type {EngineStatus, VegaSettings} from './engine';
 import {QrCode} from './QrCode';
 
 /* ────────────────────────────────────────────────────────────────────────── */
@@ -44,8 +58,17 @@ const WEB_RETRY_MS = 2_000;
  * Injected into live.html before its own scripts, so this capture-phase listener runs before the
  * page's keydown handler. live.html defines handleVirtualCursorMove/Click but leaves calling them
  * to the host app (the Android app does it from native key handling).
+ *
+ * It also fits the clock to the screen with the safe margin (overscan). live.html's initCanvas()
+ * only shrinks a clock larger than the window and centers a smaller one at its own size, and it
+ * runs again on every full frame, so the fit has to happen inside the page: initCanvas is wrapped
+ * (after the page's scripts ran) to scale the canvas to fit the window minus the margin, and to
+ * keep app_scale in step so the virtual cursor and touches still line up. Padding around the
+ * WebView in RN doesn't work: the Vega WebView surface doesn't follow the RN layout change.
+ * window.__hcSetOverscan(pct) changes the margin at run time.
  */
-const KEY_ROUTER_JS = `(function () {
+function pageScript(overscanPct: number): string {
+  return `(function () {
   var ARROWS = {ArrowUp: 1, ArrowDown: 1, ArrowLeft: 1, ArrowRight: 1};
   function post(m) { if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(m); }
   window.addEventListener('keydown', function (e) {
@@ -61,7 +84,46 @@ const KEY_ROUTER_JS = `(function () {
     post('key:' + k + ':' + c + (handled ? ':h' : ''));
     if (handled) { e.preventDefault(); e.stopImmediatePropagation(); }
   }, true);
+
+  window.__hcOverscan = ${Number(overscanPct) || 0};
+  function fit() {
+    var c = document.getElementById('hamclock-cvs');
+    if (!c || !c.width || !c.height) return;
+    var de = document.documentElement;
+    var p = Number(window.__hcOverscan) || 0;
+    var aw = (de.clientWidth || window.innerWidth) * (1 - p / 50);
+    var ah = (de.clientHeight || window.innerHeight) * (1 - p / 50);
+    var w, h;
+    if (aw * c.height > ah * c.width) { h = ah; w = ah * c.width / c.height; }
+    else { w = aw; h = aw * c.height / c.width; }
+    w = Math.round(w); h = Math.round(h);
+    c.style.position = 'absolute';
+    c.style.top = '50%';
+    c.style.left = '50%';
+    c.style.width = w + 'px';
+    c.style.height = h + 'px';
+    c.style.margin = (-Math.round(h / 2)) + 'px 0 0 ' + (-Math.round(w / 2)) + 'px';
+    app_scale = w / (typeof APP_W === 'number' ? APP_W : 800);
+    if (typeof updateVirtualCursorDom === 'function') updateVirtualCursorDom();
+  }
+  window.__hcSetOverscan = function (pct) { window.__hcOverscan = Number(pct) || 0; fit(); };
+  function hook() {
+    if (typeof window.initCanvas !== 'function' || window.initCanvas.__hcFit) return;
+    var orig = window.initCanvas;
+    var wrapped = function (w, h) { orig(w, h); fit(); };
+    wrapped.__hcFit = true;
+    window.initCanvas = wrapped;
+    fit();
+  }
+  document.addEventListener('DOMContentLoaded', hook);
+  window.addEventListener('load', hook);
 })(); true;`;
+}
+
+/** Change the safe margin in a page that is already loaded. */
+function overscanJs(pct: number): string {
+  return `if (typeof window.__hcSetOverscan === 'function') window.__hcSetOverscan(${Number(pct) || 0}); true;`;
+}
 
 // 1080p TV design grid
 const TV_DESIGN_W = 1920;
@@ -80,6 +142,8 @@ export type Lifecycle =
   | 'STOPPED' // engine stopped or exited on its own
   | 'ERROR';
 
+export type PanelPage = 'main' | 'settings';
+
 interface AppState {
   lifecycle: Lifecycle;
   status: EngineStatus | null;
@@ -88,6 +152,7 @@ interface AppState {
   webError: string | null;
   webLoaded: boolean;
   settingsOpen: boolean;
+  panelPage: PanelPage;
   /** The user chose "Set up on this TV instead" on the first-run screen (this launch only). */
   setupOnTv: boolean;
 }
@@ -95,12 +160,13 @@ interface AppState {
 type AppEvent =
   | {type: 'ENGINE_STATUS'; status: EngineStatus}
   | {type: 'ENGINE_ERROR'; message: string}
-  | {type: 'RESTART_REQUESTED'}
+  | {type: 'RESTART_REQUESTED'; keepPanel?: boolean}
   | {type: 'WEB_LOADED'}
   | {type: 'WEB_ERROR'; message: string}
   | {type: 'WEB_RELOAD'}
   | {type: 'OPEN_SETTINGS'}
   | {type: 'CLOSE_SETTINGS'}
+  | {type: 'PANEL_PAGE'; page: PanelPage}
   | {type: 'SETUP_ON_TV'};
 
 const initialState: AppState = {
@@ -110,6 +176,7 @@ const initialState: AppState = {
   webError: null,
   webLoaded: false,
   settingsOpen: false,
+  panelPage: 'main',
   setupOnTv: false,
 };
 
@@ -155,7 +222,12 @@ function lifecycleReducer(s: AppState, e: AppEvent): AppState {
     case 'ENGINE_ERROR':
       return {...s, lifecycle: 'ERROR', webError: e.message};
     case 'RESTART_REQUESTED':
-      return {...s, lifecycle: 'RESTARTING', settingsOpen: false, webLoaded: false};
+      return {
+        ...s,
+        lifecycle: 'RESTARTING',
+        settingsOpen: e.keepPanel ? s.settingsOpen : false,
+        webLoaded: false,
+      };
     case 'WEB_LOADED':
       return {...s, webLoaded: true, webError: null};
     case 'WEB_ERROR':
@@ -163,9 +235,11 @@ function lifecycleReducer(s: AppState, e: AppEvent): AppState {
     case 'WEB_RELOAD':
       return {...s, webGeneration: s.webGeneration + 1, webError: null, webLoaded: false};
     case 'OPEN_SETTINGS':
-      return {...s, settingsOpen: true};
+      return {...s, settingsOpen: true, panelPage: 'main'};
     case 'CLOSE_SETTINGS':
       return {...s, settingsOpen: false};
+    case 'PANEL_PAGE':
+      return {...s, panelPage: e.page};
     case 'SETUP_ON_TV':
       return {...s, setupOnTv: true};
   }
@@ -247,8 +321,10 @@ function FocusButton(props: {
   metrics: TvMetrics;
   preferred?: boolean;
   tone?: 'default' | 'danger';
+  /** Toggle/choice state: amber outline while not focused. */
+  selected?: boolean;
 }) {
-  const {label, onPress, metrics: m, preferred, tone = 'default'} = props;
+  const {label, onPress, metrics: m, preferred, tone = 'default', selected} = props;
   const [focused, setFocused] = useState(false);
   return (
     <TouchableOpacity
@@ -260,6 +336,7 @@ function FocusButton(props: {
       style={[
         styles.button,
         {paddingVertical: 20 * m.dp, paddingHorizontal: 32 * m.dp, borderRadius: 14 * m.dp, marginTop: 16 * m.dp},
+        selected && styles.buttonSelected,
         focused && (tone === 'danger' ? styles.buttonFocusedDanger : styles.buttonFocused),
         focused && {transform: [{scale: 1.04}]},
       ]}>
@@ -275,6 +352,22 @@ function lanUrls(s: EngineStatus): {mdnsUrl: string | null; ipUrls: string[]} {
   const mdnsUrl = s.mdnsState === 'announced' && s.mdnsHost ? `http://${s.mdnsHost}:${s.liveRwPort}/live.html` : null;
   const ipUrls = (s.lanAddresses ?? []).map(a => `http://${a}:${s.liveRwPort}/live.html`);
   return {mdnsUrl, ipUrls};
+}
+
+/** The URL QR codes encode: always the first IP URL (decision 4), never .local. */
+function qrUrlFor(s: EngineStatus | null): string | null {
+  return s?.lanAccess ? lanUrls(s).ipUrls[0] ?? null : null;
+}
+
+function useQrMatrix(url: string | null): boolean[][] {
+  return useMemo(() => {
+    if (!url) return [];
+    try {
+      return HcEngine.qrMatrix(url);
+    } catch {
+      return [];
+    }
+  }, [url]);
 }
 
 /** A slowly pulsing dot for "waiting" status lines. */
@@ -307,15 +400,8 @@ function FirstRunScreen(props: {state: AppState; metrics: TvMetrics; dispatch: R
   const {state, metrics: m, dispatch} = props;
   const s = state.status;
   const {mdnsUrl, ipUrls} = s ? lanUrls(s) : {mdnsUrl: null, ipUrls: []};
-  const qrUrl = s?.lanAccess ? mdnsUrl ?? ipUrls[0] ?? null : null;
-  const matrix = useMemo(() => {
-    if (!qrUrl) return [];
-    try {
-      return HcEngine.qrMatrix(qrUrl);
-    } catch {
-      return [];
-    }
-  }, [qrUrl]);
+  const qrUrl = qrUrlFor(s);
+  const matrix = useQrMatrix(qrUrl);
   const ready = state.lifecycle === 'READY';
   const qrSize = 560 * m.dp;
 
@@ -410,39 +496,62 @@ function FirstRunScreen(props: {state: AppState; metrics: TvMetrics; dispatch: R
   );
 }
 
+/** QR code of the IP URL on a white card, or a short note when there's nothing to encode. */
+function LanQr({url, size, metrics: m}: {url: string | null; size: number; metrics: TvMetrics}) {
+  const matrix = useQrMatrix(url);
+  const pad = Math.round(size * 0.06);
+  return (
+    <View style={[styles.qrFrame, {width: size + 2 * pad, height: size + 2 * pad, borderRadius: 20 * m.dp}]}>
+      {matrix.length > 0 ? (
+        <QrCode matrix={matrix} size={size} />
+      ) : (
+        <Text style={[styles.qrPlaceholder, {fontSize: 22 * m.dp}]}>No network address yet</Text>
+      )}
+    </View>
+  );
+}
+
 /** Where to browse from another device (LAN access on), or what LAN access does (off). */
 function LanInfo({status: s, metrics: m}: {status: EngineStatus | null; metrics: TvMetrics}) {
   if (!s) return null;
   if (!s.lanAccess) {
     return (
-      <Text style={[styles.panelMeta, {fontSize: 22 * m.dp, marginTop: 16 * m.dp}]}>
-        Turn on LAN access to open HamClock from a computer or phone on your home network.
-      </Text>
+      <View style={[styles.lanBoxOff, {padding: 28 * m.dp, borderRadius: 18 * m.dp}]}>
+        <Text style={[styles.sectionTitle, {fontSize: 28 * m.dp}]}>LAN access is off</Text>
+        <Text style={[styles.panelMeta, {fontSize: 24 * m.dp, marginTop: 12 * m.dp}]}>
+          Turn it on to open HamClock from a phone, tablet or computer on your home network, for
+          example to change HamClock’s settings with a keyboard.
+        </Text>
+      </View>
     );
   }
-  const addrs = s.lanAddresses ?? [];
-  const {mdnsUrl} = lanUrls(s);
+  const {mdnsUrl, ipUrls} = lanUrls(s);
   return (
-    <View style={[styles.lanBox, {marginTop: 20 * m.dp, padding: 20 * m.dp, borderRadius: 14 * m.dp}]}>
-      <Text style={[styles.panelMeta, {fontSize: 22 * m.dp}]}>On a computer or phone on your network, open:</Text>
-      {mdnsUrl && (
-        <Text style={[styles.lanUrl, {fontSize: 28 * m.dp, marginTop: 8 * m.dp}]}>{mdnsUrl}</Text>
-      )}
-      {addrs.length > 0 ? (
-        addrs.map(a => (
+    <View style={[styles.lanBox, styles.lanBoxCol, {padding: 24 * m.dp, borderRadius: 18 * m.dp}]}>
+      <Text style={[styles.panelMeta, {fontSize: 24 * m.dp}]}>Scan, or open on a phone or computer:</Text>
+      <View style={{marginTop: 16 * m.dp}}>
+        <LanQr url={qrUrlFor(s)} size={300 * m.dp} metrics={m} />
+      </View>
+      {mdnsUrl && <Text style={[styles.lanUrl, styles.textCenter, {fontSize: 28 * m.dp, marginTop: 18 * m.dp}]}>{mdnsUrl}</Text>}
+      {ipUrls.length > 0 ? (
+        ipUrls.map((u, i) => (
           <Text
-            key={a}
-            style={[mdnsUrl ? styles.lanUrlAlt : styles.lanUrl, {fontSize: (mdnsUrl ? 24 : 28) * m.dp, marginTop: 8 * m.dp}]}>
-            {`${mdnsUrl ? 'or ' : ''}http://${a}:${s.liveRwPort}/live.html`}
+            key={u}
+            style={[
+              mdnsUrl ? styles.lanUrlAlt : styles.lanUrl,
+              styles.textCenter,
+              {fontSize: (mdnsUrl ? 24 : 28) * m.dp, marginTop: (mdnsUrl || i > 0 ? 6 : 18) * m.dp},
+            ]}>
+            {`${mdnsUrl ? 'or ' : ''}${u}`}
           </Text>
         ))
       ) : (
-        <Text style={[styles.lanNoAddr, {fontSize: 24 * m.dp, marginTop: 8 * m.dp}]}>
-          No network address found. Check the TV's network connection.
+        <Text style={[styles.lanNoAddr, styles.textCenter, {fontSize: 24 * m.dp, marginTop: 18 * m.dp}]}>
+          No network address found. Check the TV’s network connection.
         </Text>
       )}
       {s.rejectedConnections > 0 && (
-        <Text style={[styles.panelMeta, {fontSize: 20 * m.dp, marginTop: 8 * m.dp}]}>
+        <Text style={[styles.panelMeta, styles.textCenter, {fontSize: 20 * m.dp, marginTop: 10 * m.dp}]}>
           {`Refused ${s.rejectedConnections} connection${s.rejectedConnections === 1 ? '' : 's'} from outside your network.`}
         </Text>
       )}
@@ -450,32 +559,306 @@ function LanInfo({status: s, metrics: m}: {status: EngineStatus | null; metrics:
   );
 }
 
-function SettingsPanel(props: {
+/** Applies a settings change; returns '' or a message for the user. */
+type UpdateSettings = (changes: Partial<VegaSettings>) => string;
+
+function PanelMain(props: {
   state: AppState;
   metrics: TvMetrics;
   dispatch: React.Dispatch<AppEvent>;
+  update: UpdateSettings;
 }) {
-  const {state, metrics: m, dispatch} = props;
+  const {state, metrics: m, dispatch, update} = props;
   const s = state.status;
   const lan = s?.lanAccess ?? false;
-  const close = () => dispatch({type: 'CLOSE_SETTINGS'});
+  const [error, setError] = useState('');
 
-  const restartWith = (lanAccess: boolean) => {
+  // Restart straight into HamClock's Setup page (engine arg -u, this run only).
+  const openSetup = () => {
     dispatch({type: 'RESTART_REQUESTED'});
+    const opts = {...DEFAULT_ENGINE_OPTIONS, openSetup: true};
     try {
-      if (s && (s.state === 'running' || s.state === 'starting')) {
-        HcEngine.restart({...DEFAULT_ENGINE_OPTIONS, lanAccess});
-      } else {
-        HcEngine.start({...DEFAULT_ENGINE_OPTIONS, lanAccess});
-      }
+      if (s && (s.state === 'running' || s.state === 'starting')) HcEngine.restart(opts);
+      else HcEngine.start(opts);
     } catch (err) {
       dispatch({type: 'ENGINE_ERROR', message: String(err)});
     }
   };
 
   return (
+    <View style={styles.panelRow}>
+      <View style={{width: 440 * m.dp}}>
+        <Text style={[styles.panelTitle, {fontSize: 44 * m.dp}]}>HamClock</Text>
+        <Text style={[styles.panelMeta, {fontSize: 24 * m.dp, marginTop: 8 * m.dp}]}>
+          {s ? `Engine ${s.state}` : 'Engine unknown'}
+          {s?.version ? `  ·  v${s.version}` : ''}
+        </Text>
+        <Text style={[styles.panelMeta, {fontSize: 22 * m.dp, marginTop: 4 * m.dp}]}>
+          {s ? `Live :${s.liveRwPort}  ·  REST :${s.restPort}` : ''}
+          {lan ? '  ·  LAN on' : '  ·  loopback only'}
+        </Text>
+        <View style={{height: 20 * m.dp}} />
+        <FocusButton metrics={m} label="Resume clock" onPress={() => dispatch({type: 'CLOSE_SETTINGS'})} preferred />
+        <FocusButton
+          metrics={m}
+          label={lan ? 'LAN access: On' : 'LAN access: Off'}
+          selected={lan}
+          onPress={() => setError(update({lanAccess: !lan}))}
+        />
+        <FocusButton metrics={m} label="Settings…" onPress={() => dispatch({type: 'PANEL_PAGE', page: 'settings'})} />
+        <FocusButton metrics={m} label="Setup HamClock" onPress={openSetup} />
+        <FocusButton metrics={m} label="Exit app" onPress={() => BackHandler.exitApp()} tone="danger" />
+        {!!error && <Text style={[styles.fieldError, {fontSize: 22 * m.dp, marginTop: 12 * m.dp}]}>{error}</Text>}
+      </View>
+      <View style={[styles.panelSide, {marginLeft: 40 * m.dp}]}>
+        <LanInfo status={s} metrics={m} />
+      </View>
+    </View>
+  );
+}
+
+/** Result of the last edit of a field, kept in App so it survives the panel remount. */
+interface FieldNote {
+  error: string;
+  saved: boolean;
+  /** What the user typed, shown again when it was rejected. */
+  text: string;
+}
+
+/**
+ * Shared by the settings fields and App:
+ *   - cancelRef is set while a field is being edited; Back calls it to cancel the edit instead of
+ *     leaving the settings page;
+ *   - afterEdit() records the result and remounts the panel's focus guide (panelGen) with focus on
+ *     that field (lastEdited). Removing the focused TextInput leaves Vega's focus engine stuck on
+ *     the field (keys arrive, focus never moves); a fresh guide, as on a page switch, works.
+ */
+interface FieldCtx {
+  cancelRef: React.MutableRefObject<(() => void) | null>;
+  notes: Record<string, FieldNote>;
+  lastEdited: string | null;
+  panelGen: number;
+  afterEdit: (label: string, note: FieldNote | null) => void;
+}
+const FieldContext = React.createContext<FieldCtx | null>(null);
+
+/**
+ * A labelled text setting. On a TV a focused TextInput opens the on-screen keyboard at once, which
+ * traps D-pad navigation; so the field is a plain focusable button showing the value, and the
+ * TextInput is mounted (autoFocus, keyboard up) only after OK. Done saves. Back cancels: the TV
+ * keyboard takes Back itself and just blurs the input, so a blur without Done means cancel. Focus
+ * then returns to the button (see FieldCtx).
+ */
+function SettingField(props: {
+  label: string;
+  value: string;
+  placeholder: string;
+  help: string;
+  suffix?: string;
+  metrics: TvMetrics;
+  onSave: (text: string) => string;
+}) {
+  const {label, value, placeholder, help, suffix, metrics: m, onSave} = props;
+  const ctx = useContext(FieldContext);
+  const note = ctx?.notes[label];
+  const shown = note?.error ? note.text : value;
+  const [text, setText] = useState(shown);
+  const [editing, setEditing] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const endedRef = useRef(true);
+  // Never leave a stale cancel hook behind.
+  useEffect(
+    () => () => {
+      if (ctx) ctx.cancelRef.current = null;
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
+  const finish = (how: 'save' | 'cancel', t: string) => {
+    if (endedRef.current) return; // Done fires submit and then blur: act once
+    endedRef.current = true;
+    if (ctx) ctx.cancelRef.current = null;
+    Keyboard.dismiss();
+    let next: FieldNote | null = note ?? null;
+    if (how === 'save') {
+      if (t.trim() === value) next = null;
+      else {
+        const err = onSave(t);
+        next = {error: err, saved: !err, text: t};
+      }
+    }
+    console.info(`[HCFIELD] ${label}: edit ${how}${next?.error ? ` (${next.error})` : ''}`);
+    setEditing(false);
+    ctx?.afterEdit(label, next);
+  };
+
+  const start = () => {
+    endedRef.current = false;
+    setText(shown);
+    setEditing(true);
+  };
+  // Back while editing (see App onBack). Reassigned each render so it sees the current text.
+  if (editing && ctx) ctx.cancelRef.current = () => finish('cancel', text);
+  // The first Back on the TV keyboard only hides it; the input keeps focus (so the D-pad can't
+  // leave it). Treat the keyboard closing as cancel; a Done arriving right after still wins.
+  const finishRef = useRef(finish);
+  finishRef.current = finish;
+  useEffect(() => {
+    if (!editing) return;
+    const sub = Keyboard.addListener('keyboardDidHide', () => {
+      setTimeout(() => finishRef.current('cancel', ''), 200);
+    });
+    return () => sub.remove();
+  }, [editing]);
+
+  const boxStyle = [
+    styles.textInput,
+    {paddingVertical: 14 * m.dp, paddingHorizontal: 22 * m.dp, borderRadius: 12 * m.dp},
+    {width: (suffix ? 560 : 700) * m.dp},
+    (focused || editing) && styles.textInputFocused,
+  ];
+
+  return (
+    <View style={{marginTop: 26 * m.dp}}>
+      <Text style={[styles.sectionTitle, {fontSize: 28 * m.dp}]}>{label}</Text>
+      <View style={[styles.stepRow, {marginTop: 10 * m.dp}]}>
+        {editing ? (
+          <TextInput
+            autoFocus
+            value={text}
+            placeholder={placeholder}
+            placeholderTextColor={C.muted}
+            onChangeText={t => setText(t)}
+            onBlur={() => setTimeout(() => finish('cancel', text), 200)}
+            onSubmitEditing={e => finish('save', e.nativeEvent.text)}
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="done"
+            blurOnSubmit
+            style={[boxStyle, styles.textInputText, {fontSize: 30 * m.dp}]}
+          />
+        ) : (
+          <TouchableOpacity
+            hasTVPreferredFocus={ctx?.lastEdited === label}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            onPress={start}
+            activeOpacity={0.85}
+            style={boxStyle}>
+            <Text style={[shown ? styles.textInputText : styles.panelMeta, {fontSize: 30 * m.dp}]} numberOfLines={1}>
+              {shown || placeholder}
+            </Text>
+          </TouchableOpacity>
+        )}
+        {suffix && <Text style={[styles.lanUrlAlt, {fontSize: 30 * m.dp, marginLeft: 12 * m.dp}]}>{suffix}</Text>}
+      </View>
+      {note?.error ? (
+        <Text style={[styles.fieldError, {fontSize: 22 * m.dp, marginTop: 8 * m.dp}]}>{note.error}</Text>
+      ) : (
+        <Text style={[styles.panelMeta, {fontSize: 22 * m.dp, marginTop: 8 * m.dp}]}>
+          {note?.saved ? 'Saved. ' : ''}
+          {focused && !editing ? 'Press OK to edit. ' : ''}
+          {help}
+        </Text>
+      )}
+    </View>
+  );
+}
+
+const OVERSCAN_CHOICES: {pct: VegaSettings['overscan']; label: string}[] = [
+  {pct: 0, label: 'None'},
+  {pct: 3, label: 'Normal (3%)'},
+  {pct: 5, label: 'Large (5%)'},
+];
+
+function PanelSettings(props: {
+  state: AppState;
+  settings: VegaSettings | null;
+  metrics: TvMetrics;
+  dispatch: React.Dispatch<AppEvent>;
+  update: UpdateSettings;
+}) {
+  const {state, settings, metrics: m, dispatch, update} = props;
+  const fieldCtx = useContext(FieldContext);
+  const s = state.status;
+  const name = settings?.mdnsName ?? DEFAULT_MDNS_NAME;
+  const backend = settings?.backend ?? DEFAULT_BACKEND;
+  const overscan = settings?.overscan ?? 0;
+  const announced = s?.mdnsState === 'announced' ? s.mdnsHost : '';
+  let nameHelp = `Other devices can open http://${name}.local:${s?.liveRwPort ?? 8081}/live.html.`;
+  if (!s?.lanAccess) nameHelp = 'Used while LAN access is on.';
+  else if (announced && announced !== `${name}.local`) nameHelp = `That name is taken on your network, so this TV uses ${announced}.`;
+  else if (s?.mdnsState === 'probing') nameHelp = `Checking that ${name}.local is free…`;
+
+  return (
+    <View>
+      <Text style={[styles.panelTitle, {fontSize: 44 * m.dp}]}>Settings</Text>
+      <Text style={[styles.panelMeta, {fontSize: 24 * m.dp, marginTop: 8 * m.dp}]}>
+        Saved on this TV. Press Back to return.
+      </Text>
+
+      <SettingField
+        label="Network name"
+        value={name}
+        placeholder={DEFAULT_MDNS_NAME}
+        suffix=".local"
+        help={nameHelp}
+        metrics={m}
+        onSave={t => update({mdnsName: t})}
+      />
+      <SettingField
+        label="Backend server (host:port)"
+        value={backend}
+        placeholder={DEFAULT_BACKEND}
+        help={`Where HamClock gets its data. Leave empty for ${DEFAULT_BACKEND}. Saving restarts HamClock.`}
+        metrics={m}
+        onSave={t => update({backend: t})}
+      />
+
+      <View style={{marginTop: 26 * m.dp}}>
+        <Text style={[styles.sectionTitle, {fontSize: 28 * m.dp}]}>Screen safe margin</Text>
+        <View style={[styles.stepRow, {columnGap: 16 * m.dp}]}>
+          {OVERSCAN_CHOICES.map(c => (
+            <FocusButton
+              key={c.pct}
+              metrics={m}
+              label={c.label}
+              selected={overscan === c.pct}
+              onPress={() => update({overscan: c.pct})}
+            />
+          ))}
+        </View>
+        <Text style={[styles.panelMeta, {fontSize: 22 * m.dp, marginTop: 8 * m.dp}]}>
+          Shrinks the clock if your TV cuts off its edges.
+        </Text>
+      </View>
+
+      <View style={[styles.stepRow, {marginTop: 20 * m.dp}]}>
+        <FocusButton
+          metrics={m}
+          label="Back"
+          onPress={() => dispatch({type: 'PANEL_PAGE', page: 'main'})}
+          preferred={!fieldCtx?.lastEdited}
+        />
+      </View>
+    </View>
+  );
+}
+
+function SettingsPanel(props: {
+  state: AppState;
+  settings: VegaSettings | null;
+  metrics: TvMetrics;
+  dispatch: React.Dispatch<AppEvent>;
+  update: UpdateSettings;
+}) {
+  const {state, metrics: m} = props;
+  const fieldCtx = useContext(FieldContext);
+  return (
     <View style={styles.backdrop}>
       <TVFocusGuideView
+        key={`${state.panelPage}:${fieldCtx?.panelGen ?? 0}`}
         autoFocus
         trapFocusUp
         trapFocusDown
@@ -483,27 +866,9 @@ function SettingsPanel(props: {
         trapFocusRight
         style={[
           styles.panel,
-          {width: 680 * m.dp, right: m.safeX, top: m.safeY, bottom: m.safeY, padding: 40 * m.dp, borderRadius: 24 * m.dp},
+          {width: 1120 * m.dp, right: m.safeX, top: m.safeY, bottom: m.safeY, padding: 40 * m.dp, borderRadius: 24 * m.dp},
         ]}>
-        <Text style={[styles.panelTitle, {fontSize: 44 * m.dp}]}>HamClock</Text>
-        <Text style={[styles.panelMeta, {fontSize: 24 * m.dp, marginTop: 8 * m.dp}]}>
-          {s ? `Engine ${s.state}` : 'Engine unknown'}
-          {s?.version ? `  ·  v${s.version}` : ''}
-        </Text>
-        <Text style={[styles.panelMeta, {fontSize: 24 * m.dp, marginTop: 4 * m.dp}]}>
-          {s ? `Live :${s.liveRwPort}  ·  REST :${s.restPort}` : ''}
-          {lan ? '  ·  LAN on' : '  ·  loopback only'}
-        </Text>
-        <LanInfo status={s} metrics={m} />
-        <View style={{height: 16 * m.dp}} />
-        <FocusButton metrics={m} label="Resume clock" onPress={close} preferred />
-        <FocusButton
-          metrics={m}
-          label={lan ? 'LAN access: On' : 'LAN access: Off'}
-          onPress={() => restartWith(!lan)}
-        />
-        <FocusButton metrics={m} label="Restart HamClock" onPress={() => restartWith(lan)} />
-        <FocusButton metrics={m} label="Exit app" onPress={() => BackHandler.exitApp()} tone="danger" />
+        {state.panelPage === 'settings' ? <PanelSettings {...props} /> : <PanelMain {...props} />}
       </TVFocusGuideView>
     </View>
   );
@@ -516,8 +881,33 @@ function SettingsPanel(props: {
 export const App = () => {
   const [state, dispatch] = useReducer(lifecycleReducer, initialState);
   const metrics = useTvMetrics();
-  const settingsOpenRef = useRef(state.settingsOpen);
-  settingsOpenRef.current = state.settingsOpen;
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  const webRef = useRef<{injectJavaScript: (js: string) => void} | null>(null);
+  const [settings, setSettings] = useState<VegaSettings | null>(null);
+  const editCancelRef = useRef<(() => void) | null>(null);
+  const [fieldNotes, setFieldNotes] = useState<Record<string, FieldNote>>({});
+  const [lastEdited, setLastEdited] = useState<string | null>(null);
+  const [panelGen, setPanelGen] = useState(0);
+  const afterEdit = useCallback((label: string, note: FieldNote | null) => {
+    setFieldNotes(n => {
+      const next = {...n};
+      if (note) next[label] = note;
+      else delete next[label];
+      return next;
+    });
+    setLastEdited(label);
+    setPanelGen(g => g + 1);
+  }, []);
+  // A new page (or closing the panel) starts with no notes and normal preferred focus.
+  useEffect(() => {
+    setFieldNotes({});
+    setLastEdited(null);
+  }, [state.settingsOpen, state.panelPage]);
+  const fieldCtx = useMemo<FieldCtx>(
+    () => ({cancelRef: editCancelRef, notes: fieldNotes, lastEdited, panelGen, afterEdit}),
+    [fieldNotes, lastEdited, panelGen, afterEdit],
+  );
 
   // index.js normally starts the engine; make sure it's running if the app was resumed after a stop.
   useEffect(() => {
@@ -529,6 +919,49 @@ export const App = () => {
   }, []);
 
   useEngineStatus(state.lifecycle, dispatch);
+
+  // Saved settings: read at start, and again when the engine reports a change (e.g. first-run
+  // LAN on, or a name/backend change saved from here).
+  const refreshSettings = useCallback(() => {
+    try {
+      setSettings(HcEngine.getSettings());
+    } catch (err) {
+      console.warn(`[HCSET] getSettings failed: ${String(err)}`);
+    }
+  }, []);
+  useEffect(refreshSettings, [refreshSettings, state.status?.lanAccess, state.status?.mdnsName, state.status?.backend]);
+  const settingsSummary = settings ? JSON.stringify(settings) : '';
+  useEffect(() => {
+    if (settingsSummary) console.info(`[HCSET] ${settingsSummary}`);
+  }, [settingsSummary]);
+
+  const updateSettings = useCallback(
+    (changes: Partial<VegaSettings>): string => {
+      const st = stateRef.current.status;
+      const before = {lan: st?.lanAccess, backend: st?.backend};
+      let err = '';
+      try {
+        err = HcEngine.updateSettings(changes);
+      } catch (x) {
+        err = String(x);
+      }
+      if (err) return err;
+      let next: VegaSettings | null = null;
+      try {
+        next = HcEngine.getSettings();
+        setSettings(next);
+      } catch {
+        /* polled again below */
+      }
+      const running = st && (st.state === 'running' || st.state === 'starting');
+      if (running && next && (next.lanAccess !== before.lan || next.backend !== before.backend)) {
+        // The engine restarts; keep the panel open for LAN (to show the QR), close it for backend.
+        dispatch({type: 'RESTART_REQUESTED', keepPanel: next.backend === before.backend});
+      }
+      return '';
+    },
+    [],
+  );
 
   // Diagnostics: log LAN state changes to the device log (native stderr doesn't reach it).
   const lanSummary = state.status
@@ -553,22 +986,39 @@ export const App = () => {
   }, [state.webError, state.lifecycle]);
 
   const toggleSettings = useCallback(() => {
-    dispatch({type: settingsOpenRef.current ? 'CLOSE_SETTINGS' : 'OPEN_SETTINGS'});
+    dispatch({type: stateRef.current.settingsOpen ? 'CLOSE_SETTINGS' : 'OPEN_SETTINGS'});
   }, []);
 
-  // Back: close the settings panel if open, otherwise open it (it has "Exit app").
+  // Back: settings page -> main page; otherwise close the panel if open, or open it (it has "Exit app").
+  const onBack = useCallback(() => {
+    const st = stateRef.current;
+    if (editCancelRef.current) editCancelRef.current(); // Back while typing: cancel the edit only
+    else if (st.settingsOpen && st.panelPage === 'settings') dispatch({type: 'PANEL_PAGE', page: 'main'});
+    else toggleSettings();
+  }, [toggleSettings]);
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      toggleSettings();
+      onBack();
       return true;
     });
     return () => sub.remove();
-  }, [toggleSettings]);
+  }, [onBack]);
 
   // Menu key also toggles the settings panel.
   useTVEventHandler((evt: HWEvent) => {
     if (evt?.eventType === 'menu' && evt.eventKeyAction === 0) toggleSettings();
   });
+
+  // Screen safe margin: fitted inside the page (see pageScript). The value at mount goes into the
+  // script injected before load, so the first frame is already fitted; changes are pushed live.
+  const overscan = settings?.overscan ?? 0;
+  const overscanRef = useRef(overscan);
+  overscanRef.current = overscan;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const injectedJs = useMemo(() => pageScript(overscanRef.current), [state.webGeneration]);
+  useEffect(() => {
+    webRef.current?.injectJavaScript(overscanJs(overscan));
+  }, [overscan]);
 
   const s = state.status;
   const liveUri = s ? `http://${ENGINE_HOST}:${s.liveRwPort}/live.html` : null;
@@ -578,23 +1028,28 @@ export const App = () => {
   const webHasKeys = !state.settingsOpen && !firstRun;
 
   return (
+    <FieldContext.Provider value={fieldCtx}>
     <View style={styles.root}>
       {showWeb && (
         <WebView
           key={state.webGeneration}
+          ref={webRef as never}
           style={styles.webview}
           source={{uri: liveUri}}
           allowSystemKeyEvents={webHasKeys}
-          injectedJavaScriptBeforeContentLoaded={KEY_ROUTER_JS}
+          injectedJavaScriptBeforeContentLoaded={injectedJs}
           onMessage={(e: WebViewMessageEvent) => {
             const data = e.nativeEvent.data;
-            if (data === 'back') toggleSettings();
+            if (data === 'back') onBack();
             else console.info(`[HCWEB] ${data}`);
           }}
           hasTVPreferredFocus={webHasKeys}
           javaScriptEnabled
           domStorageEnabled
-          onLoad={() => dispatch({type: 'WEB_LOADED'})}
+          onLoad={() => {
+            dispatch({type: 'WEB_LOADED'});
+            webRef.current?.injectJavaScript(overscanJs(overscanRef.current));
+          }}
           onError={({nativeEvent: {code, description}}: WebViewErrorEvent) =>
             dispatch({type: 'WEB_ERROR', message: `${code}: ${description}`})
           }
@@ -609,8 +1064,11 @@ export const App = () => {
         </View>
       )}
       {firstRun && <FirstRunScreen state={state} metrics={metrics} dispatch={dispatch} />}
-      {state.settingsOpen && <SettingsPanel state={state} metrics={metrics} dispatch={dispatch} />}
+      {state.settingsOpen && (
+        <SettingsPanel state={state} settings={settings} metrics={metrics} dispatch={dispatch} update={updateSettings} />
+      )}
     </View>
+    </FieldContext.Provider>
   );
 };
 
@@ -634,6 +1092,7 @@ const styles = StyleSheet.create({
   root: {flex: 1, backgroundColor: C.bg},
   webview: {flex: 1, backgroundColor: '#000000'},
   center: {...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center'},
+  textCenter: {textAlign: 'center'},
 
   statusCard: {backgroundColor: C.panel, borderWidth: 1, borderColor: C.border, alignItems: 'center'},
   statusTitle: {color: C.text, fontWeight: '600', textAlign: 'center'},
@@ -644,9 +1103,23 @@ const styles = StyleSheet.create({
   panelTitle: {color: C.text, fontWeight: '700'},
   panelMeta: {color: C.muted},
   lanBox: {backgroundColor: 'rgba(255, 181, 71, 0.08)', borderWidth: 1, borderColor: 'rgba(255, 181, 71, 0.35)'},
+  lanBoxCol: {alignItems: 'center'},
+  lanBoxOff: {backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: C.border},
   lanUrl: {color: C.accent, fontWeight: '700'},
   lanUrlAlt: {color: C.text, fontWeight: '600'},
   lanNoAddr: {color: C.text},
+  panelRow: {flex: 1, flexDirection: 'row'},
+  panelSide: {flex: 1},
+  sectionTitle: {color: C.text, fontWeight: '700'},
+  fieldError: {color: C.danger, fontWeight: '600'},
+  textInput: {
+    color: C.text,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.18)',
+  },
+  textInputFocused: {borderColor: C.accent, backgroundColor: 'rgba(255, 181, 71, 0.10)'},
+  textInputText: {color: C.text},
 
   firstRunRoot: {...StyleSheet.absoluteFillObject, backgroundColor: C.bg, flexDirection: 'row', alignItems: 'center'},
   firstRunText: {flex: 1},
@@ -664,6 +1137,7 @@ const styles = StyleSheet.create({
   qrCaption: {textAlign: 'center'},
 
   button: {backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 2, borderColor: 'transparent'},
+  buttonSelected: {borderColor: C.accent},
   buttonFocused: {backgroundColor: C.accent, borderColor: '#fff'},
   buttonFocusedDanger: {backgroundColor: C.danger, borderColor: '#fff'},
   buttonText: {color: C.text, fontWeight: '600'},

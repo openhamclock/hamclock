@@ -43,4 +43,10 @@ std::string HcEngine::getLogTail(double maxBytes) {
 
 std::string HcEngine::qrMatrix(std::string text) { return hcengine::qrMatrix(text); }
 
+std::string HcEngine::getSettings() { return EngineHost::instance().settings(); }
+
+std::string HcEngine::updateSettings(std::string settingsJson) {
+  return EngineHost::instance().updateSettings(settingsJson);
+}
+
 }  // namespace HcEngineTurboModule

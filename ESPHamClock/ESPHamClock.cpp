@@ -36,6 +36,7 @@ SBox NCDXF_b = {738, 0, 62, PLOTBOX123_H};
 // common "skip" button in several places
 SBox skip_b    = {730,10,55,35};
 bool skip_skip;
+bool setup_now;                         // -u: open Setup at once, no "Click anywhere" countdown
 bool want_kbcursor;
 
 // special options to force initing DE using our IP or given IP
@@ -1936,6 +1937,17 @@ void tftMsg (bool verbose, uint32_t dwell_ms, const char *fmt, ...)
     static bool prev_hold;              // whether previous message stayed on row
     StackMalloc msg_buf(300);
     char *buf = (char *) msg_buf.getMem();
+
+#if defined(_IS_VEGA)
+    // the Vega app restarts hamclock_main in the same process: start each run at the top
+    extern unsigned vega_engine_run;
+    static unsigned msg_run;
+    if (msg_run != vega_engine_run) {
+        msg_run = vega_engine_run;
+        row = col = 0;
+        prev_hold = false;
+    }
+#endif
 
     // NULL fmt signals return to normal row advancing
     if (!fmt) {

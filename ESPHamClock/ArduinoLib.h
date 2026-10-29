@@ -190,6 +190,7 @@ extern int liveweb_to;
 extern const int liveweb_maxmax;
 extern int restful_port;
 extern bool skip_skip;
+extern bool setup_now;
 extern bool init_iploc;
 extern bool want_kbcursor;
 extern const char *init_locip;

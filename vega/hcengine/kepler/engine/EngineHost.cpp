@@ -2,6 +2,7 @@
  * EngineHost implementation. See EngineHost.h for the model.
  */
 #include "EngineHost.h"
+#include "FlatJson.h"
 
 #include <atomic>
 #include <cctype>
@@ -27,6 +28,11 @@ extern volatile bool hamclock_stop_requested;
 extern void (*hamclock_restart_hook)(char *argv[]);
 extern void (*hamclock_stop_hook)(void);
 extern const char *hc_version;
+
+// Run number of the current hamclock_main call (1, 2, …). HamClock code under _IS_VEGA reads it
+// to reset state kept in function statics, because a restart re-enters hamclock_main in the same
+// process (e.g. tftMsg's boot-message row/column). Set before the engine thread starts.
+unsigned vega_engine_run = 0;
 
 namespace hcengine {
 
@@ -55,6 +61,8 @@ int g_rejected = 0;                      // connections dropped by the LAN filte
 std::string g_lastRejected;
 int g_setup = -1;                        // -1 unknown, 0 Setup needed, 1 Setup done
 bool g_firstRunLanUsed = false;          // firstRunLanAccess applied (once per process)
+VegaSettings g_settings;                 // saved settings; source of truth for LAN and backend
+std::string g_settingsDir;               // data dir g_settings were loaded from ('' = not loaded)
 thread_local bool t_isEngine = false;
 
 // argv storage for the current run; hamclock keeps a pointer to it (our_argv).
@@ -123,25 +131,53 @@ void mkdirs(const std::string &path) {
   }
 }
 
-// ---- saved LAN access choice ----
-std::string lanFile(const std::string &dataDir) { return dataDir + "/vega-lan-access"; }
-
-bool readSavedLan(const std::string &dataDir) {
-  FILE *f = fopen(lanFile(dataDir).c_str(), "r");
-  if (!f) return false;
-  int c = fgetc(f);
-  fclose(f);
-  return c == '1';
+// ---- saved settings (caller holds mu) ----
+void ensureSettingsLoaded(const std::string &dataDir) {
+  if (g_settingsDir == dataDir) return;
+  mkdirs(dataDir);
+  std::string note;
+  g_settings = loadSettings(dataDir, note);
+  g_settingsDir = dataDir;
+  if (!note.empty()) event(note);
 }
 
-void saveLan(const std::string &dataDir, bool on) {  // caller holds mu
-  if (dataDir.empty()) return;
-  std::string path = lanFile(dataDir), tmp = path + ".tmp";
-  FILE *f = fopen(tmp.c_str(), "w");
-  if (!f) { event("can't save LAN setting: " + std::string(strerror(errno))); return; }
-  fputs(on ? "1\n" : "0\n", f);
-  fclose(f);
-  rename(tmp.c_str(), path.c_str());
+void persistSettings() {
+  std::string err = saveSettings(g_settingsDir, g_settings);
+  if (!err.empty()) event(err);
+}
+
+/** Options given explicitly override and update the saved settings. Returns '' or an error. */
+std::string applyOptionsToSettings(const EngineOptions &o) {
+  VegaSettings n = g_settings;
+  if (o.lanAccessSet) n.lanAccess = o.lanAccess;
+  if (!o.backend.empty()) {
+    std::string b = o.backend, e = normalizeBackend(b);
+    if (!e.empty()) return "backend: " + e;
+    n.backend = b;
+  }
+  if (!o.mdnsName.empty()) {
+    std::string m = o.mdnsName, e = normalizeMdnsName(m);
+    if (!e.empty()) return "mdnsName: " + e;
+    n.mdnsName = m;
+  }
+  g_settings = n;
+  return "";
+}
+
+/** g_opts and g_lan follow the settings. */
+void syncOptsFromSettings() {
+  g_lan = g_opts.lanAccess = g_settings.lanAccess;
+  g_opts.lanAccessSet = true;
+  g_opts.backend = g_settings.backend;
+  g_opts.mdnsName = g_settings.mdnsName;
+}
+
+// openSetup is one-shot: it shaped the args just built (-u); clear it so later restarts from
+// settings go straight to the clock. HamClock's own restarts drop -u in ESP::restart. Call under mu.
+void takeOpenSetup() {
+  if (!g_opts.openSetup) return;
+  g_opts.openSetup = false;
+  event("next run opens Setup");
 }
 
 // ---- engine hooks (run on the engine thread) ----
@@ -154,39 +190,6 @@ void restartHook(char *argv[]) {
 void stopHook() {
   if (EngineHost::instance().isEngineThread()) EngineHost::instance().endEngineThread(0, nullptr);
 }
-
-// ---- tiny JSON reader for flat EngineOptions objects ----
-struct Json {
-  const std::string &s;
-  size_t i = 0;
-  std::string err;
-  explicit Json(const std::string &str) : s(str) {}
-  void ws() { while (i < s.size() && isspace((unsigned char)s[i])) ++i; }
-  bool eat(char c) { ws(); if (i < s.size() && s[i] == c) { ++i; return true; } return false; }
-  bool str(std::string &out) {
-    ws();
-    if (i >= s.size() || s[i] != '"') return fail("expected string");
-    ++i;
-    out.clear();
-    while (i < s.size() && s[i] != '"') {
-      char c = s[i++];
-      if (c == '\\' && i < s.size()) {
-        char e = s[i++];
-        switch (e) {
-          case 'n': out += '\n'; break;
-          case 't': out += '\t'; break;
-          case 'r': out += '\r'; break;
-          case 'u': i += 4; out += '?'; break;  // not needed for options
-          default: out += e;
-        }
-      } else out += c;
-    }
-    if (i >= s.size()) return fail("unterminated string");
-    ++i;
-    return true;
-  }
-  bool fail(const char *m) { if (err.empty()) err = std::string(m) + " at " + std::to_string(i); return false; }
-};
 
 }  // namespace
 
@@ -204,63 +207,47 @@ const char *stateName(EngineState s) {
 }
 
 std::string parseOptions(const std::string &json, EngineOptions &o) {
-  if (json.empty()) return "";
-  Json j(json);
-  if (!j.eat('{')) return "options: expected object";
-  if (j.eat('}')) return "";
-  do {
-    std::string key;
-    if (!j.str(key) || !j.eat(':')) return "options: " + (j.err.empty() ? "expected ':'" : j.err);
-    j.ws();
-    char c = j.i < json.size() ? json[j.i] : 0;
-    if (c == '"') {
-      std::string v;
-      if (!j.str(v)) return "options: " + j.err;
-      if (key == "dataDir") o.dataDir = v;
-      else if (key == "backend") o.backend = v;
-      else if (key == "testSeedCallsign") o.testSeedCallsign = v;
-    } else if (c == '[') {
-      ++j.i;
-      std::vector<std::string> arr;
-      if (!j.eat(']')) {
-        do {
-          std::string v;
-          if (!j.str(v)) return "options: " + j.err;
-          arr.push_back(v);
-        } while (j.eat(','));
-        if (!j.eat(']')) return "options: expected ']'";
-      }
-      if (key == "extraArgs") o.extraArgs = arr;
-    } else if (json.compare(j.i, 4, "true") == 0 || json.compare(j.i, 5, "false") == 0) {
-      bool v = json[j.i] == 't';
-      j.i += v ? 4 : 5;
-      if (key == "lanAccess") { o.lanAccess = v; o.lanAccessSet = true; }
-      else if (key == "firstRunLanAccess") o.firstRunLanAccess = v;
-    } else if (json.compare(j.i, 4, "null") == 0) {
-      j.i += 4;
-    } else {
-      char *end = nullptr;
-      double v = strtod(json.c_str() + j.i, &end);
-      if (end == json.c_str() + j.i) return "options: bad value for " + key;
-      j.i = end - json.c_str();
-      if (key == "restPort") o.restPort = (int)v;
-      else if (key == "liveRwPort") o.liveRwPort = (int)v;
-      else if (key == "liveRoPort") o.liveRoPort = (int)v;
-      else if (key == "watchdogSec") o.watchdogSec = (int)v;
+  std::string err = parseFlatJson(json, [&](const std::string &key, const JsonValue &v) {
+    switch (v.type) {
+      case JsonValue::String:
+        if (key == "dataDir") o.dataDir = v.str;
+        else if (key == "backend") o.backend = v.str;
+        else if (key == "mdnsName") o.mdnsName = v.str;
+        else if (key == "testSeedCallsign") o.testSeedCallsign = v.str;
+        break;
+      case JsonValue::StringArray:
+        if (key == "extraArgs") o.extraArgs = v.arr;
+        break;
+      case JsonValue::Bool:
+        if (key == "lanAccess") { o.lanAccess = v.b; o.lanAccessSet = true; }
+        else if (key == "firstRunLanAccess") o.firstRunLanAccess = v.b;
+        else if (key == "openSetup") o.openSetup = v.b;
+        break;
+      case JsonValue::Number:
+        if (key == "restPort") o.restPort = (int)v.num;
+        else if (key == "liveRwPort") o.liveRwPort = (int)v.num;
+        else if (key == "liveRoPort") o.liveRoPort = (int)v.num;
+        else if (key == "watchdogSec") o.watchdogSec = (int)v.num;
+        break;
+      case JsonValue::Null:
+        break;
     }
-  } while (j.eat(','));
-  if (!j.eat('}')) return "options: expected '}'";
-  return "";
+  });
+  return err.empty() ? "" : "options: " + err;
 }
 
 std::vector<std::string> buildArgs(const EngineOptions &o) {
   std::vector<std::string> a = {"hamclock", "-d", o.dataDir};
   // Always pass -b: without a backend the REST server on 8080 never comes up.
   a.push_back("-b");
-  a.push_back(o.backend.empty() ? std::string("ohb.hamclock.app:80") : o.backend);
+  a.push_back(o.backend.empty() ? std::string(kDefaultBackend) : o.backend);
   a.push_back("-e"); a.push_back(std::to_string(o.restPort));
   a.push_back("-w"); a.push_back(std::to_string(o.liveRwPort));
   if (o.liveRoPort != 0) { a.push_back("-r"); a.push_back(std::to_string(o.liveRoPort)); }
+  // -k: no Setup offer or Skip waits (HamClock still opens Setup if no callsign is stored).
+  // -u: open Setup at once (one run only; ESP::restart drops it).
+  a.push_back("-k");
+  if (o.openSetup) a.push_back("-u");
   a.insert(a.end(), o.extraArgs.begin(), o.extraArgs.end());
   return a;
 }
@@ -302,9 +289,10 @@ void EngineHost::noteEvent(const std::string &msg) {
   event(msg);
 }
 
-bool EngineHost::mdnsWanted(int &port) const {
+bool EngineHost::mdnsWanted(int &port, std::string &name) const {
   std::lock_guard<std::mutex> l(mu);
   port = g_opts.liveRwPort;
+  name = g_settings.mdnsName;
   return g_lan && g_supervisorAlive;
 }
 
@@ -342,8 +330,8 @@ void *EngineHost::engineThreadMain(void *) {
         event("setup needed: no callsign stored");
         // Before hamclock_main binds anything, so no restart is needed for LAN access.
         if (o.firstRunLanAccess && !g_firstRunLanUsed && !g_lan) {
-          g_lan = g_opts.lanAccess = true;
-          saveLan(g_opts.dataDir, true);
+          g_lan = g_opts.lanAccess = g_settings.lanAccess = true;
+          persistSettings();
           event("LAN access on for first-run setup");
         }
       }
@@ -381,6 +369,7 @@ void EngineHost::supervisorMain() {
       g_exitCode = INT_MIN;
       g_state = EngineState::Starting;
       ++g_runCount;
+      vega_engine_run = (unsigned)g_runCount;
       hamclock_stop_requested = false;
       event("run " + std::to_string(g_runCount) + ": " + joinArgs(g_argvStore));
     }
@@ -424,11 +413,13 @@ std::string EngineHost::start(const EngineOptions &opts) {
   hamclock_restart_hook = restartHook;
   hamclock_stop_hook = stopHook;
   g_opts = opts;
-  mkdirs(opts.dataDir);
-  if (!opts.lanAccessSet) g_opts.lanAccess = readSavedLan(opts.dataDir);
-  g_lan = g_opts.lanAccess;
-  saveLan(g_opts.dataDir, g_lan);
+  ensureSettingsLoaded(opts.dataDir);
+  std::string err = applyOptionsToSettings(opts);
+  if (!err.empty()) return err;
+  persistSettings();
+  syncOptsFromSettings();
   g_runArgs = buildArgs(g_opts);
+  takeOpenSetup();
   g_stopRequested = false;
   g_restartPending = false;
   g_lastError.clear();
@@ -473,16 +464,18 @@ std::string EngineHost::restart(const EngineOptions *opts) {
   {
     std::lock_guard<std::mutex> l(mu);
     if (opts) {
-      bool keepLan = g_opts.lanAccess;
+      VegaSettings prevSettings = g_settings;
+      ensureSettingsLoaded(opts->dataDir);
+      std::string err = applyOptionsToSettings(*opts);
+      if (!err.empty()) { g_settings = prevSettings; return err; }
       g_opts = *opts;
-      if (!opts->lanAccessSet) g_opts.lanAccess = keepLan;
-      g_opts.lanAccessSet = true;
     }
-    g_lan = g_opts.lanAccess;
-    saveLan(g_opts.dataDir, g_lan);
+    persistSettings();
+    syncOptsFromSettings();
     next = g_opts;
     if (g_supervisorAlive) {
       g_pendingArgs = buildArgs(g_opts);
+      takeOpenSetup();
       g_restartPending = true;
       g_stopRequested = false;
       g_state = EngineState::Stopping;
@@ -495,17 +488,40 @@ std::string EngineHost::restart(const EngineOptions *opts) {
 }
 
 void EngineHost::setLanAccess(bool on) {
-  bool alive;
+  updateSettings(std::string("{\"lanAccess\":") + (on ? "true" : "false") + "}");
+}
+
+std::string EngineHost::settings() {
+  std::lock_guard<std::mutex> l(mu);
+  ensureSettingsLoaded(g_opts.dataDir);
+  return settingsJson(g_settings);
+}
+
+std::string EngineHost::updateSettings(const std::string &json) {
+  bool restartNeeded = false;
   {
     std::lock_guard<std::mutex> l(mu);
-    if (g_opts.lanAccess == on && g_lan == on) return;
-    g_opts.lanAccess = on;
-    g_lan = on;
-    saveLan(g_opts.dataDir, on);
-    alive = g_supervisorAlive;
-    event(std::string("LAN access ") + (on ? "on" : "off"));
+    ensureSettingsLoaded(g_opts.dataDir);
+    VegaSettings n = g_settings;
+    std::string err = mergeSettingsJson(json, n, true);
+    if (!err.empty()) return err;
+    bool lanChanged = n.lanAccess != g_settings.lanAccess;
+    bool backendChanged = n.backend != g_settings.backend;
+    bool nameChanged = n.mdnsName != g_settings.mdnsName;
+    bool overscanChanged = n.overscan != g_settings.overscan;
+    if (!lanChanged && !backendChanged && !nameChanged && !overscanChanged) return "";
+    err = saveSettings(g_settingsDir, n);
+    if (!err.empty()) { event(err); return err; }
+    g_settings = n;
+    if (lanChanged) event(std::string("LAN access ") + (n.lanAccess ? "on" : "off"));
+    if (backendChanged) event("backend set to " + n.backend);
+    if (nameChanged) event("mDNS name set to " + n.mdnsName);
+    if (overscanChanged) event("screen margin set to " + std::to_string(n.overscan) + "%");
+    syncOptsFromSettings();
+    restartNeeded = (lanChanged || backendChanged) && g_supervisorAlive;
   }
-  if (alive) restart(nullptr);
+  if (restartNeeded) return restart(nullptr);
+  return "";
 }
 
 std::string EngineHost::statusJson() {
@@ -534,6 +550,7 @@ std::string EngineHost::statusJson() {
   o << "],\"rejectedConnections\":" << g_rejected;
   o << ",\"mdnsState\":"; jsonStr(o, mState);
   o << ",\"mdnsHost\":"; jsonStr(o, mHost);
+  o << ",\"mdnsName\":"; jsonStr(o, g_settings.mdnsName);
   o << ",\"dataDir\":"; jsonStr(o, g_opts.dataDir);
   o << ",\"backend\":"; jsonStr(o, g_opts.backend);
   o << ",\"version\":"; jsonStr(o, hc_version ? hc_version : "");

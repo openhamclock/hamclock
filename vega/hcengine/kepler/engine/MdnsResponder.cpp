@@ -1,11 +1,14 @@
 /**
  * Minimal mDNS responder (RFC 6762) and DNS-SD advertisement (RFC 6763) for LAN access mode
  * (ARCHITECTURE.md §3.3). While LAN access is on and the engine is running, it:
- *   - claims <base>.local, probing first; on a conflict it tries <base>-2.local, -3, ...;
+ *   - claims <name>.local, probing first; on a conflict it tries <name>-2.local, -3, ...;
+ *     <name> is the saved mDNS name (default "hamclock"; settings panel);
  *   - answers A queries for that name with the TV's LAN IPv4 address;
- *   - advertises an _http._tcp service "HamClock" (same suffix as the host name on conflict)
- *     pointing at the live web port, with TXT path=/live.html;
- *   - sends goodbyes (TTL 0) when LAN access is turned off or the engine stops.
+ *   - advertises an _http._tcp service pointing at the live web port, with TXT path=/live.html.
+ *     The instance is "HamClock" for the default name, else "HamClock <name>", with " (N)" added
+ *     on a conflict;
+ *   - sends goodbyes (TTL 0) when LAN access is turned off, the engine stops or the name changes
+ *     (then it probes the new name).
  *
  * The TV already runs avahi-daemon on 0.0.0.0:5353 and apps can't reach its D-Bus API. This
  * socket binds 224.0.0.251:5353 with SO_REUSEADDR, so it shares multicast traffic with avahi and
@@ -38,7 +41,6 @@ constexpr uint16_t T_A = 1, T_PTR = 12, T_TXT = 16, T_SRV = 33, T_ANY = 255;
 constexpr uint16_t C_IN = 1, C_FLUSH = 0x8000, Q_UNICAST = 0x8000;
 constexpr int kPort = 5353;
 constexpr const char *kGroup = "224.0.0.251";
-constexpr const char *kBase = "hamclock";
 constexpr const char *kInstanceBase = "HamClock";
 constexpr const char *kService = "_http._tcp.local";
 constexpr const char *kServices = "_services._dns-sd._udp.local";
@@ -119,10 +121,12 @@ struct Rec {
 };
 
 struct Names {
+  std::string base = kDefaultMdnsName;
   int suffix = 1;
-  std::string host() const { return std::string(kBase) + (suffix > 1 ? "-" + std::to_string(suffix) : "") + ".local"; }
+  std::string host() const { return base + (suffix > 1 ? "-" + std::to_string(suffix) : "") + ".local"; }
   std::string instance() const {
-    return std::string(kInstanceBase) + (suffix > 1 ? " (" + std::to_string(suffix) + ")" : "") + "." + kService;
+    std::string inst = base == kDefaultMdnsName ? std::string(kInstanceBase) : std::string(kInstanceBase) + " " + base;
+    return inst + (suffix > 1 ? " (" + std::to_string(suffix) + ")" : "") + "." + kService;
   }
 };
 
@@ -165,7 +169,8 @@ public:
   void run() {
     for (;;) {
       int port = 0;
-      bool want = EngineHost::instance().mdnsWanted(port);
+      std::string name;
+      bool want = EngineHost::instance().mdnsWanted(port, name);
       long now = nowMs();
       if (now - addrCheckedMs_ > 5000 || (want && ip_ == 0)) {
         addrCheckedMs_ = now;
@@ -180,6 +185,14 @@ public:
       }
       if (want && port != port_ && fd_ >= 0) shutdownSocket(true);
       port_ = port;
+      if (name.empty()) name = kDefaultMdnsName;
+      if (name != names_.base) {
+        if (fd_ >= 0) {
+          EngineHost::instance().noteEvent("mDNS: name changed to " + name + "; probing");
+          shutdownSocket(true);  // goodbye for the old name; reopened and probed below
+        }
+        names_.base = name;
+      }
 
       if (!want || ip_ == 0) {
         if (fd_ >= 0) shutdownSocket(true);

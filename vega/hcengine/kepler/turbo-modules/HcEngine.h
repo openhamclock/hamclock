@@ -22,6 +22,8 @@ public:
   std::string getStatus() override;
   std::string getLogTail(double maxBytes) override;
   std::string qrMatrix(std::string text) override;
+  std::string getSettings() override;
+  std::string updateSettings(std::string settingsJson) override;
 };
 
 } // namespace HcEngineTurboModule

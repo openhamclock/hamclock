@@ -4,8 +4,10 @@ import NativeHcEngine from './turbo-modules/HcEngine';
 export interface EngineOptions {
   /** Engine working directory (-d). Default /data/hamclock. */
   dataDir?: string;
-  /** Backend host:port (-b). Default ohb.hamclock.app:80. */
+  /** Backend host:port (-b). Omit to use the saved setting (default ohb.hamclock.app:80); given, it is saved. */
   backend?: string;
+  /** mDNS host name base (e.g. 'hamclock' for hamclock.local). Omit to use the saved setting; given, it is saved. */
+  mdnsName?: string;
   /** RESTful server port (-e); -1 disables. Default 8080. */
   restPort?: number;
   /** Read-write live web port (-w), serves live.html. Default 8081. */
@@ -31,6 +33,11 @@ export interface EngineOptions {
    * Setup. The app never seeds; the user enters their own callsign in HamClock's Setup.
    */
   testSeedCallsign?: string;
+  /**
+   * Open HamClock's Setup page at once on the next run only (engine arg -u). Every run gets -k,
+   * so other starts and restarts go straight to the clock.
+   */
+  openSetup?: boolean;
 }
 
 export type EngineState =
@@ -68,12 +75,28 @@ export interface EngineStatus {
   mdnsState: string;
   /** Host name claimed on the LAN, e.g. 'hamclock.local' or 'hamclock-2.local' ('' if none). */
   mdnsHost: string;
+  /** Configured mDNS name base (saved setting); mdnsHost may add a -N suffix on a conflict. */
+  mdnsName: string;
   dataDir: string;
   backend: string;
   version: string;
   /** Recent host events, oldest first. */
   events: string[];
 }
+
+/** Settings saved in <dataDir>/vega-settings.json (one store, read and written natively). */
+export interface VegaSettings {
+  lanAccess: boolean;
+  /** DNS label for <name>.local, 1-40 letters/digits/hyphens. Default 'hamclock'. */
+  mdnsName: string;
+  /** host:port. Default 'ohb.hamclock.app:80'. */
+  backend: string;
+  /** Screen safe margin in percent: 0, 3 or 5. Applied by the app around the WebView. */
+  overscan: 0 | 3 | 5;
+}
+
+export const DEFAULT_MDNS_NAME = 'hamclock';
+export const DEFAULT_BACKEND = 'ohb.hamclock.app:80';
 
 /** Typed facade over the HcEngine Turbo Module. Throws on start/restart errors. */
 export const HcEngine = {
@@ -106,6 +129,16 @@ export const HcEngine = {
   qrMatrix(text: string): boolean[][] {
     const m = NativeHcEngine.qrMatrix(text);
     return m ? m.split('\n').map(row => Array.from(row, c => c === '1')) : [];
+  },
+  getSettings(): VegaSettings {
+    return JSON.parse(NativeHcEngine.getSettings()) as VegaSettings;
+  },
+  /**
+   * Change and save some settings. LAN or backend changes restart a running engine; a name
+   * change re-probes mDNS. Returns '' or a message for the user (then nothing changed).
+   */
+  updateSettings(changes: Partial<VegaSettings>): string {
+    return NativeHcEngine.updateSettings(JSON.stringify(changes));
   },
 };
 

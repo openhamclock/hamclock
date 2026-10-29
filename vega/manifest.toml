@@ -30,6 +30,10 @@ id = "com.amazon.inputd.service"
 [[wants.service]]
 id = "com.amazon.webview.renderer_service"
 
+# On-screen keyboard for the settings panel's text fields (mDNS name, backend host).
+[[wants.service]]
+id = "com.amazon.inputmethod.service"
+
 [components]
 [[components.interactive]]
 id = "org.openhamclock.hamclock.main"
