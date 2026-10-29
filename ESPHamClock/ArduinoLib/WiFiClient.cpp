@@ -133,6 +133,10 @@ bool WiFiClient::connectCommand(const char* command)
         return true;
     }
     return false;
+#elif defined(_IS_VEGA)
+    // Vega apps can't run subprocesses (sh and curl fail to load in the app sandbox).
+    (void) command;
+    return false;
 #else
     m_pipe = popen(command, "r");
     if (!m_pipe) {

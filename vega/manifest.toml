@@ -34,6 +34,17 @@ id = "com.amazon.webview.renderer_service"
 [[wants.service]]
 id = "com.amazon.inputmethod.service"
 
+# Audio for the WebView's inaudible keep-awake tone: Vega holds off the screensaver only while
+# media plays. Without these the WebView's requests are refused ("missing wants declaration").
+[[wants.service]]
+id = "com.amazon.audio.stream"
+
+[[wants.service]]
+id = "com.amazon.audio.control"
+
+[[wants.service]]
+id = "com.amazon.mediatransform.service"
+
 [components]
 [[components.interactive]]
 id = "org.openhamclock.hamclock.main"

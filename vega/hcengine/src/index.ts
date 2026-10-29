@@ -78,7 +78,10 @@ export interface EngineStatus {
   /** Configured mDNS name base (saved setting); mdnsHost may add a -N suffix on a conflict. */
   mdnsName: string;
   dataDir: string;
+  /** Backend of the current run (-b). May differ from the saved setting until a restart. */
   backend: string;
+  /** The saved backend differs from the running one; restart() applies it. */
+  restartNeeded: boolean;
   version: string;
   /** Recent host events, oldest first. */
   events: string[];
@@ -134,7 +137,8 @@ export const HcEngine = {
     return JSON.parse(NativeHcEngine.getSettings()) as VegaSettings;
   },
   /**
-   * Change and save some settings. LAN or backend changes restart a running engine; a name
+   * Change and save some settings. A LAN change restarts a running engine; a backend change is
+   * only saved (status restartNeeded until a restart); a name
    * change re-probes mDNS. Returns '' or a message for the user (then nothing changed).
    */
   updateSettings(changes: Partial<VegaSettings>): string {

@@ -63,6 +63,7 @@ int g_setup = -1;                        // -1 unknown, 0 Setup needed, 1 Setup 
 bool g_firstRunLanUsed = false;          // firstRunLanAccess applied (once per process)
 VegaSettings g_settings;                 // saved settings; source of truth for LAN and backend
 std::string g_settingsDir;               // data dir g_settings were loaded from ('' = not loaded)
+std::string g_runBackend;                // -b of the current run (HamClock's own restarts keep it)
 thread_local bool t_isEngine = false;
 
 // argv storage for the current run; hamclock keeps a pointer to it (our_argv).
@@ -322,9 +323,13 @@ void *EngineHost::engineThreadMain(void *) {
     }
     std::string seeded = testSeedCallsign(o.dataDir, o.testSeedCallsign);
     bool stored = hasStoredCallsign(o.dataDir);
+    // Before HamClock's first Setup, so Setup shows them (outside mu: may wait on the network).
+    std::vector<std::string> presets;
+    if (!stored) presets = firstRunPresets(o.dataDir, o.backend.empty() ? kDefaultBackend : o.backend);
     {
       std::lock_guard<std::mutex> l(mu);
       if (!seeded.empty()) event(seeded);
+      for (auto &p : presets) event(p);
       g_setup = stored ? 1 : 0;
       if (!stored) {
         event("setup needed: no callsign stored");
@@ -370,6 +375,9 @@ void EngineHost::supervisorMain() {
       g_state = EngineState::Starting;
       ++g_runCount;
       vega_engine_run = (unsigned)g_runCount;
+      g_runBackend.clear();
+      for (size_t i = 0; i + 1 < g_argvStore.size(); ++i)
+        if (g_argvStore[i] == "-b") g_runBackend = g_argvStore[i + 1];
       hamclock_stop_requested = false;
       event("run " + std::to_string(g_runCount) + ": " + joinArgs(g_argvStore));
     }
@@ -514,11 +522,14 @@ std::string EngineHost::updateSettings(const std::string &json) {
     if (!err.empty()) { event(err); return err; }
     g_settings = n;
     if (lanChanged) event(std::string("LAN access ") + (n.lanAccess ? "on" : "off"));
-    if (backendChanged) event("backend set to " + n.backend);
+    if (backendChanged) event("backend set to " + n.backend + (g_supervisorAlive ? " (applies at the next restart)" : ""));
     if (nameChanged) event("mDNS name set to " + n.mdnsName);
     if (overscanChanged) event("screen margin set to " + std::to_string(n.overscan) + "%");
     syncOptsFromSettings();
-    restartNeeded = (lanChanged || backendChanged) && g_supervisorAlive;
+    // LAN access restarts at once (the bind address changes). A backend change only saves: the
+    // user may have more edits; the app restarts once when leaving the Settings page
+    // (status restartNeeded), and any other restart picks it up too.
+    restartNeeded = lanChanged && g_supervisorAlive;
   }
   if (restartNeeded) return restart(nullptr);
   return "";
@@ -552,7 +563,8 @@ std::string EngineHost::statusJson() {
   o << ",\"mdnsHost\":"; jsonStr(o, mHost);
   o << ",\"mdnsName\":"; jsonStr(o, g_settings.mdnsName);
   o << ",\"dataDir\":"; jsonStr(o, g_opts.dataDir);
-  o << ",\"backend\":"; jsonStr(o, g_opts.backend);
+  o << ",\"backend\":"; jsonStr(o, g_supervisorAlive && !g_runBackend.empty() ? g_runBackend : g_opts.backend);
+  o << ",\"restartNeeded\":" << (g_supervisorAlive && !g_runBackend.empty() && g_runBackend != g_settings.backend ? "true" : "false");
   o << ",\"version\":"; jsonStr(o, hc_version ? hc_version : "");
   o << ",\"events\":[";
   first = true;

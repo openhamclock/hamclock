@@ -150,8 +150,14 @@ bool plotChoiceIsAvailable (PlotChoice pc)
     case PLOT_CH_LAUNCHES:	// fallthru
     case PLOT_CH_HFCOND:        // fallthru
     case PLOT_CH_VHFCOND:       // fallthru
+#if defined(_IS_VEGA)
+    case PLOT_CH_SATACT:        // fallthru
+    case PLOT_CH_MESHTASTIC:
+        return (false);         // need curl (connectCommand), which Vega apps can't run
+#else
     case PLOT_CH_SATACT:        // fallthru
     case PLOT_CH_MESHTASTIC:    // fallthru
+#endif
     case PLOT_CH_APRSCLUSTER:   // fallthru
     case PLOT_CH_BALLOONS:      // fallthru
     case PLOT_CH_HAMALERT:      // fallthru

@@ -10,3 +10,5 @@
   CLI uses its own bundled Node.
 - For testing, use callsign N0CALL. Test device: 192.168.1.237:5555 (armv7).
 - Phase 0 spike code is in ../tmp/vega-spike (untracked scratch).
+- The phase plan is PLAN.md in this folder (keep it up to date); results per phase are in
+  PHASEn_RESULTS.md, the latest taking precedence.

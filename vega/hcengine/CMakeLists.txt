@@ -60,6 +60,7 @@ message(STATUS "HamClock engine: ${HC_ENGINE_COUNT} sources from ${HC_DIR}")
 # Same as `make hamclock-web-1600x960`, plus the switches for an app-store build.
 add_library(hamclock_engine OBJECT ${HC_ENGINE_SRCS}
     kepler/engine/NvSeed.cpp      # host code that needs HamClock headers, so built with the engine flags
+    kepler/engine/FirstRunPresets.cpp
     kepler/engine/QrMatrix.cpp
     kepler/engine/VirtualMac.cpp) # --wrap target for WiFi::macAddress (per-install S/N)
 set_source_files_properties(${HC_ENGINE_SRCS} PROPERTIES LANGUAGE CXX)
@@ -90,6 +91,7 @@ set(SOURCES
     kepler/turbo-modules/HcEngine.cpp
     kepler/engine/EngineHost.cpp
     kepler/engine/SysWraps.cpp
+    kepler/engine/EngineLog.cpp
     kepler/engine/LanFilter.cpp
     kepler/engine/MdnsResponder.cpp
     kepler/engine/Settings.cpp
@@ -111,6 +113,18 @@ target_link_options(HcEngine PRIVATE
     "LINKER:--wrap=close"
     "LINKER:--wrap=getrusage"
     "LINKER:--wrap=pthread_create"
-    "LINKER:--wrap=_ZN4WiFi10macAddressEv")  # WiFi::macAddress -> VirtualMac.cpp
+    "LINKER:--wrap=_ZN4WiFi10macAddressEv"  # WiFi::macAddress -> VirtualMac.cpp
+    # Engine output to its own log, not the app's stdout/stderr; see kepler/engine/EngineLog.cpp.
+    "LINKER:--wrap=dup2"
+    "LINKER:--wrap=printf"
+    "LINKER:--wrap=vprintf"
+    "LINKER:--wrap=fprintf"
+    "LINKER:--wrap=vfprintf"
+    "LINKER:--wrap=fputs"
+    "LINKER:--wrap=puts"
+    "LINKER:--wrap=putchar"
+    "LINKER:--wrap=fwrite"
+    "LINKER:--wrap=fflush"
+    "LINKER:--wrap=write")
 
 install(TARGETS HcEngine)

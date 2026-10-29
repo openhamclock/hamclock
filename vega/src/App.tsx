@@ -9,20 +9,25 @@
  *       main: resume, LAN access, Setup HamClock, exit, plus the address and a QR code to open HamClock
  *             from another device while LAN access is on;
  *       settings: mDNS name, backend host, screen safe margin (overscan).
- *     Settings are saved natively in <dataDir>/vega-settings.json (HcEngine.updateSettings).
+ *     Settings are saved natively in <dataDir>/vega-settings.json (HcEngine.updateSettings). A
+ *     backend change is applied with one engine restart when leaving the Settings page.
  *   - applies the screen safe margin inside the page (the clock canvas is fitted, see pageScript);
  *   - shows a first-run screen (QR code + address) while HamClock needs Setup, so the user can
  *     enter the callsign from a phone. It closes by itself once the engine reports Setup done.
  *   QR codes always encode the IP URL (phones may not resolve .local); the .local URL is text.
+ *   - keeps the screensaver away while HamClock is on screen: an inaudible WebAudio tone in the
+ *     page (Vega holds the screensaver off only during playback), paused in the background.
  *
- * D-Pad: remote keys go to the page as DOM key events (allowSystemKeyEvents). KEY_ROUTER_JS
+ * D-Pad: remote keys go to the page as DOM key events (allowSystemKeyEvents). pageScript
  * (injected) sends arrows/OK to live.html's virtual cursor and posts Back to this shell, because
- * with allowSystemKeyEvents Back reaches only the page. While a native overlay (first-run screen
- * or settings panel) is up, keys go to RN instead. The engine is started in index.js.
+ * with allowSystemKeyEvents Back reaches only the page. A held arrow repeats every 50 ms (Vega's
+ * own repeat, ~200 ms, is too slow for live.html's speed-up). While a native overlay (first-run
+ * screen or settings panel) is up, keys go to RN instead. The engine is started in index.js.
  */
 import React, {useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState} from 'react';
 import {
   Animated,
+  AppState as RNAppState,
   BackHandler,
   Keyboard,
   StyleSheet,
@@ -71,17 +76,56 @@ function pageScript(overscanPct: number): string {
   return `(function () {
   var ARROWS = {ArrowUp: 1, ArrowDown: 1, ArrowLeft: 1, ArrowRight: 1};
   function post(m) { if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(m); }
+
+  // Hold to speed up. Vega repeats a held key after ~520 ms and then only every ~200 ms;
+  // live.html speeds the cursor up on presses < 200 ms apart (tuned for Android's ~50 ms repeat).
+  // So once a held arrow repeats, move every HOLD_MS ourselves until the key is released: keyup,
+  // or no repeat from Vega for HOLD_END_MS (in case keyup isn't delivered).
+  var HOLD_MS = 50, HOLD_END_MS = 350;
+  var holdKey = null, holdTimer = null, lastDown = {key: null, t: 0, up: true};
+  function stopHold() {
+    if (holdTimer) clearInterval(holdTimer);
+    holdTimer = null;
+    holdKey = null;
+  }
+  function startHold(k) {
+    stopHold();
+    holdKey = k;
+    holdTimer = setInterval(function () {
+      if (Date.now() - lastDown.t > HOLD_END_MS) { stopHold(); return; }
+      if (typeof handleVirtualCursorMove === 'function') handleVirtualCursorMove(holdKey);
+    }, HOLD_MS);
+  }
+  function arrowDown(e) {
+    var k = e.key, now = Date.now();
+    var repeat = e.repeat || (lastDown.key === k && !lastDown.up && now - lastDown.t < 700);
+    lastDown = {key: k, t: now, up: false};
+    if (holdKey === k) return;                   // already repeating; Vega's repeat just keeps it alive
+    if (repeat) { startHold(k); return; }
+    stopHold();
+    if (typeof handleVirtualCursorMove === 'function') handleVirtualCursorMove(k);
+  }
+  window.addEventListener('keyup', function (e) {
+    if (ARROWS[e.key]) {
+      if (lastDown.key === e.key) lastDown.up = true;
+      if (holdKey === e.key) stopHold();
+      post('keyup:' + e.key);
+    }
+  }, true);
+
   window.addEventListener('keydown', function (e) {
     var k = e.key, c = e.keyCode, handled = false;
     if (ARROWS[k]) {
-      if (typeof handleVirtualCursorMove === 'function') { handleVirtualCursorMove(k); handled = true; }
+      if (typeof handleVirtualCursorMove === 'function') { arrowDown(e); handled = true; }
     } else if (k === 'Enter' || k === 'Select' || c === 13 || c === 23) {
+      stopHold();
       if (typeof handleVirtualCursorClick === 'function') { handleVirtualCursorClick(); handled = true; }
     } else if (k === 'Escape' || k === 'GoBack' || k === 'BrowserBack' || c === 27) {
+      stopHold();
       var ov = document.getElementById('embed-overlay');
       if (!(ov && getComputedStyle(ov).display !== 'none')) { post('back'); handled = true; }
     }
-    post('key:' + k + ':' + c + (handled ? ':h' : ''));
+    post('key:' + k + ':' + c + (handled ? ':h' : '') + (e.repeat ? ':r' : ''));
     if (handled) { e.preventDefault(); e.stopImmediatePropagation(); }
   }, true);
 
@@ -117,6 +161,45 @@ function pageScript(overscanPct: number): string {
   }
   document.addEventListener('DOMContentLoaded', hook);
   window.addEventListener('load', hook);
+
+  // Keep the screensaver away: Vega starts it after the idle timeout unless media is playing
+  // (TimeoutManager doesn't help). A 30 Hz tone at gain 0.0001 is inaudible but counts as
+  // playback. Restarted if the context gets suspended (e.g. after the app was in the background).
+  var lastAudio = '';
+  function keepAwake() {
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) { if (lastAudio !== 'none') post('audio:none'); lastAudio = 'none'; return; }
+      if (!window.__hcAudioCtx) {
+        var ctx = new AC(), osc = ctx.createOscillator(), gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(30, ctx.currentTime);
+        gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        window.__hcAudioCtx = ctx;
+      }
+      var c = window.__hcAudioCtx;
+      if (c.state === 'suspended') c.resume().catch(function (e) { post('audio:resume-failed ' + e); });
+      if (c.state !== lastAudio) post('audio:' + c.state);
+      lastAudio = c.state;
+    } catch (e) { post('audio:error ' + e); }
+  }
+  setTimeout(keepAwake, 1500);
+  setInterval(function () { if (!window.__hcAudioPaused) keepAwake(); }, 30000);
+  // Only while HamClock is on screen: in the background the tone would keep the screensaver away
+  // in other apps too. RN also calls __hcAudio(false/true) on AppState changes.
+  window.__hcAudio = function (on) {
+    window.__hcAudioPaused = !on;
+    if (on) { setTimeout(keepAwake, 500); return; }
+    var c = window.__hcAudioCtx;
+    if (c && c.state === 'running') c.suspend().then(function () { post('audio:' + c.state); lastAudio = c.state; });
+  };
+  document.addEventListener('visibilitychange', function () {
+    post('visibility:' + document.visibilityState);
+    window.__hcAudio(document.visibilityState === 'visible');
+  });
 })(); true;`;
 }
 
@@ -811,7 +894,7 @@ function PanelSettings(props: {
         label="Backend server (host:port)"
         value={backend}
         placeholder={DEFAULT_BACKEND}
-        help={`Where HamClock gets its data. Leave empty for ${DEFAULT_BACKEND}. Saving restarts HamClock.`}
+        help={`Where HamClock gets its data. Leave empty for ${DEFAULT_BACKEND}. HamClock restarts when you leave this page.`}
         metrics={m}
         onSave={t => update({backend: t})}
       />
@@ -920,6 +1003,19 @@ export const App = () => {
 
   useEngineStatus(state.lifecycle, dispatch);
 
+  // App lifecycle (Home, screensaver) to the device log. The screensaver is held off by the
+  // page's keep-awake tone (pageScript); TimeoutManager lifespan/timeout didn't stop it.
+  useEffect(() => {
+    console.info(`[HCAPP] state ${RNAppState.currentState}`);
+    const sub = RNAppState.addEventListener('change', s => {
+      console.info(`[HCAPP] state ${s}`);
+      webRef.current?.injectJavaScript(
+        `if (typeof window.__hcAudio === 'function') window.__hcAudio(${s === 'active'}); true;`,
+      );
+    });
+    return () => sub.remove();
+  }, []);
+
   // Saved settings: read at start, and again when the engine reports a change (e.g. first-run
   // LAN on, or a name/backend change saved from here).
   const refreshSettings = useCallback(() => {
@@ -938,7 +1034,7 @@ export const App = () => {
   const updateSettings = useCallback(
     (changes: Partial<VegaSettings>): string => {
       const st = stateRef.current.status;
-      const before = {lan: st?.lanAccess, backend: st?.backend};
+      const lanBefore = st?.lanAccess;
       let err = '';
       try {
         err = HcEngine.updateSettings(changes);
@@ -954,14 +1050,39 @@ export const App = () => {
         /* polled again below */
       }
       const running = st && (st.state === 'running' || st.state === 'starting');
-      if (running && next && (next.lanAccess !== before.lan || next.backend !== before.backend)) {
-        // The engine restarts; keep the panel open for LAN (to show the QR), close it for backend.
-        dispatch({type: 'RESTART_REQUESTED', keepPanel: next.backend === before.backend});
+      if (running && next && next.lanAccess !== lanBefore) {
+        // The engine restarts at once for LAN; keep the panel open to show the QR. A backend
+        // change is only saved; it's applied when leaving the Settings page (below).
+        dispatch({type: 'RESTART_REQUESTED', keepPanel: true});
       }
       return '';
     },
     [],
   );
+
+  // Leaving the Settings page (Back button or remote Back) applies a saved backend change with
+  // one restart, so several edits on the page cost one restart.
+  const onSettingsPage = state.settingsOpen && state.panelPage === 'settings';
+  const wasOnSettingsPage = useRef(false);
+  useEffect(() => {
+    const was = wasOnSettingsPage.current;
+    wasOnSettingsPage.current = onSettingsPage;
+    if (!was || onSettingsPage) return;
+    let st: EngineStatus;
+    try {
+      st = HcEngine.getStatus();
+    } catch {
+      return;
+    }
+    if (!st.restartNeeded) return;
+    console.info('[HCSET] leaving Settings: restart to apply the backend');
+    dispatch({type: 'RESTART_REQUESTED'});
+    try {
+      HcEngine.restart(DEFAULT_ENGINE_OPTIONS);
+    } catch (err) {
+      dispatch({type: 'ENGINE_ERROR', message: String(err)});
+    }
+  }, [onSettingsPage]);
 
   // Diagnostics: log LAN state changes to the device log (native stderr doesn't reach it).
   const lanSummary = state.status
@@ -977,6 +1098,22 @@ export const App = () => {
   useEffect(() => {
     console.info(`[HCSETUP] ${setupSummary}`);
   }, [setupSummary]);
+
+  // Diagnostics: engine events (getStatus().events, a ring of the last 30) to the device log,
+  // each once. The new ones are what follows the longest seen tail that starts the new list.
+  const seenEvents = useRef<string[]>([]);
+  const events = state.status?.events;
+  useEffect(() => {
+    if (!events) return;
+    const prev = seenEvents.current;
+    let k = Math.min(prev.length, events.length);
+    for (; k > 0; k--) {
+      const tail = prev.slice(prev.length - k);
+      if (tail.every((x, i) => x === events[i])) break;
+    }
+    events.slice(k).forEach(e => console.info(`[HCEV] ${e}`));
+    seenEvents.current = events;
+  }, [events]);
 
   // Retry loading the page after a WebView error while the engine is up.
   useEffect(() => {
@@ -1046,6 +1183,7 @@ export const App = () => {
           hasTVPreferredFocus={webHasKeys}
           javaScriptEnabled
           domStorageEnabled
+          mediaPlaybackRequiresUserAction={false}
           onLoad={() => {
             dispatch({type: 'WEB_LOADED'});
             webRef.current?.injectJavaScript(overscanJs(overscanRef.current));

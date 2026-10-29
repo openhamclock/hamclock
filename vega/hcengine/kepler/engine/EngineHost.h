@@ -90,6 +90,11 @@ bool hasStoredCallsign(const std::string &dataDir);
 /** Tests only: store call if no callsign is stored. Returns what was written, or ''. */
 std::string testSeedCallsign(const std::string &dataDir, const std::string &call);
 
+// ---- FirstRunPresets.cpp (engine thread only, before hamclock_main, no callsign stored) ----
+/** DE location from geoIP and NTP = Computer, each only if not stored yet. Returns notes for events.
+ *  May block a few seconds on the network (fresh install only). */
+std::vector<std::string> firstRunPresets(const std::string &dataDir, const std::string &backend);
+
 // ---- QrMatrix.cpp ----
 /** QR code for text: rows of '0'/'1' joined by '\n', no quiet zone ('' if it doesn't fit). */
 std::string qrMatrix(const std::string &text);
@@ -137,7 +142,8 @@ public:
   std::string settings();
   /**
    * Change some settings (flat JSON with any of lanAccess, mdnsName, backend, overscan) and save
-   * them. A LAN or backend change restarts a running engine; a name change makes the mDNS
+   * them. A LAN change restarts a running engine; a backend change is only saved and applies at
+   * the next restart (status restartNeeded); a name change makes the mDNS
    * responder probe the new name. Returns '' or a message for the user (nothing is changed).
    */
   std::string updateSettings(const std::string &json);
