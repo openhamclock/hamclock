@@ -187,6 +187,32 @@ void drawADIFPane (const SBox &box, const char *filename)
     drawAllVisADIFSpots (box);
 }
 
+/* a log uploaded through the web page is kept in our_dir under a fixed name and referred to in the settings by
+ * this short token. a real path would often not fit in NV_ADIFFN_LEN (50) and would break if our_dir moved.
+ */
+#define ADIF_UPLOAD_TOKEN       "@upload"
+#define ADIF_UPLOAD_FILE        "adif-upload.adi"
+#define ADIF_UPLOAD_MAX_BYTES   (64L*1024*1024)
+
+/* return full path of the uploaded log
+ */
+static void uploadPath (char *buf, size_t buf_len)
+{
+    snprintf (buf, buf_len, "%s/%s", our_dir.c_str(), ADIF_UPLOAD_FILE);
+}
+
+/* expand the saved ADIF file name into a path we can open: the upload token, else with env variables expanded.
+ * return whether ok.
+ */
+static bool adifFullPath (const char *fn, char *path, size_t path_len)
+{
+    if (strcmp (fn, ADIF_UPLOAD_TOKEN) == 0) {
+        uploadPath (path, path_len);
+        return (true);
+    }
+    return (expandENV (fn, path, path_len));
+}
+
 /* test whether the given file name is suitable for ADIF, else return brief reason.
  */
 bool checkADIFFilename (const char *fn, Message &ynot)
@@ -213,7 +239,7 @@ bool checkADIFFilename (const char *fn, Message &ynot)
 
     // worth trying for real
     char fn_exp[1000];
-    if (!expandENV (fn, fn_exp, sizeof(fn_exp))) {
+    if (!adifFullPath (fn, fn_exp, sizeof(fn_exp))) {
         ynot.set("env lookup failed");
         Serial.printf ("ADIF: %s env expand failed\n", fn);
         return (false);
@@ -332,7 +358,7 @@ void freshenADIFFile (void)
     if (!fn)
         return;                                                         // not interested
     char fn_exp[1000];
-    if (!expandENV (fn, fn_exp, sizeof(fn_exp)))
+    if (!adifFullPath (fn, fn_exp, sizeof(fn_exp)))
         fatalError ("ADIF %s failed ENV expansion", fn);
 
     // check for new/changed file
@@ -362,6 +388,138 @@ void freshenADIFFile (void)
         newfile_pending = false;
         showing_set_adif = false;
     }
+}
+
+/* accept an ADIF log uploaded from the web page: save it, check it, then make it the ADIF file and load it.
+ * read exactly n_bytes from gr. pass back the number of usable QSOs and unusable records found.
+ * return whether the log was installed; if not, ynot says why and the previous setting is left as it was.
+ * N.B. nothing about the saved settings changes unless the log is good, because freshenADIFFile() treats a
+ *      missing log file as fatal.
+ */
+bool uploadADIF (GenReader &gr, long n_bytes, int &n_good, int &n_bad, Message &ynot)
+{
+    n_good = n_bad = 0;
+
+    if (n_bytes <= 0) {
+        ynot.set ("Content-Length required");
+        return (false);
+    }
+    if (n_bytes > ADIF_UPLOAD_MAX_BYTES) {
+        ynot.printf ("log too large, max %ld MB", ADIF_UPLOAD_MAX_BYTES/(1024*1024));
+        return (false);
+    }
+
+    char path[1000], tmp[1010];
+    uploadPath (path, sizeof(path));
+    snprintf (tmp, sizeof(tmp), "%s.tmp", path);
+
+    // save what was sent to a temp file, noting how many "<eor>" record ends go by
+    FILE *fp = fopen (tmp, "w");
+    if (!fp) {
+        ynot.printf ("can not save log: %s", strerror(errno));
+        return (false);
+    }
+    static const char eor[] = "<eor>";
+    int eor_i = 0;
+    long n_eor = 0, n_in = 0;
+    char buf[4096];
+    int nb = 0;
+    char c;
+    bool write_ok = true;
+    while (gr.getChar (&c)) {
+        n_in++;
+        buf[nb++] = c;
+        if (nb == sizeof(buf)) {
+            write_ok = write_ok && fwrite (buf, nb, 1, fp) == 1;
+            nb = 0;
+        }
+        char lc = tolower ((unsigned char)c);
+        if (lc == eor[eor_i])
+            eor_i++;
+        else
+            eor_i = (lc == '<') ? 1 : 0;
+        if (eor_i == (int)strlen(eor)) {
+            n_eor++;
+            eor_i = 0;
+        }
+    }
+    if (nb > 0)
+        write_ok = write_ok && fwrite (buf, nb, 1, fp) == 1;
+    write_ok = (fclose (fp) == 0) && write_ok;
+
+    // all there?
+    if (!write_ok) {
+        remove (tmp);
+        ynot.set ("can not save log: write failed");
+        return (false);
+    }
+    if (n_in < n_bytes) {
+        remove (tmp);
+        ynot.set ("upload was cut short");
+        return (false);
+    }
+    if (n_eor == 0) {
+        remove (tmp);
+        ynot.set ("not an ADIF log: no <eor> record ends");
+        return (false);
+    }
+
+    // make sure it holds QSOs we can use, without touching the live list.
+    // N.B. readADIFFile also rebuilds the DXPeds worked list, so if this log is rejected restore it below
+    FILE *rf = fopen (tmp, "r");
+    if (!rf) {
+        remove (tmp);
+        ynot.printf ("can not read log back: %s", strerror(errno));
+        return (false);
+    }
+    GenReader check_gr (rf);
+    DXSpot *spots = NULL;
+    n_good = readADIFFile (check_gr, spots, false, n_bad);
+    fclose (rf);
+    free (spots);
+    if (n_good == 0) {
+        remove (tmp);
+        ynot.set ("no usable QSOs: each needs call, band or freq, date, time and a grid");
+        newfile_pending = true;                         // re-read whatever log we had so DXPeds worked is right
+        freshenADIFFile();
+        return (false);
+    }
+
+    // good: replace the saved log, point settings at it, load it now
+    if (rename (tmp, path) < 0) {
+        ynot.printf ("can not install log: %s", strerror(errno));
+        remove (tmp);
+        return (false);
+    }
+    setADIFFilename (ADIF_UPLOAD_TOKEN);
+    showing_set_adif = false;
+    newfile_pending = true;
+    freshenADIFFile();
+
+    Serial.printf ("ADIF: uploaded log has %d usable QSOs, %d unusable\n", n_good, n_bad);
+    return (true);
+}
+
+/* write a few lines about the current log into buf, in the style of the get_*.txt commands
+ */
+void getADIFStatus (char *buf, size_t buf_len)
+{
+    // count distinct DXCC entities
+    int n_dxcc = 0;
+    static bool seen[1024];
+    memset (seen, 0, sizeof(seen));
+    int n_qso = adif_spots ? adif_ss.n_data : 0;
+    for (int i = 0; i < n_qso; i++) {
+        int d = adif_spots[i].tx_dxcc;
+        if (d >= 0 && d < (int)NARRAY(seen) && !seen[d]) {
+            seen[d] = true;
+            n_dxcc++;
+        }
+    }
+
+    const char *fn = getADIFilename();
+    snprintf (buf, buf_len, "ADIF_file      %s\nADIF_uploaded  %s\nADIF_qsos      %d\nADIF_dxcc      %d\n",
+                        fn ? fn : "none", fn && strcmp (fn, ADIF_UPLOAD_TOKEN) == 0 ? "yes" : "no", n_qso, n_dxcc);
 }
 
 /* replace our adif_spots with those found in the given GenReader.
@@ -427,6 +585,20 @@ void updateADIF (const SBox &box, bool refresh)
         ROTHOLD_CLR(PLOT_CH_ADIF);
     else
         ROTHOLD_SET(PLOT_CH_ADIF);
+}
+
+/* return number of QSOs currently loaded, 0 if none or no log
+ */
+int getADIFCount (void)
+{
+    return (adif_spots ? adif_ss.n_data : 0);
+}
+
+/* return a number that changes whenever the log is reloaded, for caching lookups against it
+ */
+uint32_t getADIFGeneration (void)
+{
+    return (adif_generation);
 }
 
 /* draw each entry, if enabled

@@ -3698,10 +3698,27 @@ static bool setWiFiADIF (WiFiClient &client, char line[], size_t line_len)
     WebArgs wa;
     wa.nargs = 0;
     wa.name[wa.nargs++] = "pane";
+    wa.name[wa.nargs++] = "save";
 
     // parse
     if (!parseWebCommand (wa, line, line_len))
         return (false);
+
+    // save: keep the posted log and make it the ADIF file, no pane required
+    if (wa.found[1]) {
+        GenReader gr (client, content_length);
+        int n_good, n_bad;
+        Message ynot;
+        if (!uploadADIF (gr, content_length, n_good, n_bad, ynot)) {
+            quietStrncpy (line, ynot.get(), line_len);
+            return (false);
+        }
+        startPlainText (client);
+        char msg[100];
+        snprintf (msg, sizeof(msg), "ok: %d QSOs loaded, %d skipped\n", n_good, n_bad);
+        client.print (msg);
+        return (true);
+    }
 
     if (wa.found[0]) {
 
@@ -3751,6 +3768,35 @@ static bool setWiFiADIF (WiFiClient &client, char line[], size_t line_len)
         strcpy (line, garbcmd);
         return (false);
     }
+}
+
+/* report the current ADIF log
+ */
+static bool getWiFiADIFStatus (WiFiClient &client, char line[], size_t line_len)
+{
+    (void) line;
+    (void) line_len;
+    char buf[200];
+    getADIFStatus (buf, sizeof(buf));
+    startPlainText (client);
+    client.print (buf);
+    return (true);
+}
+
+/* serve the page for uploading an ADIF log
+ */
+static bool getWiFiADIFGui (WiFiClient &client, char line[], size_t line_len)
+{
+    (void) line;
+    (void) line_len;
+    client.println ("HTTP/1.0 200 OK");
+    sendUserAgent (client);
+    client.println ("Content-Type: text/html; charset=utf-8");
+    client.println ("Cache-Control: no-store");
+    client.println ("Connection: close\r\n");
+    client.print (adif_html);
+    Serial.printf ("Served adif.html\n");
+    return (true);
 }
 
 /* load a BMP file via POST else turn off.
@@ -5055,8 +5101,10 @@ typedef struct {
     const char *help;                                   // more info if available
 } CmdTble;
 static const CmdTble command_table[] = {
+    { "adif.html ",         getWiFiADIFGui,        "upload your ADIF log from a browser" },
     { "antennas.html ",     getWiFiAntennasGui,    "antennas widget to administer antenna information" },	
     { "dashboard.html ",    getWiFiDashboardGui,   "mobile dashboard for HamClock REST data" },
+    { "get_adif.txt ",      getWiFiADIFStatus,     "get ADIF log status" },
     { "get_antennas.txt ",  getWiFiAntennas,       "Get antenna information from hamclock and backend" },
     { "get_aprs.txt ",      getWiFiAPRS,           "get nearby APRS stations" },
     { "get_capture.bmp ",   getWiFiCaptureBMP,     "get live screen shot in bmp format" },
@@ -5079,7 +5127,7 @@ static const CmdTble command_table[] = {
     { "get_time.txt ",      getWiFiTime,           "get current time" },
     { "get_voacap.txt ",    getWiFiVOACAP,         "get current band conditions matrix" },
     { "list_antennas.txt ", getWiFiAntennalist,    "list antenna indexes and description" },
-    { "set_adif?",          setWiFiADIF,           "pane=[0123] (POST)" },
+    { "set_adif?",          setWiFiADIF,           "pane=[0123]|save (POST)" },
     { "set_alarm?",         setWiFiAlarm,          "state=off|armed&time=HR:MN&utc=yes|no" },
     { "set_antennas?",      setWiFiAntennas,       "antdeindex=n&antdxindex=n&antdedxcontrol=n&antdeaz=n.n&antdxaz=n.n" },	
     { "set_auxtime?",       setWiFiAuxTime,        "format=[one_from_menu]" },

@@ -179,6 +179,7 @@ class GenReader
             my_type = GR_CLIENT;
             my_client = &client;
             my_clen = content_length;   // ignored if 0
+            my_bounded = content_length > 0;
         }
 
         // instantiate to read from a FILE *p
@@ -215,7 +216,16 @@ class GenReader
                 }
                 break;
             case GR_CLIENT:
-                return ((!my_clen || my_clen-- > 0) && getTCPChar (*my_client, bp));
+                // N.B. track bounded separately from the remaining count: counting down to 0 must mean
+                // "that was the last byte", not "no limit", else we wait for a socket timeout after the
+                // final byte of every POST body
+                if (my_bounded && my_clen <= 0)
+                    return (false);
+                if (!getTCPChar (*my_client, bp))
+                    return (false);
+                if (my_bounded)
+                    my_clen--;
+                return (true);
                 break;
             default:
                 return (false);
@@ -239,6 +249,7 @@ class GenReader
         FILE *my_fp;
         WiFiClient *my_client;  // pointer to avoid having to init the reference everywhere with a dummy
         long my_clen;
+        bool my_bounded;            // whether my_clen is a real limit
         const char *my_array;
         const char *my_array_end;
 };
@@ -455,7 +466,8 @@ typedef enum {
     X(PLOT_CH_MARINE,       "Marine_Wx")         \
     X(PLOT_CH_FIREWX,       "Fire_Wx")           \
     X(PLOT_CH_QUAKES,       "Quakes")            \
-    X(PLOT_CH_POTASCHED,    "POTA_Sked")
+    X(PLOT_CH_POTASCHED,    "POTA_Sked")         \
+    X(PLOT_CH_NEXTUP,       "Next_Up")
 
 #define PLOTNAMES PLOTNAMES_LOW PLOTNAMES_HIGH
 
@@ -1984,6 +1996,7 @@ extern float nearestKD3Dist2Miles(float d);
  */
 
 extern const char antennas_html[];
+extern const char adif_html[];
 extern const char dashboard_html[];
 
 
@@ -2451,6 +2464,25 @@ extern bool updateBandActivity (const SBox &box, bool fresh);
 
 /*********************************************************************************************
  *
+ * nextup.cpp -- Next Up pane: ranked contacts the operator most needs, from spots already collected
+ *
+ */
+
+#define NEXTUP_INTERVAL    5                            // secs between re-ranking; redraws only on change
+
+extern bool updateNextUp (const SBox &box, bool fresh);
+extern bool checkNextUpTouch (const SCoord &s, const SBox &box);
+
+// accessors Next Up needs from other modules
+extern bool getHamAlertSpots (DXSpot **spp, int *nspotsp);
+extern bool getPSKReportsOfDE (const DXSpot* &rp, int &n_rep);
+extern int getADIFCount (void);
+extern uint32_t getADIFGeneration (void);
+extern bool uploadADIF (GenReader &gr, long n_bytes, int &n_good, int &n_bad, Message &ynot);
+extern void getADIFStatus (char *buf, size_t buf_len);
+
+/*********************************************************************************************
+ *
  * hamalert.cpp
  *
  */
@@ -2606,7 +2638,7 @@ extern PlotMask plot_rotset[PANE_N];       // each pane's PlotChoice rotation ch
                                  PLOTBIT(PLOT_CH_APRSCLUSTER) | \
                                  PLOTBIT(PLOT_CH_BALLOONS) | PLOTBIT(PLOT_CH_BANDACT) | \
                                  PLOTBIT(PLOT_CH_MARINE) | PLOTBIT(PLOT_CH_FIREWX) | \
-                                 PLOTBIT(PLOT_CH_POTASCHED))
+                                 PLOTBIT(PLOT_CH_POTASCHED) | PLOTBIT(PLOT_CH_NEXTUP))
                                  // N.B. Quakes deliberately excluded -- its layout (icons, wrapped
                                  // place-name text, severity bars) is sized for the wider PANE_1/2/3
                                  // panes and doesn't fit PANE_0's narrow 139x332 DE/DX overlay geometry.

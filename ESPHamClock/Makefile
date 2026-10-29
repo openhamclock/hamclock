@@ -95,10 +95,12 @@ OBJS = \
     antenna_lookup.o \
 	antennas.o \
 	antennas-html.o \
+	adif-html.o \
 	askmodal.o \
 	asknewpos.o \
 	astro.o \
 	bandactivity.o \
+	nextup.o \
 	bands.o \
 	blinker.o \
 	bmp.o \

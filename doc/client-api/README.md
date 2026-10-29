@@ -31,7 +31,7 @@ All implementations that intended to be fully compatible with the HamClock Clien
       get_sys.txt           get system stats
       get_time.txt          get current time
       get_voacap.txt        get current band conditions matrix
-      set_adif?             pane=[0123] (POST)
+      set_adif?             pane=[0123]|save (POST)
       set_alarm?            state=off|armed&time=HR:MN&utc=yes|no
       set_auxtime?          format=[one_from_menu]
       set_bmp?              pane=[1,2,3,map]&fit=[resize,crop,fill][&off] (POST)
@@ -151,6 +151,15 @@ Restore normal network RSS operation:
 Load the ADIF file named myfile.adi and select ADIF in data pane 2 (center pane).
 
         curl --data-binary '@myfile.adi' 'http://192.168.7.101:8080/set_adif?pane=3'
+
+Save the ADIF log myfile.adi on HamClock and make it the ADIF file, no pane needed. It survives restarts and is used
+by Next Up and the ADIF pane. The same thing can be done from a browser at http://192.168.7.101:8080/adif.html
+
+        curl --data-binary '@myfile.adi' 'http://192.168.7.101:8080/set_adif?save'
+
+Show how many QSOs and DXCC entities the current log has:
+
+        curl 'http://192.168.7.101:8080/get_adif.txt'
 
 Load the BMP file named myimage.bmp in data pane 3 (right pane), cropping to center if necessary:
 
