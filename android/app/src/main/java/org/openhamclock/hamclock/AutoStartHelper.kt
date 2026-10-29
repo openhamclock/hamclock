@@ -20,6 +20,58 @@ object AutoStartHelper {
     private const val TAG = "HamClockAutoStartHelper"
 
     /**
+     * Checks if the device appears to be rooted or running a custom ROM.
+     */
+    fun isDeviceRootedOrCustom(): Boolean {
+        val buildTags = Build.TAGS
+        if (buildTags != null && buildTags.contains("test-keys")) {
+            return true
+        }
+
+        val suPaths = arrayOf(
+            "/system/app/Superuser.apk",
+            "/sbin/su",
+            "/system/bin/su",
+            "/system/xbin/su",
+            "/data/local/xbin/su",
+            "/data/local/bin/su",
+            "/system/sd/xbin/su",
+            "/system/bin/failsafe/su",
+            "/data/local/su"
+        )
+        for (path in suPaths) {
+            try {
+                if (java.io.File(path).exists()) {
+                    return true
+                }
+            } catch (_: Exception) {
+            }
+        }
+        return false
+    }
+
+    /**
+     * Determines whether "Start on boot" is supported on this platform.
+     *
+     * Standard TV platforms (Android TV, Google TV, Fire OS 8) running Android 10+ (API 29+)
+     * strictly block background activity launches from BOOT_COMPLETED.
+     * We allow it for:
+     * - Any non-TV platform (phones, tablets)
+     * - Any platform running Android 9 or older (API < 29, such as Fire OS 5/6/7)
+     * - Hypothetically rooted or custom ROM environments
+     */
+    fun isStartOnBootSupported(
+        isTv: Boolean,
+        sdkInt: Int = Build.VERSION.SDK_INT,
+        isRootedOrCustom: Boolean = isDeviceRootedOrCustom()
+    ): Boolean {
+        if (!isTv || sdkInt < Build.VERSION_CODES.Q) {
+            return true
+        }
+        return isRootedOrCustom
+    }
+
+    /**
      * Checks if the current OS environment has special background or auto-start
      * requirements that may prevent BOOT_COMPLETED from launching HamClock.
      *

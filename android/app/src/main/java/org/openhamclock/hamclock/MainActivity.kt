@@ -104,6 +104,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var appUpdateHelper: AppUpdateHelper
     var isSettingsDialogOpen = false
         private set
+    private var activeSettingsDialog: AlertDialog? = null
     private var activeSettingsCbAutoUpdate: CheckBox? = null
 
     fun onAutoUpdateSettingChanged(enabled: Boolean) {
@@ -114,8 +115,10 @@ class MainActivity : AppCompatActivity() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private var isDpadCenterLongPressed = false
     private val dpadCenterLongPressRunnable = Runnable {
-        isDpadCenterLongPressed = true
-        showBackendSettingsDialog()
+        if (!isSettingsDialogOpen && activeSettingsDialog?.isShowing != true) {
+            isDpadCenterLongPressed = true
+            showBackendSettingsDialog()
+        }
     }
 
     private val locationPermissionLauncher = registerForActivityResult(
@@ -320,6 +323,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showBackendSettingsDialog(isFirstRunTv: Boolean = false) {
+        if (isSettingsDialogOpen || activeSettingsDialog?.isShowing == true) {
+            Log.d(TAG, "Settings dialog already open; ignoring duplicate show request")
+            return
+        }
+        isSettingsDialogOpen = true
+
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val currentHost = getSelectedBackendHost()
         val currentStartOnBoot = prefs.getBoolean(PREF_START_ON_BOOT, false)
@@ -329,10 +338,16 @@ class MainActivity : AppCompatActivity() {
         val dialogView = layoutInflater.inflate(R.layout.dialog_backend_settings, null)
         val llTvSetupGuide = dialogView.findViewById<LinearLayout>(R.id.ll_tv_setup_guide)
         val etBackendHost = dialogView.findViewById<EditText>(R.id.et_backend_host)
+        val llStartOnBootSection = dialogView.findViewById<LinearLayout>(R.id.ll_start_on_boot_section)
         val cbStartOnBoot = dialogView.findViewById<CheckBox>(R.id.cb_start_on_boot)
         val llAutostartHelper = dialogView.findViewById<LinearLayout>(R.id.ll_autostart_helper)
         val tvAutostartNotice = dialogView.findViewById<TextView>(R.id.tv_autostart_notice)
         val btnOpenAutostart = dialogView.findViewById<Button>(R.id.btn_open_autostart)
+
+        val startOnBootSupported = AutoStartHelper.isStartOnBootSupported(isFireTvOrTv())
+        if (!startOnBootSupported) {
+            llStartOnBootSection?.visibility = View.GONE
+        }
 
         val cbAllowExternal = dialogView.findViewById<CheckBox>(R.id.cb_allow_external)
         val llLocalAccessDetails = dialogView.findViewById<LinearLayout>(R.id.ll_local_access_details)
@@ -348,7 +363,6 @@ class MainActivity : AppCompatActivity() {
         val cbRunInBackground = dialogView.findViewById<CheckBox>(R.id.cb_run_in_background)
         val cbAutoUpdate = dialogView.findViewById<CheckBox>(R.id.cb_auto_update)
 
-        isSettingsDialogOpen = true
         activeSettingsCbAutoUpdate = cbAutoUpdate
 
         val currentRunInBackground = prefs.getBoolean(PREF_RUN_IN_BACKGROUND, false)
@@ -523,7 +537,7 @@ class MainActivity : AppCompatActivity() {
         // Check if the current device OS has specific background or OEM auto-start requirements
         val specialSetting = AutoStartHelper.getSpecialSetting(this)
         fun updateHelperVisibility(isChecked: Boolean) {
-            if (isChecked && specialSetting != null) {
+            if (isChecked && specialSetting != null && startOnBootSupported) {
                 tvAutostartNotice.text = specialSetting.message
                 btnOpenAutostart.setOnClickListener {
                     try {
@@ -569,7 +583,7 @@ class MainActivity : AppCompatActivity() {
                 isSaved = true
                 val entered = etBackendHost.text.toString().trim()
                 val newHost = if (entered.isNotEmpty()) entered else getString(R.string.backend_default)
-                val newStartOnBoot = cbStartOnBoot.isChecked
+                val newStartOnBoot = if (startOnBootSupported) cbStartOnBoot.isChecked else false
                 val newAllowExternal = cbAllowExternal.isChecked
                 val newMdnsName = etMdnsName.text.toString().trim()
                 val newRunInBackground = cbRunInBackground.isChecked
@@ -614,6 +628,7 @@ class MainActivity : AppCompatActivity() {
             .setNegativeButton(getString(R.string.cancel), null)
             .setOnDismissListener {
                 isSettingsDialogOpen = false
+                activeSettingsDialog = null
                 activeSettingsCbAutoUpdate = null
                 appUpdateHelper.onSettingsDialogDismissed()
                 btnSettings.clearFocus()
@@ -679,6 +694,7 @@ class MainActivity : AppCompatActivity() {
             mainHandler.postDelayed(autoDismissRunnable, 1000)
         }
 
+        activeSettingsDialog = dialog
         dialog.show()
 
         val btnSave = dialog.getButton(DialogInterface.BUTTON_POSITIVE)
@@ -1437,6 +1453,11 @@ class MainActivity : AppCompatActivity() {
                         return true
                     }
                 }
+            } else if (event.action == KeyEvent.ACTION_UP) {
+                if (isCenterOrEnterKey(event.keyCode)) {
+                    // Consume ACTION_UP on the focused settings button so super.dispatchKeyEvent does not trigger performClick again
+                    return true
+                }
             }
             return super.dispatchKeyEvent(event)
         }
@@ -1509,9 +1530,11 @@ class MainActivity : AppCompatActivity() {
 
     override fun onKeyLongPress(keyCode: Int, event: KeyEvent?): Boolean {
         if (isCenterOrEnterKey(keyCode)) {
-            isDpadCenterLongPressed = true
             mainHandler.removeCallbacks(dpadCenterLongPressRunnable)
-            showBackendSettingsDialog()
+            if (!isDpadCenterLongPressed && !isSettingsDialogOpen && activeSettingsDialog?.isShowing != true) {
+                isDpadCenterLongPressed = true
+                showBackendSettingsDialog()
+            }
             return true
         }
         return super.onKeyLongPress(keyCode, event)
@@ -1540,6 +1563,8 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         appUpdateHelper.onDestroy()
+        activeSettingsDialog?.dismiss()
+        activeSettingsDialog = null
         mainHandler.removeCallbacks(dpadCenterLongPressRunnable)
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val runInBackground = prefs.getBoolean(PREF_RUN_IN_BACKGROUND, false)
