@@ -54,6 +54,15 @@ import {QrCode} from './QrCode';
 /* ────────────────────────────────────────────────────────────────────────── */
 
 const ENGINE_HOST = '127.0.0.1';
+/**
+ * Debug builds only (__DEV__ is false in Release): diagnostic lines in the device log, i.e.
+ * [HCWEB] keys/keyups/visibility/audio, [HCAPP], [HCSET], [HCLAN], [HCSETUP], [HCFIELD], [HCEV].
+ * Failures (console.warn/error) are always logged.
+ */
+const DEBUG = __DEV__;
+function debugLog(msg: string): void {
+  if (DEBUG) console.info(msg);
+}
 const POLL_STARTING_MS = 500;
 const POLL_READY_MS = 3_000;
 /** Retry delay after the WebView fails to load the page. */
@@ -76,6 +85,9 @@ function pageScript(overscanPct: number): string {
   return `(function () {
   var ARROWS = {ArrowUp: 1, ArrowDown: 1, ArrowLeft: 1, ArrowRight: 1};
   function post(m) { if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(m); }
+  // Diagnostics for the device log ([HCWEB]); Debug builds only.
+  var DEBUG = ${DEBUG ? 'true' : 'false'};
+  function dbg(m) { if (DEBUG) post(m); }
 
   // Hold to speed up. Vega repeats a held key after ~520 ms and then only every ~200 ms;
   // live.html speeds the cursor up on presses < 200 ms apart (tuned for Android's ~50 ms repeat).
@@ -109,7 +121,7 @@ function pageScript(overscanPct: number): string {
     if (ARROWS[e.key]) {
       if (lastDown.key === e.key) lastDown.up = true;
       if (holdKey === e.key) stopHold();
-      post('keyup:' + e.key);
+      dbg('keyup:' + e.key);
     }
   }, true);
 
@@ -125,7 +137,7 @@ function pageScript(overscanPct: number): string {
       var ov = document.getElementById('embed-overlay');
       if (!(ov && getComputedStyle(ov).display !== 'none')) { post('back'); handled = true; }
     }
-    post('key:' + k + ':' + c + (handled ? ':h' : '') + (e.repeat ? ':r' : ''));
+    dbg('key:' + k + ':' + c + (handled ? ':h' : '') + (e.repeat ? ':r' : ''));
     if (handled) { e.preventDefault(); e.stopImmediatePropagation(); }
   }, true);
 
@@ -169,7 +181,7 @@ function pageScript(overscanPct: number): string {
   function keepAwake() {
     try {
       var AC = window.AudioContext || window.webkitAudioContext;
-      if (!AC) { if (lastAudio !== 'none') post('audio:none'); lastAudio = 'none'; return; }
+      if (!AC) { if (lastAudio !== 'none') dbg('audio:none'); lastAudio = 'none'; return; }
       if (!window.__hcAudioCtx) {
         var ctx = new AC(), osc = ctx.createOscillator(), gain = ctx.createGain();
         osc.type = 'sine';
@@ -181,10 +193,10 @@ function pageScript(overscanPct: number): string {
         window.__hcAudioCtx = ctx;
       }
       var c = window.__hcAudioCtx;
-      if (c.state === 'suspended') c.resume().catch(function (e) { post('audio:resume-failed ' + e); });
-      if (c.state !== lastAudio) post('audio:' + c.state);
+      if (c.state === 'suspended') c.resume().catch(function (e) { dbg('audio:resume-failed ' + e); });
+      if (c.state !== lastAudio) dbg('audio:' + c.state);
       lastAudio = c.state;
-    } catch (e) { post('audio:error ' + e); }
+    } catch (e) { dbg('audio:error ' + e); }
   }
   setTimeout(keepAwake, 1500);
   setInterval(function () { if (!window.__hcAudioPaused) keepAwake(); }, 30000);
@@ -194,10 +206,10 @@ function pageScript(overscanPct: number): string {
     window.__hcAudioPaused = !on;
     if (on) { setTimeout(keepAwake, 500); return; }
     var c = window.__hcAudioCtx;
-    if (c && c.state === 'running') c.suspend().then(function () { post('audio:' + c.state); lastAudio = c.state; });
+    if (c && c.state === 'running') c.suspend().then(function () { dbg('audio:' + c.state); lastAudio = c.state; });
   };
   document.addEventListener('visibilitychange', function () {
-    post('visibility:' + document.visibilityState);
+    dbg('visibility:' + document.visibilityState);
     window.__hcAudio(document.visibilityState === 'visible');
   });
 })(); true;`;
@@ -771,7 +783,7 @@ function SettingField(props: {
         next = {error: err, saved: !err, text: t};
       }
     }
-    console.info(`[HCFIELD] ${label}: edit ${how}${next?.error ? ` (${next.error})` : ''}`);
+    debugLog(`[HCFIELD] ${label}: edit ${how}${next?.error ? ` (${next.error})` : ''}`);
     setEditing(false);
     ctx?.afterEdit(label, next);
   };
@@ -1006,9 +1018,9 @@ export const App = () => {
   // App lifecycle (Home, screensaver) to the device log. The screensaver is held off by the
   // page's keep-awake tone (pageScript); TimeoutManager lifespan/timeout didn't stop it.
   useEffect(() => {
-    console.info(`[HCAPP] state ${RNAppState.currentState}`);
+    debugLog(`[HCAPP] state ${RNAppState.currentState}`);
     const sub = RNAppState.addEventListener('change', s => {
-      console.info(`[HCAPP] state ${s}`);
+      debugLog(`[HCAPP] state ${s}`);
       webRef.current?.injectJavaScript(
         `if (typeof window.__hcAudio === 'function') window.__hcAudio(${s === 'active'}); true;`,
       );
@@ -1028,7 +1040,7 @@ export const App = () => {
   useEffect(refreshSettings, [refreshSettings, state.status?.lanAccess, state.status?.mdnsName, state.status?.backend]);
   const settingsSummary = settings ? JSON.stringify(settings) : '';
   useEffect(() => {
-    if (settingsSummary) console.info(`[HCSET] ${settingsSummary}`);
+    if (settingsSummary) debugLog(`[HCSET] ${settingsSummary}`);
   }, [settingsSummary]);
 
   const updateSettings = useCallback(
@@ -1075,7 +1087,7 @@ export const App = () => {
       return;
     }
     if (!st.restartNeeded) return;
-    console.info('[HCSET] leaving Settings: restart to apply the backend');
+    debugLog('[HCSET] leaving Settings: restart to apply the backend');
     dispatch({type: 'RESTART_REQUESTED'});
     try {
       HcEngine.restart(DEFAULT_ENGINE_OPTIONS);
@@ -1085,24 +1097,24 @@ export const App = () => {
   }, [onSettingsPage]);
 
   // Diagnostics: log LAN state changes to the device log (native stderr doesn't reach it).
-  const lanSummary = state.status
+  const lanSummary = DEBUG && state.status
     ? `lan=${state.status.lanAccess} addrs=${(state.status.lanAddresses ?? []).join(',') || '-'} ` +
       `refused=${state.status.rejectedConnections ?? 0} mdns=${state.status.mdnsState ?? '?'}:${state.status.mdnsHost || '-'}`
     : '';
   useEffect(() => {
-    if (lanSummary) console.info(`[HCLAN] ${lanSummary}`);
+    if (lanSummary) debugLog(`[HCLAN] ${lanSummary}`);
   }, [lanSummary]);
 
   const firstRun = firstRunVisible(state);
   const setupSummary = `setupComplete=${String(state.status?.setupComplete ?? 'unknown')} firstRun=${firstRun} onTv=${state.setupOnTv}`;
   useEffect(() => {
-    console.info(`[HCSETUP] ${setupSummary}`);
+    debugLog(`[HCSETUP] ${setupSummary}`);
   }, [setupSummary]);
 
   // Diagnostics: engine events (getStatus().events, a ring of the last 30) to the device log,
   // each once. The new ones are what follows the longest seen tail that starts the new list.
   const seenEvents = useRef<string[]>([]);
-  const events = state.status?.events;
+  const events = DEBUG ? state.status?.events : undefined;
   useEffect(() => {
     if (!events) return;
     const prev = seenEvents.current;
@@ -1111,7 +1123,7 @@ export const App = () => {
       const tail = prev.slice(prev.length - k);
       if (tail.every((x, i) => x === events[i])) break;
     }
-    events.slice(k).forEach(e => console.info(`[HCEV] ${e}`));
+    events.slice(k).forEach(e => debugLog(`[HCEV] ${e}`));
     seenEvents.current = events;
   }, [events]);
 
@@ -1178,7 +1190,7 @@ export const App = () => {
           onMessage={(e: WebViewMessageEvent) => {
             const data = e.nativeEvent.data;
             if (data === 'back') onBack();
-            else console.info(`[HCWEB] ${data}`);
+            else debugLog(`[HCWEB] ${data}`);
           }}
           hasTVPreferredFocus={webHasKeys}
           javaScriptEnabled

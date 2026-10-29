@@ -214,7 +214,9 @@ std::string parseOptions(const std::string &json, EngineOptions &o) {
         if (key == "dataDir") o.dataDir = v.str;
         else if (key == "backend") o.backend = v.str;
         else if (key == "mdnsName") o.mdnsName = v.str;
+#ifndef NDEBUG  // test-only options (self-test); ignored in Release builds
         else if (key == "testSeedCallsign") o.testSeedCallsign = v.str;
+#endif
         break;
       case JsonValue::StringArray:
         if (key == "extraArgs") o.extraArgs = v.arr;
@@ -228,7 +230,9 @@ std::string parseOptions(const std::string &json, EngineOptions &o) {
         if (key == "restPort") o.restPort = (int)v.num;
         else if (key == "liveRwPort") o.liveRwPort = (int)v.num;
         else if (key == "liveRoPort") o.liveRoPort = (int)v.num;
+#ifndef NDEBUG
         else if (key == "watchdogSec") o.watchdogSec = (int)v.num;
+#endif
         break;
       case JsonValue::Null:
         break;

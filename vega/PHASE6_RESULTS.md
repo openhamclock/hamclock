@@ -53,7 +53,7 @@ Checked by eye on the TV, plus the device log (`[HCEV]`, `[HCAPP]`, `[HCWEB]`, l
 - Probes from the engine: `popen` of anything (even `echo`) exits 127. `/bin/sh` and `/usr/bin/curl` exist and are executable, but `posix_spawn` of either fails at load: `symbol lookup error: undefined symbol: UP` (sh), `curl_easy_perform` (curl), with or without `LD_LIBRARY_PATH` (`/mnt:/usr/lib/keplerscript-4`). The sandbox's view of the system libraries doesn't fit those binaries. HamClock's own `can not run date??` / `df??` in the diag log is the same.
 - Under `_IS_VEGA` (upstream, minimal):
   - `WiFiClient::connectCommand` returns false at once (`ArduinoLib/WiFiClient.cpp`).
-  - `plotChoiceIsAvailable` hides `PLOT_CH_SATACT` (hams.at) and `PLOT_CH_MESHTASTIC`, the panes that need it (`plotmgmnt.cpp`).
+  - `plotChoiceIsAvailable` hides `PLOT_CH_SATACT` (hams.at) and `PLOT_CH_MESHTASTIC`, the panes that need it (`plotmgmnt.cpp`). _(Correction, Phase 7: this was a bug. The `return (false)` sat inside the fallthrough chain of always-available choices, so most panes became unavailable on Vega. Reverted; both panes stay in the menus and need an in-process HTTP(S) client. See PLAN.md "Needs work".)_
 - The HTTPS version check (`connecthttpsHCGET`, only with a backend other than the software host) now just finds no new version. Updates come from the Appstore (`NO_UPGRADE`) anyway.
 - To bring those panes back, the engine would need an in-process HTTPS client (libcurl/TLS in the app), like Android's JNI fetch pipe. Not scheduled.
 

@@ -21,7 +21,10 @@ export interface EngineOptions {
   lanAccess?: boolean;
   /** Extra engine command-line arguments, appended as-is. */
   extraArgs?: string[];
-  /** Diagnostics only: abort the app (to get a crash report) if getStatus() isn't called for this many seconds. */
+  /**
+   * Diagnostics only: abort the app (to get a crash report) if getStatus() isn't called for this
+   * many seconds. Ignored by Release engine builds.
+   */
   watchdogSec?: number;
   /**
    * If no callsign is stored (Setup needed), turn LAN access on and save it before the engine
@@ -30,7 +33,8 @@ export interface EngineOptions {
   firstRunLanAccess?: boolean;
   /**
    * Tests only (selfTest.ts): store this callsign if none is stored, so REST comes up without
-   * Setup. The app never seeds; the user enters their own callsign in HamClock's Setup.
+   * Setup. The app never seeds; the user enters their own callsign in HamClock's Setup. Ignored
+   * by Release engine builds.
    */
   testSeedCallsign?: string;
   /**

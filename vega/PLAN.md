@@ -200,6 +200,27 @@ No code in this repo parses the platform string on the backend side; check the b
 
 **Verification:** a Release `.vpkg` installs cleanly on a TV that has never had the app, runs first-run setup end to end, and shows no debug log lines.
 
+**Order of work (agreed 2026-10-29):** 7.2 → 7.4 → 7.3 → 7.5 → 7.6 → 7.7. The Phase 6 carry-over check (SATACT/Meshtastic missing from the pane menu) is folded into the first Release test, with Setup done as N0CALL.
+- Debug logging: gated by the build type (`__DEV__`); no runtime toggle.
+- Version: from the release tag (`v4.34b00.0` or `v4.34.0`), passed in at build time as for Android (`TAG` env, `release.yml`). Build number = git commit count, as Android's `versionCode`.
+- aarch64: build only (no arm64 Vega device known).
+
+**Progress (2026-10-29):**
+- 7.2 done: icon `assets/image/icon.png` (from `feat/vega-support`) on the package and the component, title "HamClock". `scripts/version.js` gives `--build-version`/`--build-number` (tag without `v`, or `edge`; git commit count), used by `npm run build:*` and the runner `tmp/vega-spike/run-p7.sh` (`BTYPE=Release`). The CLI puts them in the package's `meta-info/build-info.json`; the TV reports exactly that (`vpm info`: `version 4.34b00.0`, no semver mapping needed). `manifest.toml`'s `version` is a placeholder.
+  - The TV refuses a lower build number (`Package version decrease`): a build from an older commit needs an uninstall first. The runner now stops on a failed install.
+- 7.3 done (build only): `vega build -t aarch64` (engine) + `build-vega --target aarch64` give `hamclock_aarch64.vpkg` with an aarch64 `libHcEngine.so`.
+- 7.4 done: JS debug lines behind `__DEV__` (`debugLog`, page `dbg`); the self-test is `require`d only under `__DEV__` (absent from the Release bundle); the engine ignores `watchdogSec`/`testSeedCallsign` under `NDEBUG` (Release). FRESH Release install on the TV: first-run presets OK, Setup as N0CALL OK, no `[HC…]` lines, pane menus complete (user), LAN toggle (WebView remount) without a crash.
+  - The log shows `useComponentInstance is deprecated` every 3 s from Amazon's `WebView.kepler.js` on each re-render (also in Phase 6 Debug); not ours.
+- Sat_Alerts (hams.at) and Mesh_Mon are back in the pane menus (the Phase 6 `plotmgmnt.cpp` change is reverted, so that file is upstream again). On Vega they fail when fetching, because `connectCommand` (curl) returns false. **Needs work:** see "Needs work" below.
+  - **Phase 6 bug fixed by this revert:** the `_IS_VEGA` `return (false)` sat in the middle of the fallthrough chain of "always available" choices, so every choice above it (Aurora, DRAP, Solar Wind, SSN, X-Ray, SDO, Moon, Contests, …) was unavailable on Vega: missing from the menus and refused by `set_pane`. After the revert, `set_pane` accepts Aurora, DRAP, Solar_Wind, Sat_Alerts and Mesh_Mon (Release, on the TV).
+- LAN toggle in Release (user, plus log): the engine restarts and the WebView remounts (renderer stopped/started at each switch), same app process throughout. No crash. The panel stays open for a LAN change, so the "Restarting" card is hidden behind it.
+
+---
+
+## Needs work (after Phase 7)
+
+- **hams.at (Sat_Alerts) and Mesh_Mon panes on Vega.** Both fetch with `curl` through `WiFiClient::connectCommand`, and Vega apps can't run subprocesses (PHASE6_RESULTS.md 6.5). They need an in-process HTTP(S) client in the engine (e.g. libcurl or a TLS library linked into `libHcEngine.so`, or a fetch through the app, like Android's JNI fetch pipe). The panes stay in the menus meanwhile.
+
 ---
 
 ## Other ideas (not scheduled; your call)

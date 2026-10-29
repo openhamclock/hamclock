@@ -2,8 +2,11 @@ schema-version = 1
 
 [package]
 title = "HamClock"
+# Placeholder: builds pass the real version and build number (--build-version/--build-number)
+# from scripts/version.js (release tag, or ESPHamClock/version.cpp; git commit count).
 version = "0.1.0"
 id = "org.openhamclock.hamclock"
+icon = "@image/icon.png"
 
 [os.version]
 min = "1.2"
@@ -48,6 +51,8 @@ id = "com.amazon.mediatransform.service"
 [components]
 [[components.interactive]]
 id = "org.openhamclock.hamclock.main"
+title = "HamClock"
+icon = "@image/icon.png"
 runtime-module = "/com.amazon.kepler.runtime.react_native_kepler_4@IReactNativeKepler_0"
 launch-type = "singleton"
 categories = ["com.amazon.category.main"]
