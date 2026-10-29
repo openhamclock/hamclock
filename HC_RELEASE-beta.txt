@@ -1,4 +1,6 @@
 Changes with latest release:
+- new Next Up pane
+- new ADIF upload
 - fix band/age interaction in pskr
 - no start on boot when not supported
 - occasionally stuck android save
