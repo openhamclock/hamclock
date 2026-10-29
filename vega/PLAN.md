@@ -214,6 +214,9 @@ No code in this repo parses the platform string on the backend side; check the b
 - Sat_Alerts (hams.at) and Mesh_Mon are back in the pane menus (the Phase 6 `plotmgmnt.cpp` change is reverted, so that file is upstream again). On Vega they fail when fetching, because `connectCommand` (curl) returns false. **Needs work:** see "Needs work" below.
   - **Phase 6 bug fixed by this revert:** the `_IS_VEGA` `return (false)` sat in the middle of the fallthrough chain of "always available" choices, so every choice above it (Aurora, DRAP, Solar Wind, SSN, X-Ray, SDO, Moon, Contests, …) was unavailable on Vega: missing from the menus and refused by `set_pane`. After the revert, `set_pane` accepts Aurora, DRAP, Solar_Wind, Sat_Alerts and Mesh_Mon (Release, on the TV).
 - LAN toggle in Release (user, plus log): the engine restarts and the WebView remounts (renderer stopped/started at each switch), same app process throughout. No crash. The panel stays open for a LAN change, so the "Restarting" card is hidden behind it.
+- 7.5 done:
+  - Jest (`npm test`): the lifecycle reducer, `firstRunVisible` and the LAN/QR URL helpers moved unchanged from `App.tsx` to `src/lifecycle.ts`; `test/lifecycle.test.ts` (19 tests: READY/RESTARTING transitions, page reload on READY and on a new run, panel kept for a LAN restart, first-run show/hide cases, QR = first IP URL).
+  - Host C++ (`npm run test:engine`, i.e. `make -C hcengine/test/host`): `peerAllowed` (v4/v6 ranges, v4-mapped, edges of 172.16/12), mDNS name encode/decode (compression, pointer loops, truncation), records and TTL/flush rules, answers over a loopback UDP socket, conflict detection (other IP, probing, SRV port), and the mDNS name/backend validators. It compiles `LanFilter.cpp`/`Settings.cpp` and includes `MdnsResponder.cpp` with `EngineHost` stubbed; no engine source changes. 108 checks; a deliberately broken `LanFilter.cpp` makes it fail.
 
 ---
 

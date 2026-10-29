@@ -9,6 +9,7 @@
     "clean": "rm -rf node_modules buildinfo.json dist build",
     "start": "react-native start",
     "test": "jest --colors ",
+    "test:engine": "make -C hcengine/test/host",
     "typecheck": "tsc --noEmit",
     "test:snapshot": "jest --colors --updateSnapshot",
     "lint": "eslint src package.json --ext .ts,.tsx",
