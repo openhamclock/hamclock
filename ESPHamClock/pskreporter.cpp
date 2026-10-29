@@ -858,6 +858,18 @@ bool checkPSKTouch (const SCoord &s, const SBox &box)
     return (true);
 }
 
+/* return the report list IFF it holds reports of DE (DE is the transmitter), ie. evidence of who hears us.
+ * false if Live Spots is not in any rotation set or is showing reports of someone else.
+ */
+bool getPSKReportsOfDE (const DXSpot* &rp, int &n_rep)
+{
+    if (findPaneForChoice(PLOT_CH_PSK) == PANE_NONE || !(psk_mask & PSKMB_OFDE))
+        return (false);
+    rp = reports;
+    n_rep = n_reports;
+    return (true);
+}
+
 /* return current stats, if active
  */
 bool getPSKBandStats (PSKBandStats stats[HAMBAND_N], const char *names[HAMBAND_N])

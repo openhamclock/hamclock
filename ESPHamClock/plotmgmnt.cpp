@@ -156,6 +156,7 @@ bool plotChoiceIsAvailable (PlotChoice pc)
     case PLOT_CH_BALLOONS:      // fallthru
     case PLOT_CH_HAMALERT:      // fallthru
     case PLOT_CH_BANDACT:       // fallthru
+    case PLOT_CH_NEXTUP:        // fallthru
         return (true);
 
     case PLOT_CH_NONE:         // fallthru
@@ -237,7 +238,7 @@ static int categoryOfChoice (PlotChoice pc)
 
     case PLOT_CH_CONTESTS: case PLOT_CH_DXCLUSTER: case PLOT_CH_DXPEDS: case PLOT_CH_HFCOND:
     case PLOT_CH_PSK: case PLOT_CH_ONTA: case PLOT_CH_VHFCOND: case PLOT_CH_BC:
-    case PLOT_CH_HAMALERT: case PLOT_CH_BANDACT: case PLOT_CH_POTASCHED:
+    case PLOT_CH_HAMALERT: case PLOT_CH_BANDACT: case PLOT_CH_POTASCHED: case PLOT_CH_NEXTUP:
         return 1;   // DX & Contest
 
     case PLOT_CH_DEWX: case PLOT_CH_DXWX: case PLOT_CH_STORMS: case PLOT_CH_MARINE:
@@ -1230,6 +1231,11 @@ bool checkPlotTouch (TouchType tt, const SCoord &s, PlotPane pp)
         break;
     case PLOT_CH_POTASCHED:
         if (checkPotaSchedTouch (s, box))
+            return (true);
+        in_top = true;
+        break;
+    case PLOT_CH_NEXTUP:
+        if (checkNextUpTouch (s, box))
             return (true);
         in_top = true;
         break;

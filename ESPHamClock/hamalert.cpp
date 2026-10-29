@@ -496,6 +496,18 @@ bool updateHamAlert (const SBox &box, bool fresh)
     return (true);
 }
 
+/* return the current HamAlert spot list, oldest first. false if HamAlert is not feeding us.
+ * N.B. caller must not modify the list
+ */
+bool getHamAlertSpots (DXSpot **spp, int *nspotsp)
+{
+    if (!useHamAlert() || !isHamAlertConnected() || !ha_spots)
+        return (false);
+    *spp = ha_spots;
+    *nspotsp = ha_ss.n_data;
+    return (true);
+}
+
 /* called often to add any new spots to list IFF connection already open.
  * N.B. this is not a thread but can be thought of as a "background" function, no GUI.
  * N.B. we never open the connection, that is done by updateHamAlert(), but we close it
