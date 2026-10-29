@@ -237,7 +237,7 @@ static void scrollHADown (const SBox &box)
 static void engageHARow (DXSpot &s)
 {
     newDX (s.tx_ll, NULL, s.tx_call);
-    setRadioSpot (s.kHz);
+    setRadioSpot (s.kHz, s.mode);
     if (ha_showbio)
         openQRZBio (s);
 }

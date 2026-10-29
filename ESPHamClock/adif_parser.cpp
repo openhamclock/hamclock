@@ -50,7 +50,8 @@ typedef struct {
 
     // per-field state
     char name[20];                                      // field name so far, always includes EOS
-    char value[20];                                     // field value so far, always includes EOS
+    char value[48];                                     // field value so far, always includes EOS. N.B. room for a
+                                                        // POTA two-fer list in POTA_REF
     unsigned name_seen;                                 // n name chars seen so far (avoids strlen(name))
     unsigned value_len;                                 // claimed value length so far from field defn
     unsigned value_seen;                                // n value chars seen so far (avoids strlen(value))
@@ -59,6 +60,11 @@ typedef struct {
     uint32_t fields;                                    // bit mask of 1 << ADIFFieldBit seen
     char qso_date[10];                                  // temp QSO_DATE .. need both to get UNIX time
     char time_on[10];                                   // temp TIME_ON .. need both to get UNIX time
+
+    // On The Air references of the station worked, kept until the record is known good then given to refsworked.
+    // "MY_" variants name the operator's own location and are different fields so are never confused with these.
+    char pota_ref[48], sota_ref[48], wwff_ref[48];      // POTA_REF SOTA_REF WWFF_REF, may be comma lists
+    char sig[12], sig_info[24];                         // generic SIG and SIG_INFO, eg "LLOTA" "xx-nnn"
 } ADIFParser;
 
 #define CHECK_AFB(a,b)   ((a).fields & (1 << (b)))      // handy test for ADIFFieldBit
@@ -313,6 +319,21 @@ static bool addADIFFIeld (ADIFParser &adif, DXSpot &spot)
         }
         ADD_AFB (adif, AFB_LON);
 
+    } else if (!strcasecmp (adif.name, "POTA_REF")) {
+        quietStrncpy (adif.pota_ref, adif.value, sizeof(adif.pota_ref));
+
+    } else if (!strcasecmp (adif.name, "SOTA_REF")) {
+        quietStrncpy (adif.sota_ref, adif.value, sizeof(adif.sota_ref));
+
+    } else if (!strcasecmp (adif.name, "WWFF_REF")) {
+        quietStrncpy (adif.wwff_ref, adif.value, sizeof(adif.wwff_ref));
+
+    } else if (!strcasecmp (adif.name, "SIG")) {
+        quietStrncpy (adif.sig, adif.value, sizeof(adif.sig));
+
+    } else if (!strcasecmp (adif.name, "SIG_INFO")) {
+        quietStrncpy (adif.sig_info, adif.value, sizeof(adif.sig_info));
+
     } else 
         useful_field = false;
 
@@ -500,6 +521,8 @@ static bool parseADIF (char c, ADIFParser &adif, DXSpot &spot)
         adif.qso_date[0] = '\0';
         adif.time_on[0] = '\0';
         adif.fields = 0;
+        adif.pota_ref[0] = adif.sota_ref[0] = adif.wwff_ref[0] = '\0';
+        adif.sig[0] = adif.sig_info[0] = '\0';
 
         // fallthru
 
@@ -661,8 +684,10 @@ int readADIFFile (GenReader &gr, DXSpot *&spots, bool use_wl, int &n_bad)
     struct timeval tv0;
     gettimeofday (&tv0, NULL);
 
-    // reset dxpeds worked list
+    // reset dxpeds worked list, and the worked references too if this is the main log load
     resetDXPedsWorked();
+    if (use_wl)
+        resetRefsWorked (RW_ADIF);
 
     // crack file
     DXSpot spot;
@@ -680,6 +705,19 @@ int readADIFFile (GenReader &gr, DXSpot *&spots, bool use_wl, int &n_bad)
 
                 // add to the DXPeds indices regardless of watch list
                 addDXPedsWorked (spot);
+
+                // likewise note any park or summit worked. N.B. only the main log load does this (use_wl) so a
+                // trial read of an upload or a one-record UDP packet can not disturb the real list.
+                if (use_wl) {
+                    if (adif.pota_ref[0])
+                        addRefsWorkedList (RW_ADIF, "POTA", adif.pota_ref);
+                    if (adif.sota_ref[0])
+                        addRefsWorkedList (RW_ADIF, "SOTA", adif.sota_ref);
+                    if (adif.wwff_ref[0])
+                        addRefsWorkedList (RW_ADIF, "WWFF", adif.wwff_ref);
+                    if (adif.sig[0] && adif.sig_info[0])
+                        addRefsWorkedList (RW_ADIF, adif.sig, adif.sig_info);
+                }
 
                 // add to list if qualifies watch list
                 bool wl_ok = !use_wl || checkWatchListSpot(WLID_ADIF, spot) != WLS_NO;

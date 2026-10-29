@@ -50,6 +50,7 @@ typedef struct {
     uint8_t srcs;                                       // NUS_* that reported it
     HamBandSetting band;
     float km, bear_deg;                                 // from DE
+    char ref_org[8], ref_id[12];                        // On The Air program and reference if an OTA source named one
     NUResult r;
 } NUCand;
 
@@ -195,6 +196,18 @@ static void gatherPSK (time_t now)
     }
 }
 
+/* record the On The Air program and reference carried by an On The Air spot. these are kept in the candidate
+ * itself because c.s can be replaced by a newer DX Cluster spot of the same station, which has no reference.
+ * N.B. On The Air spots repurpose rx_call for the reference id and rx_grid for the program name.
+ */
+static void setCandRef (NUCand &c, const DXSpot &s)
+{
+    if (s.rx_call[0] && s.rx_grid[0]) {
+        quietStrncpy (c.ref_org, s.rx_grid, sizeof(c.ref_org));
+        quietStrncpy (c.ref_id, s.rx_call, sizeof(c.ref_id));
+    }
+}
+
 /* add one spot to the candidate list, merging with an existing one for the same call and band
  */
 static void addCand (const DXSpot &s, uint8_t src, time_t now)
@@ -215,6 +228,8 @@ static void addCand (const DXSpot &s, uint8_t src, time_t now)
             c.srcs |= src;
             if (s.spotted > c.s.spotted)
                 c.s = s;
+            if (src == NUS_OTA)
+                setCandRef (c, s);
             return;
         }
     }
@@ -225,6 +240,9 @@ static void addCand (const DXSpot &s, uint8_t src, time_t now)
     c.s = s;
     c.srcs = src;
     c.band = band;
+    c.ref_org[0] = c.ref_id[0] = '\0';
+    if (src == NUS_OTA)
+        setCandRef (c, s);
 }
 
 /* add all spots from one source list
@@ -292,6 +310,10 @@ static void rankAll (time_t now)
         in.have_rx_obs = n_raws > 0;
         in.age_s = now > c.s.spotted ? (int)(now - c.s.spotted) : 0;
 
+        // reference need, but only if the log holds references for this program else we could not tell
+        in.has_ref = c.ref_id[0] && orgHasRefsWorked (c.ref_org);
+        in.ref_worked = in.has_ref && isRefWorked (c.ref_org, c.ref_id);
+
         // corroboration is only worth computing for spots we might actually want
         NUReason why;
         if (nuNeed (in, why) > 0.1F)
@@ -328,9 +350,12 @@ static uint16_t scoreColor (int score)
 
 /* short phrase for why the spot is wanted
  */
-static const char *reasonStr (NUReason r)
+static const char *reasonStr (NUReason r, const char *ref_org)
 {
     switch (r) {
+    case NU_REF:
+        return (!strcasecmp (ref_org, "POTA") ? "NEW PARK" : !strcasecmp (ref_org, "SOTA") ? "new summit"
+                                                                                        : "new ref");
     case NU_DXCC:    return ("NEW DXCC");
     case NU_BAND:    return ("new band");
     case NU_GRID:    return ("new grid");
@@ -350,6 +375,27 @@ static void bandStr (HamBandSetting b, char *buf, size_t n)
         snprintf (buf, n, "%s", name);
     else
         snprintf (buf, n, "%sm", name);
+}
+
+/* coarse age class of a spot, so the pane can show how stale it is and redraw when that changes:
+ * 0 just spotted (< 90 s), 1 under 5 min, 2 under 15 min, 3 older.
+ */
+static int ageBucket (time_t now, time_t spotted)
+{
+    long age = now > spotted ? (long)(now - spotted) : 0;
+    return (age < 90 ? 0 : age < 5*60 ? 1 : age < 15*60 ? 2 : 3);
+}
+
+/* call sign color for an age bucket: brightest when brand new, fading as the spot goes stale
+ */
+static uint16_t ageColor (int bucket)
+{
+    switch (bucket) {
+    case 0:  return (NU_GREEN);
+    case 1:  return (RA8875_WHITE);
+    case 2:  return (RGB565(190,196,204));
+    default: return (NU_GRAY);
+    }
 }
 
 /* mix a string into a running FNV-1a hash
@@ -407,7 +453,7 @@ static void drawNextUp (const SBox &box, time_t now)
         tft.drawRect (box.x+2, box.y+NU_CARD_Y, box.w-4, NU_CARD_H, NU_COLOR);
         bandStr (b.band, bs, sizeof(bs));
         snprintf (line, sizeof(line), "%s %s %s", b.s.tx_call, bs, b.s.mode);
-        tft.setTextColor (RA8875_WHITE);
+        tft.setTextColor (ageColor (ageBucket (now, b.s.spotted)));
         tft.setCursor (box.x+5, box.y+NU_CARD_Y+3);
         tft.print (line);
         snprintf (line, sizeof(line), "%d", b.r.score);
@@ -417,14 +463,14 @@ static void drawNextUp (const SBox &box, time_t now)
         tft.print (line);
 
         bool km = showDistKm();
-        if (!src_adif) {
+        if (!src_adif && b.r.reason != NU_REF) {
             // scores mean little without a log, so say how to fix that rather than imply need was judged
             snprintf (line, sizeof(line), "no log: /adif.html");
             tft.setTextColor (NU_AMBER);
         } else {
-            snprintf (line, sizeof(line), "%s az%.0f %.0f%s", b.r.unconfirmed ? "unconfirmed" : reasonStr (b.r.reason),
+            snprintf (line, sizeof(line), "%s az%.0f %.0f%s", b.r.unconfirmed ? "unconfirmed" : reasonStr (b.r.reason, b.ref_org),
                         b.bear_deg, km ? b.km : b.km*0.621371F, km ? "km" : "mi");
-            tft.setTextColor (b.r.reason == NU_DXCC && !b.r.unconfirmed ? NU_GREEN
+            tft.setTextColor ((b.r.reason == NU_DXCC || b.r.reason == NU_REF) && !b.r.unconfirmed ? NU_GREEN
                                 : b.r.unconfirmed ? NU_AMBER : NU_COLOR);
         }
         tft.setCursor (box.x+5, box.y+NU_CARD_Y+17);
@@ -446,14 +492,14 @@ static void drawNextUp (const SBox &box, time_t now)
             tft.drawLine (box.x+2, y-3, box.x+box.w-3, y-3, RGB565(30,36,43));
             bandStr (c.band, bs, sizeof(bs));
             snprintf (line, sizeof(line), "%-7.7s %-4s", c.s.tx_call, bs);
-            tft.setTextColor (RA8875_WHITE);
+            tft.setTextColor (ageColor (ageBucket (now, c.s.spotted)));
             tft.setCursor (box.x+3, y);
             tft.print (line);
 
             // source tags
-            snprintf (line, sizeof(line), "%s%s%s", (c.srcs & NUS_CLU) ? "C" : "", (c.srcs & NUS_HA) ? "H" : "",
-                                        (c.srcs & NUS_OTA) ? "O" : "");
-            tft.setTextColor (c.r.unconfirmed ? NU_AMBER : NU_GRAY);
+            snprintf (line, sizeof(line), "%s%s%s%s", (c.srcs & NUS_CLU) ? "C" : "", (c.srcs & NUS_HA) ? "H" : "",
+                                        (c.srcs & NUS_OTA) ? "O" : "", c.r.reason == NU_REF ? "*" : "");
+            tft.setTextColor (c.r.unconfirmed ? NU_AMBER : c.r.reason == NU_REF ? NU_GREEN : NU_GRAY);
             tft.setCursor (box.x+88, y);
             tft.print (c.r.unconfirmed ? "?" : line);
 
@@ -482,7 +528,6 @@ static void drawNextUp (const SBox &box, time_t now)
         fx += getTextWidth (srcs[i].tag) + 6;
     }
 
-    (void) now;
 }
 
 /* called often while the pane is visible, fresh when newly so. always ok: we do no I/O of our own.
@@ -499,7 +544,8 @@ bool updateNextUp (const SBox &box, bool fresh)
     char buf[80];
     int n_sig = box.h > 200 ? NU_MAXROWS + 1 : 5;
     for (int i = 0; i < n_cands && i < n_sig; i++) {
-        snprintf (buf, sizeof(buf), "%.14s%d%d%d", cands[i].s.tx_call, cands[i].band, cands[i].r.score, cands[i].srcs);
+        snprintf (buf, sizeof(buf), "%.14s%d%d%d%d%d", cands[i].s.tx_call, cands[i].band, cands[i].r.score,
+                        cands[i].srcs, (int)cands[i].r.reason, ageBucket (now, cands[i].s.spotted));
         sig = hashStr (sig, buf);
     }
     snprintf (buf, sizeof(buf), "%d%d%d%d%d%d", src_clu, src_ha, src_ota, src_adif, src_psk, showDistKm());
@@ -521,7 +567,7 @@ bool checkNextUpTouch (const SCoord &s, const SBox &box)
     for (int i = 0; i < n_shown; i++) {
         if (inBox (s, hit[i])) {
             newDX (shown[i].tx_ll, NULL, shown[i].tx_call);
-            setRadioSpot (shown[i].kHz);
+            setRadioSpot (shown[i].kHz, shown[i].mode);
             return (true);
         }
     }

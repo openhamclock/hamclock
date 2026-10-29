@@ -1042,6 +1042,27 @@ extern bool checkADIFFilename (const char *fn, Message &ynot);
 extern bool getADIFPaneSpot (const SCoord &ms, DXSpot *dxs, LatLong *ll);
 extern bool onADIFList (const DXSpot &spot, bool chk_dxcc, bool chk_grid, bool chk_pref, bool chk_band);
 
+// On The Air references (parks, summits ...) already worked, see refsworked.cpp and huntedparks.cpp.
+// each source is loaded and reset on its own.
+typedef enum {
+    RW_ADIF,                                    // from the ADIF log
+    RW_POTAHUNTED,                              // from the POTA Hunted Parks CSV
+    RW_N
+} RWSource;
+extern void resetRefsWorked (RWSource src);
+extern void addRefWorked (RWSource src, const char *org, const char *ref);
+extern void addRefsWorkedList (RWSource src, const char *org, const char *list);
+extern bool isRefWorked (const char *org, const char *ref);
+extern int countRefsWorked (void);
+extern int countRefsWorked (RWSource src);
+extern bool orgHasRefsWorked (const char *org);
+
+// POTA Hunted Parks CSV, see huntedparks.cpp
+extern void loadHuntedParksOnce (void);
+extern bool uploadHuntedParks (GenReader &gr, long n_bytes, int &n_parks, Message &ynot);
+extern void getHuntedParksStatus (char *buf, size_t buf_len);
+extern const char parks_html[];
+
 
 
 
@@ -2811,7 +2832,7 @@ extern void openMovieURL (const char *hc_page, const char *orig_url, const char 
  */
 
 extern void pollRadio (void);
-extern void setRadioSpot (float kHz);
+extern void setRadioSpot (float kHz, const char *mode = NULL);
 extern void radioResetIO(void);
 
 

@@ -28,6 +28,7 @@ typedef enum {
     NU_GRID,                    // new grid
     NU_BAND,                    // DXCC worked, but never on this band
     NU_DXCC,                    // brand new DXCC
+    NU_REF,                     // new park/summit/etc: a reference never worked, whatever else is known of the call
     NU_UNKNOWN                  // no log loaded
 } NUReason;
 
@@ -45,6 +46,12 @@ typedef struct {
     bool grid_worked;           // grid worked (any band); only read when grid_known
     bool prefix_worked;         // prefix worked (any band)
     bool wanted_list;           // matches the user's watch list: boosts need
+
+    // reference need, only for spots that name an On The Air reference. caller sets has_ref only when some source
+    // (ADIF log, POTA hunted parks) is known to hold references for that program at all: a list without any (eg a
+    // contest log) can not say a park is new.
+    bool has_ref;               // spot has a reference AND we hold references for its program to compare with
+    bool ref_worked;            // that reference is in the log; only read when has_ref
 
     // reach, transmit evidence
     bool have_tx_obs;           // we have any reports of DE at all (ie. DE has been heard somewhere recently)
@@ -74,8 +81,14 @@ typedef struct {
 static inline float nuNeed (const NUInputs &in, NUReason &why)
 {
     if (!in.have_log) {
+        // neutral: neither boost nor sink what we can not judge. but a reference list does not depend on the log,
+        // so a reference known to be new still lifts above neutral.
+        if (in.has_ref && !in.ref_worked) {
+            why = NU_REF;
+            return (0.6F);
+        }
         why = NU_UNKNOWN;
-        return (0.5F);                  // neutral: neither boost nor sink what we can not judge
+        return (0.5F);
     }
 
     float n;
@@ -93,8 +106,19 @@ static inline float nuNeed (const NUInputs &in, NUReason &why)
         n = 0.4F;
     } else {
         why = NU_WORKED;
-        return (0.05F);                 // worked: no watch list boost for something we do not need
+        n = 0.05F;
     }
+
+    // a reference never worked is wanted even when the call itself is not: hunters chase the park, not the call.
+    // only lifts, never lowers, so a new DXCC or band still reads as such.
+    const float ref_need = 0.6F;
+    if (in.has_ref && !in.ref_worked && n < ref_need) {
+        why = NU_REF;
+        n = ref_need;
+    }
+
+    if (why == NU_WORKED)
+        return (n);                     // worked: no watch list boost for something we do not need
 
     if (in.wanted_list)
         n = fminf (1.0F, n * 1.25F);

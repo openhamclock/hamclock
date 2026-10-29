@@ -719,6 +719,11 @@ static void drawONTAVisSpots (const SBox &box)
                 tft.setCursor (id_x, y);
                 tft.printf ("%.*s", id_len, line+freq_len+call_len+1);
 
+                // underline the id in yellow if it is a reference not yet in the ADIF log -- a new park/summit to
+                // hunt. only when the log holds references for this program, else we could not know. drawn after
+                // the spotted underline below so the two do not erase each other.
+                bool new_ref = orgHasRefsWorked (spot.rx_grid) && !isRefWorked (spot.rx_grid, spot.rx_call);
+
                 // remainder: blank(s) + state/country + age, plain
                 uint16_t tail_x = id_x + id_len*ONTA_CHAR_W;
                 tft.setTextColor (rem_color);
@@ -729,6 +734,13 @@ static void drawONTAVisSpots (const SBox &box)
                     uint16_t rem_x0 = call_x;
                     uint16_t rem_w = getTextWidth (line+freq_len);
                     tft.drawLine (rem_x0, y+3, rem_x0+rem_w, y+3, RA8875_GREEN);
+                }
+                if (new_ref) {
+                    // text is 7 pixels tall from y, so y+8 is just below it, and y+9 is the last row of the cell.
+                    // two rows so it stands out on the org-colored background. N.B. y+3 would strike through.
+                    uint16_t x1 = id_x + id_len*ONTA_CHAR_W - 1;
+                    tft.drawLine (id_x, y+8, x1, y+8, RGB565(255,220,0));
+                    tft.drawLine (id_x, y+9, x1, y+9, RGB565(255,220,0));
                 }
             }
         }
@@ -905,7 +917,7 @@ static void engageONTARow (DXSpot &s)
 {
     if (onta_showbio)
         openQRZBio (s);
-    setRadioSpot(s.kHz);
+    setRadioSpot(s.kHz, s.mode);
     newDX (s.tx_ll, NULL, s.tx_call);
 }
 

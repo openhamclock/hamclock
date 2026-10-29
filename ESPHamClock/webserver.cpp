@@ -3799,6 +3799,67 @@ static bool getWiFiADIFGui (WiFiClient &client, char line[], size_t line_len)
     return (true);
 }
 
+/* load a Hunted Parks CSV via POST
+ */
+static bool setWiFiParks (WiFiClient &client, char line[], size_t line_len)
+{
+    // define all possible args
+    WebArgs wa;
+    wa.nargs = 0;
+    wa.name[wa.nargs++] = "save";
+
+    // parse
+    if (!parseWebCommand (wa, line, line_len))
+        return (false);
+
+    if (!wa.found[0]) {
+        strcpy (line, garbcmd);
+        return (false);
+    }
+
+    GenReader gr (client, content_length);
+    int n_parks;
+    Message ynot;
+    if (!uploadHuntedParks (gr, content_length, n_parks, ynot)) {
+        quietStrncpy (line, ynot.get(), line_len);
+        return (false);
+    }
+    startPlainText (client);
+    char msg[100];
+    snprintf (msg, sizeof(msg), "ok: %d parks loaded\n", n_parks);
+    client.print (msg);
+    return (true);
+}
+
+/* report the current hunted parks
+ */
+static bool getWiFiParksStatus (WiFiClient &client, char line[], size_t line_len)
+{
+    (void) line;
+    (void) line_len;
+    char buf[100];
+    getHuntedParksStatus (buf, sizeof(buf));
+    startPlainText (client);
+    client.print (buf);
+    return (true);
+}
+
+/* serve the page for uploading the Hunted Parks CSV
+ */
+static bool getWiFiParksGui (WiFiClient &client, char line[], size_t line_len)
+{
+    (void) line;
+    (void) line_len;
+    client.println ("HTTP/1.0 200 OK");
+    sendUserAgent (client);
+    client.println ("Content-Type: text/html; charset=utf-8");
+    client.println ("Cache-Control: no-store");
+    client.println ("Connection: close\r\n");
+    client.print (parks_html);
+    Serial.printf ("Served parks.html\n");
+    return (true);
+}
+
 /* load a BMP file via POST else turn off.
  */
 static bool setWiFiloadBMP (WiFiClient &client, char line[], size_t line_len)
@@ -5102,6 +5163,7 @@ typedef struct {
 } CmdTble;
 static const CmdTble command_table[] = {
     { "adif.html ",         getWiFiADIFGui,        "upload your ADIF log from a browser" },
+    { "parks.html ",        getWiFiParksGui,       "upload your POTA hunted parks CSV from a browser" },
     { "antennas.html ",     getWiFiAntennasGui,    "antennas widget to administer antenna information" },	
     { "dashboard.html ",    getWiFiDashboardGui,   "mobile dashboard for HamClock REST data" },
     { "get_adif.txt ",      getWiFiADIFStatus,     "get ADIF log status" },
@@ -5118,6 +5180,7 @@ static const CmdTble command_table[] = {
     { "get_gpio?",          getWiFiGPIO,           "pin=MCP&latched=[true,false]" }, // params!
     { "get_livespots.txt ", getWiFiLiveSpots,      "get live spots list" },
     { "get_livestats.txt ", getWiFiLiveStats,      "get live spots statistics" },
+    { "get_parks.txt ",     getWiFiParksStatus,    "get POTA hunted parks status" },
     { "get_ontheair.txt ",  getWiFiOnTheAir,       "get POTA/SOTA activators" },
     { "get_satellite.txt ", getWiFiSatellite,      "get current sat info" },
     { "get_satellites.txt ",getWiFiAllSatellites,  "get list of all sats" },
@@ -5148,6 +5211,7 @@ static const CmdTble command_table[] = {
     { "set_newde?",         setWiFiNewDE,          "grid=AB12&lat=X&lng=Y&call=AA0XYZ" },
     { "set_newdx?",         setWiFiNewDX,          "grid=AB12&lat=X&lng=Y" },
     { "set_once_alarm?",    setWiFiOnceAlarm,      "state=off|armed&time=YYYY-MM-DDTHR:MN&tz=DE|UTC" },
+    { "set_parks?",         setWiFiParks,          "save (POST)" },
     { "set_pane?",          setWiFiPane,           "Pane[0123]=X,Y,Z... any from:" },
     { "set_panzoom?",       setWiFiPanZoom,        "pan_x=X&pan_y=Y&pan_dx=dX&pan_dy=dY&zoom=Z" },
     { "set_rotator?",       setWiFiRotator,        "state=[un]stop|[un]auto&az=X&el=X" },
@@ -5240,6 +5304,7 @@ static bool isPOST (const char *line)
 {
     return (strncmp (line, "POST /set_rss?", 14) == 0
             || strncmp (line, "POST /set_adif?", 15) == 0
+            || strncmp (line, "POST /set_parks?", 16) == 0
             || strncmp (line, "POST /set_bmp?", 14) == 0);
 }
 

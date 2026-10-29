@@ -17,6 +17,8 @@
 
 // shared thread comm variables
 static volatile int set_hl_Hz, set_fl_Hz;               // set by main, reset to 0 when sent
+static char set_hl_mode[12], set_fl_mode[12];           // rig mode to set along with freq, "" if none. N.B. main
+                                                        // writes these BEFORE the matching Hz, thread reads after
 static volatile int thread_onair;                       // set by thread, main calls setOnAirSW if valid
 static char * volatile thread_msg;                      // malloced by thread, freed/zerod by main
 static pthread_mutex_t msg_lock = PTHREAD_MUTEX_INITIALIZER;    // guard thread_msg
@@ -51,6 +53,54 @@ static void postMsgToMain (const char *fmt, ...)
 
 
 
+
+
+/**********************************************************************************
+ *
+ * map a spot's mode name to one a rig will accept
+ *
+ **********************************************************************************/
+
+/* convert the mode string found in a spot to a rig mode name for hamlib or flrig, using Hz to choose sideband.
+ * return whether we know what to do, else out is empty and the rig mode should be left alone.
+ * N.B. hamlib has PKTUSB for data but flrig mode names are rig-specific so plain USB is the safe choice there.
+ */
+static bool spotModeToRigMode (const char *spot_mode, int Hz, bool hamlib, char *out, size_t out_len)
+{
+    out[0] = '\0';
+    if (!spot_mode || !spot_mode[0])
+        return (false);
+
+    // sideband convention: LSB below 10 MHz except 60 m which is USB by channel convention
+    bool is_60m = Hz >= 5200000 && Hz <= 5500000;
+    const char *rig = NULL;
+
+    if (!strcasecmp (spot_mode, "CW"))
+        rig = "CW";
+    else if (!strcasecmp (spot_mode, "USB"))
+        rig = "USB";
+    else if (!strcasecmp (spot_mode, "LSB"))
+        rig = "LSB";
+    else if (!strcasecmp (spot_mode, "SSB") || !strcasecmp (spot_mode, "PHONE"))
+        rig = (Hz < 10000000 && !is_60m) ? "LSB" : "USB";
+    else if (!strcasecmp (spot_mode, "FM"))
+        rig = "FM";
+    else if (!strcasecmp (spot_mode, "AM"))
+        rig = "AM";
+    else if (!strcasecmp (spot_mode, "FT8") || !strcasecmp (spot_mode, "FT4") || !strcasecmp (spot_mode, "DIGI")
+                        || !strcasecmp (spot_mode, "DATA") || !strcasecmp (spot_mode, "JT65")
+                        || !strcasecmp (spot_mode, "JT9") || !strcasecmp (spot_mode, "PSK31")
+                        || !strcasecmp (spot_mode, "PSK") || !strcasecmp (spot_mode, "MSK144")
+                        || !strcasecmp (spot_mode, "Q65"))
+        rig = hamlib ? "PKTUSB" : "USB";
+    else if (!strcasecmp (spot_mode, "RTTY"))
+        rig = hamlib ? "RTTY" : "USB";
+
+    if (!rig)
+        return (false);
+    quietStrncpy (out, rig, out_len);
+    return (true);
+}
 
 /**********************************************************************************
  *
@@ -181,6 +231,22 @@ static bool setHamlibFreq (WiFiClient &client, int Hz)
     return (ok);
 }
 
+/* set the given mode via hamlib, passband 0 means rig default.
+ * N.B. failure is only logged: not every rig takes every mode and the frequency is the important part.
+ * return whether io was ok.
+ */
+static bool setHamlibMode (WiFiClient &client, const char *mode)
+{
+    char cmd[64];
+    if (hamlib_vfo)
+        snprintf (cmd, sizeof(cmd), "+\\set_mode currVFO %s 0", mode);
+    else
+        snprintf (cmd, sizeof(cmd), "+\\set_mode %s 0", mode);
+    bool ok = sendHamlibCmd (client, cmd);
+    if (ok && debugLevel (DEBUG_RIG, 1))
+        Serial.printf ("RADIO: HAMLIB: set mode %s\n", mode);
+    return (ok);
+}
 
 
 /* connect to rigctld, return whether successful.
@@ -335,6 +401,17 @@ static bool setFlrigFreq (WiFiClient &client, int Hz)
                         && intFlrigCmd (client, "rig.get_vfoA", "0", "int", reply)
                         && reply == Hz);
 
+}
+
+/* set the given mode via flrig. flrig mode names are rig-specific so a rig that rejects it just keeps its mode.
+ * return whether io was ok.
+ */
+static bool setFlrigMode (WiFiClient &client, const char *mode)
+{
+    bool ok = sendFlrigCmd (client, "rig.set_mode", mode, "string");
+    if (ok && debugLevel (DEBUG_RIG, 1))
+        Serial.printf ("RADIO: FLRIG: set mode %s\n", mode);
+    return (ok);
 }
 
 /* connect to flig, return whether successful.
@@ -588,6 +665,8 @@ static void *radioThread (void *unused)
             // check for setting new frequency -- set by human clicking a spot so post all errors
             if (set_hl_Hz) {
                 if (hl_client.connected()) {
+                    if (set_hl_mode[0])
+                        (void) setHamlibMode (hl_client, set_hl_mode);   // before freq so freq has the final say
                     if (!setHamlibFreq (hl_client, set_hl_Hz))
                         postMsgToMain ("HAMLIB failed to verify %d Hz", set_hl_Hz);
                     else
@@ -632,10 +711,12 @@ static void *radioThread (void *unused)
             // check for setting new frequency -- set by human clicking a spot so post all errors
             if (set_fl_Hz) {
                 if (fl_client.connected()) {
+                    if (set_fl_mode[0])
+                        (void) setFlrigMode (fl_client, set_fl_mode);    // before freq so freq has the final say
                     if (!setFlrigFreq (fl_client, set_fl_Hz))
                         postMsgToMain ("FLRIG failed to verify %d Hz", set_fl_Hz);
                     else
-                        Serial.printf ("RADIO FLRIG set %d Hz\n", set_hl_Hz);
+                        Serial.printf ("RADIO FLRIG set %d Hz\n", set_fl_Hz);
                 } else 
                     postMsgToMain ("FLRIG not connected to set %d Hz", set_fl_Hz);
 
@@ -692,9 +773,10 @@ static bool startRadioThread (void)
  ******************************************************************************/
 
 
-/* try setting freq to all desired radios.
+/* try setting freq to all desired radios, and also mode if given and recognized (see spotModeToRigMode).
+ * mode may be NULL to leave the rig's mode alone.
  */
-void setRadioSpot (float kHz)
+void setRadioSpot (float kHz, const char *mode)
 {
 #if defined(_SUPPORT_KX3)
     // setting kx3 does not require the control thread
@@ -706,9 +788,15 @@ void setRadioSpot (float kHz)
     if (!startRadioThread())
         return;
 
-    // inform thread if desired
-    if (setRadio())
-        set_fl_Hz = set_hl_Hz = (int) (kHz * 1000);
+    // inform thread if desired. mode first, see set_hl_mode
+    if (setRadio()) {
+        int Hz = (int) (kHz * 1000);
+        if (!spotModeToRigMode (mode, Hz, true, (char*)set_hl_mode, sizeof(set_hl_mode)))
+            set_hl_mode[0] = '\0';
+        if (!spotModeToRigMode (mode, Hz, false, (char*)set_fl_mode, sizeof(set_fl_mode)))
+            set_fl_mode[0] = '\0';
+        set_fl_Hz = set_hl_Hz = Hz;
+    }
 }
 
 /* leisurely poll radio for state

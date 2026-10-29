@@ -101,6 +101,9 @@ OBJS = \
 	astro.o \
 	bandactivity.o \
 	nextup.o \
+	refsworked.o \
+	huntedparks.o \
+	parks-html.o \
 	bands.o \
 	blinker.o \
 	bmp.o \

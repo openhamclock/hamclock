@@ -148,6 +148,51 @@ int main()
         CHECK (!r.reach_known && r.reach == 0.5F, "neutral reach");
     }
 
+    // new reference lifts a worked call, but never lowers a stronger reason
+    {
+        NUInputs in = base();
+        in.dxcc_worked = in.dxcc_band_worked = in.grid_worked = in.prefix_worked = true;     // call fully worked
+        NUResult w = nuScore (in);
+        CHECK (w.reason == NU_WORKED, "worked baseline reason %d", w.reason);
+
+        in.has_ref = true; in.ref_worked = false;
+        NUResult r = nuScore (in);
+        CHECK (r.reason == NU_REF, "new ref reason %d", r.reason);
+        CHECK (fabsf (r.need - 0.6F) < 1e-6, "new ref need %g", r.need);
+        CHECK (r.score > w.score, "new ref must outscore worked: %d vs %d", r.score, w.score);
+
+        in.ref_worked = true;
+        CHECK (nuScore (in).reason == NU_WORKED, "worked ref changes nothing");
+
+        in.has_ref = false; in.ref_worked = false;
+        CHECK (nuScore (in).reason == NU_WORKED, "no ref data, no lift");
+
+        NUInputs d = base();                    // brand new DXCC stays DXCC with a new ref
+        d.has_ref = true; d.ref_worked = false;
+        CHECK (nuScore (d).reason == NU_DXCC && nuScore (d).need == 1.0F, "dxcc not demoted by ref");
+
+        NUInputs b = base();                    // new band (0.7) stays new band
+        b.dxcc_worked = true; b.has_ref = true;
+        CHECK (nuScore (b).reason == NU_BAND, "band not demoted by ref");
+
+        NUInputs g = base();                    // new grid (0.5) is lifted to ref
+        g.dxcc_worked = g.dxcc_band_worked = true; g.has_ref = true;
+        CHECK (nuScore (g).reason == NU_REF, "grid lifted by new ref");
+
+        NUInputs u = base();                    // no log, ref list known and ref new: lifted above neutral
+        u.have_log = false; u.has_ref = true;
+        CHECK (nuScore (u).reason == NU_REF && fabsf (nuScore (u).need - 0.6F) < 1e-6, "no log, new ref");
+        u.ref_worked = true;                    // no log, ref worked: neutral unknown
+        CHECK (nuScore (u).reason == NU_UNKNOWN && fabsf (nuScore (u).need - 0.5F) < 1e-6, "no log, worked ref");
+        u.has_ref = false;                      // no log, no ref data: neutral unknown
+        CHECK (nuScore (u).reason == NU_UNKNOWN, "no log stays unknown");
+
+        NUInputs wl = base();                   // watch list boost applies to ref need
+        wl.dxcc_worked = wl.dxcc_band_worked = wl.grid_worked = wl.prefix_worked = true;
+        wl.has_ref = true; wl.wanted_list = true;
+        CHECK (fabsf (nuScore (wl).need - 0.75F) < 1e-6, "wanted list boost on ref, got %g", nuScore (wl).need);
+    }
+
     // freshness curve
     CHECK (nuFresh (0) == 1.0F, "fresh 0");
     CHECK (nuFresh (300) == 1.0F, "fresh 5m");
