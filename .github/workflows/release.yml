@@ -58,14 +58,14 @@ on:
           - 'false'
         default: 'true'
       amazon_submit_for_review:
-        description: 'Submit Amazon upload directly for review (auto: true for stable, false for beta)'
+        description: 'Submit Amazon upload directly for review (default false: leave as draft so DRM can be set in the console; auto: true for stable, false for beta)'
         required: true
         type: choice
         options:
-          - 'auto'
-          - 'true'
           - 'false'
-        default: 'auto'
+          - 'true'
+          - 'auto'
+        default: 'false'
 
 jobs:
   release:
@@ -245,7 +245,7 @@ jobs:
       - name: Upload to Amazon Appstore
         if: ${{ github.event.inputs.push_amazon_appstore == 'true' || github.event.inputs.push_amazon_appstore == true || inputs.push_amazon_appstore == 'true' || inputs.push_amazon_appstore == true }}
         run: |
-          AMAZON_SUBMIT="${{ github.event.inputs.amazon_submit_for_review || inputs.amazon_submit_for_review || 'auto' }}"
+          AMAZON_SUBMIT="${{ github.event.inputs.amazon_submit_for_review || inputs.amazon_submit_for_review || 'false' }}"
           TAG="${{ github.event.inputs.tag_name }}"
 
           if [ "$AMAZON_SUBMIT" = "auto" ]; then

@@ -1,17 +1,16 @@
 Changes with latest release:
-- new Android support
-- Amazon fire tablets/tv
-- new fire wx/fires monitoring
-- new marine, quake monitoring
-- ADB/windy access changes
-- spots for 4, 630, 2200
-- HamQTH lookups
-- open User Guide
-- panels forward/back
-- ONTA improvements and fixes
-- disable spots on maps
-- touchscreen paste
-- password visibility toggle
-- special chars in passwords
-- fix cancel button on de/dx
-- fix clock redraw over de/dx menus
+- Android/Google TV support
+- both Physical and Terrain maps
+- POTA schedules
+- get local aprs in REST
+- embed Wind in HamClock
+- ADS-B button on all maps
+- align clouds and wx map buttons
+- factory reset
+- Upgrade detect in Android
+- fix broken chars in lat/lon
+- fix poss. Android crash in sleep
+- fix pointer config select on TV
+- fix various display refresh issues
+- fix crash on empty dxped/cntst
+- fix wx wind speed units
