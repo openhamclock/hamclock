@@ -1,6 +1,8 @@
 Changes with latest release:
 - new Next Up pane
 - new ADIF upload
+- new mode on tune
+- new new-park flag
 - fix band/age interaction in pskr
 - no start on boot when not supported
 - occasionally stuck android save
