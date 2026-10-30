@@ -6,7 +6,7 @@ Phases 0–3 are done and committed on `vega-app` (engine in the app, WebView UI
 
 **Update 2026-10-29 (later):** Phase 6 is done (see `vega/PHASE6_RESULTS.md`): hold speed-up in the page, screensaver held off by an inaudible WebAudio tone (TimeoutManager doesn't help), engine log separated by linker wraps, no subprocesses in the sandbox (curl panes hidden on Vega), backend applied on leaving Settings, first-run presets (geoIP DE, NTP = Computer) written before Setup. Next: Phase 7.
 
-**Update 2026-10-30:** Phase 7 is done (see `vega/PHASE7_RESULTS.md`). Release build, version from the tag with the commit count as the build number, armv7 and aarch64 packages, Jest and host C++ tests, `vega.yml` CI (verified on GitHub; PRs and manual runs only), README. The WebView is memoized. Merging `vega-app` waits for the user's review. Next candidate: the Vega SDK 2.0 upgrade (see "Needs work").
+**Update 2026-10-30:** Phase 7 is done (see `vega/PHASE7_RESULTS.md`). Release build, version from the tag with the commit count as the build number, armv7 and aarch64 packages, Jest and host C++ tests, `vega.yml` CI (verified on GitHub; PRs and manual runs only), README. The WebView is memoized. Merging `vega-app` waits for the user's review. Next: Phase 8, the Vega SDK 2.0 upgrade (plan below).
 
 _This file is the maintained copy of the plan (moved into the repo after Phase 6; the original was a conversation artifact)._
 
@@ -230,9 +230,30 @@ No code in this repo parses the platform string on the backend side; check the b
 
 ---
 
+## Phase 8: Vega SDK 2.0 upgrade (agreed 2026-10-30, before merging `vega-app`)
+
+**Why:** SDK 2.0.13986 (2026-10-29) is the general release of Vega OS and SDK 2.0. We're on 0.24.12112. The TV already runs OS 2.0 (TV Ship/529). Amazon's 2.0 release-notes page returned 404 when checked; the steps below come from a web-search summary, so check each one against `vega ... --help` and the real output.
+
+**Open decision (ask first):** `--os-min`. The recommendation is to keep **1.2** (older Vega devices keep working) unless the 2.0 tooling forces 2.0. The target becomes 2.0.
+
+**Steps:**
+1. **Baseline.** Record the current state: `npm ci`, tsc, lint, Jest 19/19, `test:engine` 108/0, Release 1193 on the TV. Do the work on a branch off `vega-app` (e.g. `vega-sdk2`) so 0.24 stays a working fallback. Install 2.0 next to 0.24 (`vega sdk install 2.0.13986`); switch back with `vega sdk use 0.24.12112`.
+2. **CLI and SDK.** Run `vega update` (CLI 1.4.7 now) and `vega sdk use 2.0.13986`. Check whether a project-level `vega-sdk-requirements.json` is expected.
+3. **Project.** `vega project update-manifest --os-min 1.2 --os-version 2.0` (check the diff: `[os.version]`, the `IVega_1_2` needs entry, which may now be injected by `vega build`). Then `vega project install --fix`, `npm install` (new lockfile), and `vega project doctor`. Compare against a fresh 2.0 template app (`vega project` create) for package versions and config (`.eslintrc`, babel, metro, tsconfig).
+4. **Packages.** React 19 / RN 0.83 / Hermes v1. Use 2.0 versions of `@amazon-devices/react-native-kepler`, `@amazon-devices/webview` (keep the `~` pins), the eslint plugin and typescript-eslint. Then re-check `npm audit` and the deprecation notices (PHASE7_RESULTS.md "Left as is"), and `hcengine/`'s package.json.
+5. **Engine (C++).** Rebuild `libHcEngine.so` with the 2.0 toolchain for armv7 and aarch64. Watch for TurboModule/autolink API changes and new compiler warnings. Run `test:engine`.
+6. **App code.** Fix tsc/lint/Jest. Watch for React 19 changes (`defaultProps`, refs, `useComponentInstance` and other WebView API changes), TV focus/key events (`useTVEventHandler`, `TVFocusGuideView`) and `BackHandler`.
+7. **On the TV.** FRESH Release install (re-enter N0CALL): first-run presets, Setup, live clock, keys and hold speed-up, Back/Menu, settings panel, LAN toggle, QR, mDNS, screensaver tone, Home and return, no `[HC…]` lines. The build number must be higher than 1193.
+8. **CI.** Set `VEGA_SDK_VERSION` to `2.0.13986` in `vega.yml` and `release.yml`. The user pushes and runs Vega by hand from the Actions tab.
+9. **Docs.** Write `PHASE8_RESULTS.md`, update this file, and change the README prereqs ("Vega SDK 0.24.x").
+
+**Environment:** TV `192.168.1.237:5555` (armv7), `source ~/vega/env`, system Node `/usr/bin/node`. Runner `tmp/vega-spike/run-p7.sh` (`BTYPE=Release`, `FRESH=1`, `NOBUILD=1`). The SDK manager is `vvman` (`vvman sdk list-remote|list-installed|install|use`). Never stage `docker/backend_host`. Don't run `screenshooter`.
+
+---
+
 ## Needs work (after Phase 7)
 
-- **Vega SDK 2.0 upgrade.** `vega sdk list-remote` shows 2.0.13986 (released 2026-10-29; Vega OS 2.0 GA) after our pinned 0.24.12112. The TV already runs OS 2.0 (TV Ship/529), and the app targets OS 1.2 (`[os.version]`, `IVega_1_2`). Amazon's path: `vega update`, `vega sdk install/use 2.0.13986`, `vega project update-manifest --os-min <1.2|2.0> --os-version 2.0`, `vega project install --fix`, `npm install`, `vega project doctor`. React 19 and Hermes v1. Bump `VEGA_SDK_VERSION` in `vega.yml`/`release.yml`. This is also the time to revisit the `npm audit` findings and template deprecations (PHASE7_RESULTS.md "Left as is"). Decide `--os-min`: 1.2 keeps older Vega devices; 2.0 matches the TV.
+- **Vega SDK 2.0 upgrade:** now Phase 8 (above).
 - **LAN toggle restart UX.** The settings panel stays open after a LAN change and hides the "Restarting" card.
 - **hams.at (Sat_Alerts) and Mesh_Mon panes on Vega.** Both fetch with `curl` through `WiFiClient::connectCommand`, and Vega apps can't run subprocesses (PHASE6_RESULTS.md 6.5). They need an in-process HTTP(S) client in the engine (e.g. libcurl or a TLS library linked into `libHcEngine.so`, or a fetch through the app, like Android's JNI fetch pipe). The panes stay in the menus meanwhile.
 
