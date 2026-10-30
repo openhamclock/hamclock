@@ -54,6 +54,12 @@ gh workflow run release.yml -f tag_name=v4.32.0 -f push_play_store=false
 # Optional: skip uploading to Amazon Appstore:
 gh workflow run release.yml -f tag_name=v4.32.0 -f push_amazon_appstore=false
 
+# Optional: skip the Vega OS (Fire TV) package:
+gh workflow run release.yml -f tag_name=v4.32.0 -f build_vega=false
+
+# Optional: also build the Vega aarch64 package (armv7 only by default):
+gh workflow run release.yml -f tag_name=v4.32.0 -f build_vega_aarch64=true
+
 # Optional: target a specific branch (defaults to main)
 gh workflow run release.yml --ref main -f tag_name=v4.32.0
 ```
@@ -79,6 +85,8 @@ gh workflow run
 | `play_store_track` | choice (`auto`, `beta`, `production`, `internal`) | `auto` | Target Google Play track. `auto` sends beta tags (`*b*`) to Open testing (`beta`) and stable tags to Production (`production`). |
 | `play_store_changes_not_sent_for_review` | choice (`false`, `true`) | `false` | When `true`, stages the upload as a draft in Google Play without auto-submitting for review. Required when Google Play locks automated API submissions following a review rejection or pending policy declaration. |
 | `push_amazon_appstore` | choice (`true`, `false`) | `true` | When `true`, uploads the Android APK to the Amazon Appstore. |
+| `build_vega` | choice (`true`, `false`) | `true` | When `true`, builds the Vega OS (Fire TV) package (`.vpkg`) and attaches it to the GitHub release. A Vega build failure doesn't stop the release. |
+| `build_vega_aarch64` | choice (`false`, `true`) | `false` | When `true`, also builds the Vega aarch64 package. No arm64 Vega device is known, so only armv7 is built by default. Both arches can share one build number, so aarch64 can be added later. |
 | `amazon_submit_for_review` | choice (`auto`, `true`, `false`) | `auto` | When `auto`, stable tags submit directly for review (to become Current Version) and beta tags leave a draft upcoming version for Live App Testing (LAT). |
 
 ### Monitoring the Workflow
@@ -222,7 +230,14 @@ The release workflow executes two jobs sequentially: `release` followed by `dock
        - **Beta tags** (`*b*`): Uploads APK and release notes to an "Upcoming Version" draft with `--skip-commit`. Because Amazon lacks a public REST API for Live App Testing (LAT), this prepares everything as a draft. In the Amazon Developer Console, go to **Live App Testing** $\rightarrow$ **Start a new test** $\rightarrow$ **Copy from upcoming version** and click **Start test**.
        - **Stable tags**: Commits the edit session to submit directly for Amazon review to become the live "Current Version".
        - Can be overridden via `amazon_submit_for_review` (`auto`, `true`, `false`).
-4. **GitHub Release Publication:**
+4. **Vega OS (Fire TV) Build (`build_vega`):**
+   - Installs the pinned Vega SDK (`VEGA_SDK_VERSION`, currently `2.0.13986`) non-interactively, with SDK telemetry opted out.
+   - Runs `vega/scripts/build.sh Release` for armv7, plus aarch64 when `build_vega_aarch64=true`.
+   - Version = `TAG` without the leading `v` (e.g. `4.32.0`); build number = git commit count, as for Android's `versionCode` (`vega/scripts/version.js`).
+   - Outputs `dist/org.openhamclock.hamclock-$TAG-vega-<arch>.vpkg`.
+   - `continue-on-error`: a Vega failure leaves the `.vpkg` off the release but doesn't stop it.
+   - No Appstore upload: submit the `.vpkg` manually in the Amazon Developer Console. See [`vega/README.md`](vega/README.md).
+5. **GitHub Release Publication:**
    - Creates the GitHub Release via `gh release create`. By default creates an active, published release; can be created as a draft using `-f publish_release=false`.
    - Generates release notes automatically from commit log (`--generate-notes`).
    - Attaches:
@@ -236,6 +251,7 @@ The release workflow executes two jobs sequentially: `release` followed by `dock
      - `doc/compatibility.json`
      - `dist/org.openhamclock*.apk`
      - `dist/org.openhamclock*.aab`
+     - `dist/org.openhamclock.hamclock-$TAG-vega-armv7.vpkg` (and `-vega-aarch64.vpkg` if built)
 
 ### Job 2: `docker` *(Optional - enabled by default)*
 
@@ -261,6 +277,7 @@ The release workflow executes two jobs sequentially: `release` followed by `dock
 - [ ] **Amazon Developer Console:**
   - **If Beta:** Open App $\rightarrow$ **Live App Testing** $\rightarrow$ **Start a new test** $\rightarrow$ **Copy from upcoming version** $\rightarrow$ select testers and start test.
   - **If Stable:** Verify in Amazon Developer Console that the upcoming version shows as "Submitted for review" to become the Current Version.
+- [ ] **Vega OS (Fire TV):** Check that the release has `org.openhamclock.hamclock-<tag>-vega-armv7.vpkg` (a failed Vega build doesn't fail the run). Submit it manually in the Amazon Developer Console (Vega app `org.openhamclock.hamclock`). The build number (git commit count) must be higher than the last submitted one.
 
 ---
 
