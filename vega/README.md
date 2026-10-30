@@ -72,6 +72,7 @@ None of these need the TV.
 ## CI and releases
 
 - `.github/workflows/vega.yml` runs on pull requests that touch `vega/` or `ESPHamClock/`, and by hand (Actions → Vega → Run workflow); not on push. It runs the tests, then a Release build of both arches with the Vega SDK installed in the runner (telemetry opted out). The `.vpkg` files are uploaded as an artifact.
+  - GitHub shows "Run workflow" only for workflows on the default branch (`main`). Until `vega.yml` is there, start it with `gh workflow run vega.yml --ref <branch>`.
 - `.github/workflows/release.yml` (input `build_vega`) builds the Vega packages with the release `TAG` and attaches `org.openhamclock.hamclock-<TAG>-vega-<arch>.vpkg` to the release.
 
 ## Known limitations

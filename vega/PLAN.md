@@ -8,7 +8,7 @@ Phases 0–3 are done and committed on `vega-app` (engine in the app, WebView UI
 
 **Update 2026-10-30:** Phase 7 is done (see `vega/PHASE7_RESULTS.md`). Release build, version from the tag with the commit count as the build number, armv7 and aarch64 packages, Jest and host C++ tests, `vega.yml` CI (verified on GitHub; PRs and manual runs only), README. The WebView is memoized. Merging `vega-app` waits for the user's review. Next: Phase 8, the Vega SDK 2.0 upgrade (plan below).
 
-**Update 2026-10-30 (later):** Phase 8 (SDK 2.0.13986) is done on branch `vega-sdk2` (see `vega/PHASE8_RESULTS.md`). OS target 2.0, min 1.2; no app or engine code changes; FRESH Release on the TV passes every check. Pending: a GitHub run of `vega.yml` (user), then merging `vega-sdk2` into `vega-app`.
+**Update 2026-10-30 (later):** Phase 8 (SDK 2.0.13986) is done on branch `vega-sdk2` (see `vega/PHASE8_RESULTS.md`). OS target 2.0, min 1.2; no app or engine code changes; FRESH Release on the TV passes every check. Pending: merging `vega-sdk2` into `vega-app` (CI run 41112215945 passed).
 
 _This file is the maintained copy of the plan (moved into the repo after Phase 6; the original was a conversation artifact)._
 
@@ -259,14 +259,14 @@ No code in this repo parses the platform string on the backend side; check the b
 - 5 done: `hcengine/` matches the 2.0 turbo-module template; rebuilt for armv7 and aarch64 with no warnings.
 - 6 done: no app code changes.
 - 7 done: FRESH Release 1195 on the TV passes first run, Setup, keys, panel, QR, LAN toggle, screensaver, Home/return, identity and mDNS checks.
-- 8 done locally: `VEGA_SDK_VERSION` 2.0.13986 in both workflows; GitHub run pending.
+- 8 done: `VEGA_SDK_VERSION` 2.0.13986 in both workflows; GitHub run 41112215945 passed (started with `gh workflow run vega.yml --ref vega-sdk2`, since the Actions tab only offers "Run workflow" for workflows on `main`).
 - 9 done: `PHASE8_RESULTS.md`, README prereqs.
 
 ---
 
 ## Needs work (after Phase 7)
 
-- **Vega SDK 2.0 upgrade:** Phase 8 (above); done, GitHub CI run pending.
+- **Vega SDK 2.0 upgrade:** Phase 8 (above); done, CI green. Merge `vega-sdk2` into `vega-app`.
 - **LAN toggle restart UX.** The settings panel stays open after a LAN change and hides the "Restarting" card.
 - **hams.at (Sat_Alerts) and Mesh_Mon panes on Vega.** Both fetch with `curl` through `WiFiClient::connectCommand`, and Vega apps can't run subprocesses (PHASE6_RESULTS.md 6.5). They need an in-process HTTP(S) client in the engine (e.g. libcurl or a TLS library linked into `libHcEngine.so`, or a fetch through the app, like Android's JNI fetch pipe). The panes stay in the menus meanwhile.
 

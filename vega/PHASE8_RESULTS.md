@@ -19,6 +19,7 @@ Device: Fire TV Stick "calypso", armv7l, `192.168.1.237`, Vega OS 2.0 (TV Ship/5
 | No `[HC…]` lines, no crash signal; `useComponentInstance is deprecated` 0 times (Phase 7: once at mount) | ✅ device log |
 | Screensaver held off past the idle timeout | ✅ (user) |
 | Home and return: live clock again | ✅ (user) |
+| `vega.yml` on GitHub with SDK 2.0.13986 (`workflow_dispatch` on `vega-sdk2`) | ✅ run 41112215945 (lint+tests 1m24s, build 7m33s) |
 
 ## What changed
 
@@ -45,7 +46,8 @@ Device: Fire TV Stick "calypso", armv7l, `192.168.1.237`, Vega OS 2.0 (TV Ship/5
 - No changes needed: tsc, lint and Jest pass as before.
 
 ### 8.6 CI
-- `VEGA_SDK_VERSION` is `2.0.13986` in `vega.yml` and `release.yml`. Not yet run on GitHub (the user pushes and starts Vega by hand).
+- `VEGA_SDK_VERSION` is `2.0.13986` in `vega.yml` and `release.yml`. Run 41112215945 passed; its build log uses only `sdk/vega-sdk/main/2.0.13986`.
+- The Actions tab has no "Run workflow" button for Vega: GitHub shows it only for workflows on the default branch (`main`), and `vega.yml` isn't there yet. `gh workflow run vega.yml --ref <branch>` works, because the workflow is already registered.
 
 ## Compared with the 2.0 templates (kept as is)
 - The template `tsconfig.json` no longer extends `@react-native/typescript-config` (it lists its own options). Ours still extends it and works.
