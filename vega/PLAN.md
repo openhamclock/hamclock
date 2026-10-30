@@ -6,6 +6,8 @@ Phases 0–3 are done and committed on `vega-app` (engine in the app, WebView UI
 
 **Update 2026-10-29 (later):** Phase 6 is done (see `vega/PHASE6_RESULTS.md`): hold speed-up in the page, screensaver held off by an inaudible WebAudio tone (TimeoutManager doesn't help), engine log separated by linker wraps, no subprocesses in the sandbox (curl panes hidden on Vega), backend applied on leaving Settings, first-run presets (geoIP DE, NTP = Computer) written before Setup. Next: Phase 7.
 
+**Update 2026-10-30:** Phase 7 is done (see `vega/PHASE7_RESULTS.md`). Release build, version from the tag with the commit count as the build number, armv7 and aarch64 packages, Jest and host C++ tests, `vega.yml` CI (verified on GitHub; PRs and manual runs only), README. The WebView is memoized. Merging `vega-app` waits for the user's review. Next candidate: the Vega SDK 2.0 upgrade (see "Needs work").
+
 _This file is the maintained copy of the plan (moved into the repo after Phase 6; the original was a conversation artifact)._
 
 **Your decisions (built in below):**
@@ -217,18 +219,21 @@ No code in this repo parses the platform string on the backend side; check the b
 - 7.5 done:
   - Jest (`npm test`): the lifecycle reducer, `firstRunVisible` and the LAN/QR URL helpers moved unchanged from `App.tsx` to `src/lifecycle.ts`; `test/lifecycle.test.ts` (19 tests: READY/RESTARTING transitions, page reload on READY and on a new run, panel kept for a LAN restart, first-run show/hide cases, QR = first IP URL).
   - Host C++ (`npm run test:engine`, i.e. `make -C hcengine/test/host`): `peerAllowed` (v4/v6 ranges, v4-mapped, edges of 172.16/12), mDNS name encode/decode (compression, pointer loops, truncation), records and TTL/flush rules, answers over a loopback UDP socket, conflict detection (other IP, probing, SRV port), and the mDNS name/backend validators. It compiles `LanFilter.cpp`/`Settings.cpp` and includes `MdnsResponder.cpp` with `EngineHost` stubbed; no engine source changes. 108 checks; a deliberately broken `LanFilter.cpp` makes it fail.
-- 7.6 written, not yet run on GitHub:
+- 7.6 done:
   - `scripts/build.sh` (engine, then app, for each arch, with the version args).
   - `.github/workflows/vega.yml`: test job (`tsc`, lint, Jest, host C++), then a build job that installs the Vega SDK with `get_vvm.sh` non-interactively.
   - `release.yml`: `build_vega` input; attaches `org.openhamclock.hamclock-<TAG>-vega-<arch>.vpkg` to the release.
   - A clean-checkout run of the test job found a lint error: `@amazon-devices/webview` was `^4.0.2`, and system-distributed libraries must be pinned with `~`. Fixed in `dfd279c`.
-  - Still to check: that the SDK install works in GitHub Actions.
-- 7.7: `README.md` written (build, install, tests, versioning, Debug vs Release, CI, limitations, docs index). `ARCHITECTURE.md` now has a "superseded" banner. Still open: how `vega-app` gets merged.
+  - First GitHub run passed (run 41074400476): the SDK installs non-interactively, and the artifact installs and runs on the TV. Afterwards: PR/manual triggers only, Node 24 actions (v6), telemetry opted out, the informational SDL import lint is off (`77aab80`).
+- 7.7 done: `README.md` written (build, install, tests, versioning, Debug vs Release, CI, limitations, docs index). `ARCHITECTURE.md` now has a "superseded" banner. Merging `vega-app` waits for the user's review.
+- Extra: the WebView element is memoized (`f592f99`), so the 3 s status polling no longer triggers Amazon's "useComponentInstance is deprecated" log.
 
 ---
 
 ## Needs work (after Phase 7)
 
+- **Vega SDK 2.0 upgrade.** `vega sdk list-remote` shows 2.0.13986 (released 2026-10-29; Vega OS 2.0 GA) after our pinned 0.24.12112. The TV already runs OS 2.0 (TV Ship/529), and the app targets OS 1.2 (`[os.version]`, `IVega_1_2`). Amazon's path: `vega update`, `vega sdk install/use 2.0.13986`, `vega project update-manifest --os-min <1.2|2.0> --os-version 2.0`, `vega project install --fix`, `npm install`, `vega project doctor`. React 19 and Hermes v1. Bump `VEGA_SDK_VERSION` in `vega.yml`/`release.yml`. This is also the time to revisit the `npm audit` findings and template deprecations (PHASE7_RESULTS.md "Left as is"). Decide `--os-min`: 1.2 keeps older Vega devices; 2.0 matches the TV.
+- **LAN toggle restart UX.** The settings panel stays open after a LAN change and hides the "Restarting" card.
 - **hams.at (Sat_Alerts) and Mesh_Mon panes on Vega.** Both fetch with `curl` through `WiFiClient::connectCommand`, and Vega apps can't run subprocesses (PHASE6_RESULTS.md 6.5). They need an in-process HTTP(S) client in the engine (e.g. libcurl or a TLS library linked into `libHcEngine.so`, or a fetch through the app, like Android's JNI fetch pipe). The panes stay in the menus meanwhile.
 
 ---
