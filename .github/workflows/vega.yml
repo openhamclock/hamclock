@@ -2,15 +2,8 @@ name: Vega
 
 # Vega OS (Fire TV) app: lint and tests, then Release .vpkg packages for armv7 and aarch64.
 # The packages are uploaded as a workflow artifact. Tagged releases build them in release.yml.
+# Runs on pull requests that touch the Vega app or the engine, or by hand (workflow_dispatch).
 on:
-  push:
-    branches:
-      - main
-      - vega-app
-    paths:
-      - 'vega/**'
-      - 'ESPHamClock/**'
-      - '.github/workflows/vega.yml'
   pull_request:
     paths:
       - 'vega/**'
@@ -37,7 +30,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
@@ -73,7 +66,7 @@ jobs:
           fetch-depth: 0  # build number = git commit count
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
@@ -84,7 +77,10 @@ jobs:
       - name: Install Vega SDK
         env:
           NONINTERACTIVE: 'true'
-        run: curl -fsSL https://sdk-installer.vega.labcollab.net/get_vvm.sh | bash
+        run: |
+          curl -fsSL https://sdk-installer.vega.labcollab.net/get_vvm.sh | bash
+          # Opt out of the SDK's default telemetry on CI runners.
+          sed -i 's/"optIn": *true/"optIn": false/' ~/vega/telemetry/config.json
 
       - name: Build
         working-directory: vega
@@ -95,7 +91,7 @@ jobs:
           scripts/build.sh Release
 
       - name: Upload packages
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: hamclock-vega-vpkg
           path: vega/build/*-release/hamclock_*.vpkg

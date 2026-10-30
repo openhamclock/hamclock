@@ -208,6 +208,8 @@ jobs:
           VEGA_SDK_VERSION: '0.24.12112'
         run: |
           curl -fsSL https://sdk-installer.vega.labcollab.net/get_vvm.sh | bash
+          # Opt out of the SDK's default telemetry on CI runners.
+          sed -i 's/"optIn": *true/"optIn": false/' ~/vega/telemetry/config.json
           source ~/vega/env
           cd vega
           npm ci
