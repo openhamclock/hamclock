@@ -20,6 +20,7 @@ Device: Fire TV Stick "calypso", armv7l, `192.168.1.237`, Vega OS 2.0 (TV Ship/5
 | Screensaver held off past the idle timeout | ✅ (user) |
 | Home and return: live clock again | ✅ (user) |
 | `vega.yml` on GitHub with SDK 2.0.13986 (`workflow_dispatch` on `vega-sdk2`) | ✅ run 41112215945 (lint+tests 1m24s, build 7m33s) |
+| `vega.yml` armv7 only (after 8.7, default inputs) | ✅ run 41114619921 (4m22s total) |
 
 ## What changed
 
