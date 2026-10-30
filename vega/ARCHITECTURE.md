@@ -1,5 +1,7 @@
 # HamClock Technical Blueprint & Architecture Specification
 
+> **Superseded.** This spec describes a native re-implementation of HamClock for Vega. The app as built takes a different approach: the HamClock engine runs inside the app (`libHcEngine.so`) and its own `live.html` page is shown in a WebView. Where this file differs, `PHASE0_RESULTS.md` … `PHASE7_RESULTS.md` (latest wins), [PLAN.md](PLAN.md) and [README.md](README.md) describe the actual design. The REST/command details and HamClock behavior below are still a useful reference.
+
 This specification documents the complete application architecture, API surface, state machines, and input processing logic extracted from the HamClock native and mobile engine. It is formatted strictly as a platform-agnostic, universal technical specification for re-implementation on **Amazon Vega OS** (Linux/Web runtime).
 
 ---

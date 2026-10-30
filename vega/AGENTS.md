@@ -1,9 +1,8 @@
 # Vega client
 
-- The design spec is ARCHITECTURE.md in this folder. Read it before changing
-  app logic, protocol handling, or the lifecycle state machine. Note: the
-  approach has since changed to an embedded engine + WebView; see
-  PHASE0_RESULTS.md, which takes precedence where they conflict.
+- Start with README.md (build, install, tests). ARCHITECTURE.md is the original
+  native-app spec and is superseded: the app embeds the HamClock engine and shows
+  its page in a WebView. The PHASEn_RESULTS.md files describe what was actually built.
 - The Android app (../android) may be used as a UX reference (screens,
   settings, wording). Don't copy its internal design.
 - Use the system Node from dnf (/usr/bin/node) for npm/tsc/eslint; the `vega`

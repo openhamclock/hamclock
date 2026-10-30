@@ -217,6 +217,13 @@ No code in this repo parses the platform string on the backend side; check the b
 - 7.5 done:
   - Jest (`npm test`): the lifecycle reducer, `firstRunVisible` and the LAN/QR URL helpers moved unchanged from `App.tsx` to `src/lifecycle.ts`; `test/lifecycle.test.ts` (19 tests: READY/RESTARTING transitions, page reload on READY and on a new run, panel kept for a LAN restart, first-run show/hide cases, QR = first IP URL).
   - Host C++ (`npm run test:engine`, i.e. `make -C hcengine/test/host`): `peerAllowed` (v4/v6 ranges, v4-mapped, edges of 172.16/12), mDNS name encode/decode (compression, pointer loops, truncation), records and TTL/flush rules, answers over a loopback UDP socket, conflict detection (other IP, probing, SRV port), and the mDNS name/backend validators. It compiles `LanFilter.cpp`/`Settings.cpp` and includes `MdnsResponder.cpp` with `EngineHost` stubbed; no engine source changes. 108 checks; a deliberately broken `LanFilter.cpp` makes it fail.
+- 7.6 written, not yet run on GitHub:
+  - `scripts/build.sh` (engine, then app, for each arch, with the version args).
+  - `.github/workflows/vega.yml`: test job (`tsc`, lint, Jest, host C++), then a build job that installs the Vega SDK with `get_vvm.sh` non-interactively.
+  - `release.yml`: `build_vega` input; attaches `org.openhamclock.hamclock-<TAG>-vega-<arch>.vpkg` to the release.
+  - A clean-checkout run of the test job found a lint error: `@amazon-devices/webview` was `^4.0.2`, and system-distributed libraries must be pinned with `~`. Fixed in `dfd279c`.
+  - Still to check: that the SDK install works in GitHub Actions.
+- 7.7: `README.md` written (build, install, tests, versioning, Debug vs Release, CI, limitations, docs index). `ARCHITECTURE.md` now has a "superseded" banner. Still open: how `vega-app` gets merged.
 
 ---
 
