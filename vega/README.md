@@ -10,7 +10,7 @@ The app shows HamClock's own `live.html` page in a WebView. Package ID: `org.ope
 
 ## Prerequisites
 
-- Vega SDK 0.24.x and the `vega` CLI (`source ~/vega/env` in each shell).
+- Vega SDK 2.0 (2.0.13986, as pinned in CI) and the `vega` CLI (`source ~/vega/env` in each shell). The manifest targets OS 2.0 with a minimum of 1.2.
 - System Node (e.g. `/usr/bin/node` from dnf) for `npm`, `tsc`, `eslint` and Jest. The `vega` CLI uses its own bundled Node.
 - `g++` and `make` for the host C++ tests.
 
@@ -83,6 +83,6 @@ None of these need the TV.
 ## Documentation
 
 - [PLAN.md](PLAN.md): the maintained phase plan and decisions log.
-- `PHASE0_RESULTS.md` … `PHASE7_RESULTS.md`: what was built and found in each phase. Where they conflict, the latest one wins.
+- `PHASE0_RESULTS.md` … `PHASE8_RESULTS.md`: what was built and found in each phase. Where they conflict, the latest one wins.
 - [ARCHITECTURE.md](ARCHITECTURE.md): the original design spec (a native re-implementation). It is superseded by the embedded-engine + WebView design.
 - [AGENTS.md](AGENTS.md): notes for coding agents.

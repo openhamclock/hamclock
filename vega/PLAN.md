@@ -8,6 +8,8 @@ Phases 0–3 are done and committed on `vega-app` (engine in the app, WebView UI
 
 **Update 2026-10-30:** Phase 7 is done (see `vega/PHASE7_RESULTS.md`). Release build, version from the tag with the commit count as the build number, armv7 and aarch64 packages, Jest and host C++ tests, `vega.yml` CI (verified on GitHub; PRs and manual runs only), README. The WebView is memoized. Merging `vega-app` waits for the user's review. Next: Phase 8, the Vega SDK 2.0 upgrade (plan below).
 
+**Update 2026-10-30 (later):** Phase 8 (SDK 2.0.13986) is done on branch `vega-sdk2` (see `vega/PHASE8_RESULTS.md`). OS target 2.0, min 1.2; no app or engine code changes; FRESH Release on the TV passes every check. Pending: a GitHub run of `vega.yml` (user), then merging `vega-sdk2` into `vega-app`.
+
 _This file is the maintained copy of the plan (moved into the repo after Phase 6; the original was a conversation artifact)._
 
 **Your decisions (built in below):**
@@ -234,7 +236,7 @@ No code in this repo parses the platform string on the backend side; check the b
 
 **Why:** SDK 2.0.13986 (2026-10-29) is the general release of Vega OS and SDK 2.0. We're on 0.24.12112. The TV already runs OS 2.0 (TV Ship/529). Amazon's 2.0 release-notes page returned 404 when checked; the steps below come from a web-search summary, so check each one against `vega ... --help` and the real output.
 
-**Open decision (ask first):** `--os-min`. The recommendation is to keep **1.2** (older Vega devices keep working) unless the 2.0 tooling forces 2.0. The target becomes 2.0.
+**Decision (2026-10-30):** `--os-min` stays **1.2**; the target is 2.0. The 2.0 tooling accepts it (`vega project doctor` passes).
 
 **Steps:**
 1. **Baseline.** Record the current state: `npm ci`, tsc, lint, Jest 19/19, `test:engine` 108/0, Release 1193 on the TV. Do the work on a branch off `vega-app` (e.g. `vega-sdk2`) so 0.24 stays a working fallback. Install 2.0 next to 0.24 (`vega sdk install 2.0.13986`); switch back with `vega sdk use 0.24.12112`.
@@ -249,11 +251,22 @@ No code in this repo parses the platform string on the backend side; check the b
 
 **Environment:** TV `192.168.1.237:5555` (armv7), `source ~/vega/env`, system Node `/usr/bin/node`. Runner `tmp/vega-spike/run-p7.sh` (`BTYPE=Release`, `FRESH=1`, `NOBUILD=1`). The SDK manager is `vvman` (`vvman sdk list-remote|list-installed|install|use`). Never stage `docker/backend_host`. Don't run `screenshooter`.
 
+**Progress (2026-10-30):**
+- 1 done: baseline on 0.24 passed (tsc, lint, Jest 19/19, host C++ 108/0). Branch `vega-sdk2`. SDK 2.0.13986 installed next to 0.24 and active.
+- 2 done: CLI 1.4.7 is already the latest. No `vega-sdk-requirements.json` is expected.
+- 3 done: `vega project update --os-version 2.0 --os-min 1.2` (2.0 has this combined command). The `IVega_1_2` needs entry was removed from the source manifest; `vega build` now inserts `needs IVega_1_2` and `wants IVega_2_0`. Webview pin `~4.0.0` (SDK profile). `overrides` added as in the 2.0 templates. `doctor` clean.
+- 4 done: no package changes needed beyond the above (the app was already on React 19.2 / RN 0.83). `npm audit` unchanged.
+- 5 done: `hcengine/` matches the 2.0 turbo-module template; rebuilt for armv7 and aarch64 with no warnings.
+- 6 done: no app code changes.
+- 7 done: FRESH Release 1195 on the TV passes first run, Setup, keys, panel, QR, LAN toggle, screensaver, Home/return, identity and mDNS checks.
+- 8 done locally: `VEGA_SDK_VERSION` 2.0.13986 in both workflows; GitHub run pending.
+- 9 done: `PHASE8_RESULTS.md`, README prereqs.
+
 ---
 
 ## Needs work (after Phase 7)
 
-- **Vega SDK 2.0 upgrade:** now Phase 8 (above).
+- **Vega SDK 2.0 upgrade:** Phase 8 (above); done, GitHub CI run pending.
 - **LAN toggle restart UX.** The settings panel stays open after a LAN change and hides the "Restarting" card.
 - **hams.at (Sat_Alerts) and Mesh_Mon panes on Vega.** Both fetch with `curl` through `WiFiClient::connectCommand`, and Vega apps can't run subprocesses (PHASE6_RESULTS.md 6.5). They need an in-process HTTP(S) client in the engine (e.g. libcurl or a TLS library linked into `libHcEngine.so`, or a fetch through the app, like Android's JNI fetch pipe). The panes stay in the menus meanwhile.
 
@@ -274,3 +287,4 @@ No code in this repo parses the platform string on the backend side; check the b
 4. QR codes always use the **IP address** URL. The mDNS name is for convenience when someone has to remember or type the address; a QR code can go straight to the IP. (Phase 5.5; first-run QR to be switched)
 5. UA platform is **`HamClock-vega`**. (Phase 4B.1)
 6. S/N comes from a **virtual MAC generated at first start and cached** in `<dataDir>/.mac_address`, so it stays the same for the life of the install. (Phase 4B.2)
+7. SDK 2.0: OS **min 1.2**, target 2.0, so older Vega devices keep working. (Phase 8)

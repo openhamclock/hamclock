@@ -16,7 +16,7 @@ permissions:
 
 env:
   # Pinned Vega SDK (the version the app is developed and tested with).
-  VEGA_SDK_VERSION: '0.24.12112'
+  VEGA_SDK_VERSION: '2.0.13986'
 
 jobs:
   test:
