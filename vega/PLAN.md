@@ -288,3 +288,4 @@ No code in this repo parses the platform string on the backend side; check the b
 5. UA platform is **`HamClock-vega`**. (Phase 4B.1)
 6. S/N comes from a **virtual MAC generated at first start and cached** in `<dataDir>/.mac_address`, so it stays the same for the life of the install. (Phase 4B.2)
 7. SDK 2.0: OS **min 1.2**, target 2.0, so older Vega devices keep working. (Phase 8)
+8. **aarch64 is optional, off by default** (`build.sh` default armv7; `build_aarch64` / `build_vega_aarch64` inputs). No arm64 Vega device is known; both arches can share a build number, so it can be added later. (Phase 8.7)

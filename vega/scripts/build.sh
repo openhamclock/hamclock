@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Build the embedded engine (libHcEngine.so) and the app package for each architecture.
 #
-#   scripts/build.sh [Release|Debug] [arch ...]     default: Release armv7 aarch64
+#   scripts/build.sh [Release|Debug] [arch ...]     default: Release armv7
+#   scripts/build.sh Release armv7 aarch64          also aarch64 (built only; no arm64 Vega device known)
 #
 # Needs the Vega SDK (`source ~/vega/env`) and `npm ci` in vega/ and vega/hcengine/.
 # Version and build number come from scripts/version.js (TAG env, or the git tag; git commit
@@ -11,7 +12,7 @@ cd "$(dirname "$0")/.."
 
 BTYPE=${1:-Release}
 shift || true
-ARCHS=${*:-armv7 aarch64}
+ARCHS=${*:-armv7}
 case "$BTYPE" in Release|Debug) ;; *) echo "build type must be Release or Debug" >&2; exit 2 ;; esac
 
 read -r -a VERSION_ARGS <<< "$(node scripts/version.js)"

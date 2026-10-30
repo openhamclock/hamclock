@@ -1,6 +1,6 @@
 name: Vega
 
-# Vega OS (Fire TV) app: lint and tests, then Release .vpkg packages for armv7 and aarch64.
+# Vega OS (Fire TV) app: lint and tests, then a Release .vpkg for armv7 (and aarch64 if asked for).
 # The packages are uploaded as a workflow artifact. Tagged releases build them in release.yml.
 # Runs on pull requests that touch the Vega app or the engine, or by hand (workflow_dispatch).
 on:
@@ -10,6 +10,11 @@ on:
       - 'ESPHamClock/**'
       - '.github/workflows/vega.yml'
   workflow_dispatch:
+    inputs:
+      build_aarch64:
+        description: 'Also build aarch64 (no arm64 Vega device is known)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -56,7 +61,7 @@ jobs:
         run: npm run test:engine
 
   build:
-    name: Build .vpkg (armv7, aarch64)
+    name: Build .vpkg
     needs: test
     runs-on: ubuntu-latest
     steps:
@@ -84,11 +89,14 @@ jobs:
 
       - name: Build
         working-directory: vega
+        env:
+          # inputs is empty on pull_request, so PRs build armv7 only.
+          ARCHS: armv7${{ inputs.build_aarch64 && ' aarch64' || '' }}
         run: |
           source ~/vega/env
           npm ci
           (cd hcengine && npm ci)
-          scripts/build.sh Release
+          scripts/build.sh Release $ARCHS
 
       - name: Upload packages
         uses: actions/upload-artifact@v6

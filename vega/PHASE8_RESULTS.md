@@ -49,6 +49,12 @@ Device: Fire TV Stick "calypso", armv7l, `192.168.1.237`, Vega OS 2.0 (TV Ship/5
 - `VEGA_SDK_VERSION` is `2.0.13986` in `vega.yml` and `release.yml`. Run 41112215945 passed; its build log uses only `sdk/vega-sdk/main/2.0.13986`.
 - The Actions tab has no "Run workflow" button for Vega: GitHub shows it only for workflows on the default branch (`main`), and `vega.yml` isn't there yet. `gh workflow run vega.yml --ref <branch>` works, because the workflow is already registered.
 
+### 8.7 aarch64 optional (user decision)
+- No arm64 Vega device is known, and the Appstore takes both arches with the same build number, so aarch64 can be added later. Builds now default to **armv7 only**.
+- `scripts/build.sh` defaults to armv7 (`scripts/build.sh Release armv7 aarch64` for both).
+- `vega.yml`: `workflow_dispatch` input `build_aarch64` (boolean, default false); PRs build armv7 only. The job is now "Build .vpkg".
+- `release.yml`: input `build_vega_aarch64` (default false); without it only `…-vega-armv7.vpkg` is attached. That makes 10 inputs.
+
 ## Compared with the 2.0 templates (kept as is)
 - The template `tsconfig.json` no longer extends `@react-native/typescript-config` (it lists its own options). Ours still extends it and works.
 - The template manifest sets `build-number = 1` ("floor so local builds pass vpt validate"). Our builds always pass `--build-number`.

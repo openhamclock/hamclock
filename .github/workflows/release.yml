@@ -65,6 +65,14 @@ on:
           - 'true'
           - 'false'
         default: 'true'
+      build_vega_aarch64:
+        description: 'Also build the Vega aarch64 package (no arm64 Vega device is known)'
+        required: true
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+        default: 'false'
       amazon_submit_for_review:
         description: 'Submit Amazon upload directly for review (default false: leave as draft so DRM can be set in the console; auto: true for stable, false for beta)'
         required: true
@@ -206,6 +214,7 @@ jobs:
           TAG: ${{ github.event.inputs.tag_name }}
           NONINTERACTIVE: 'true'
           VEGA_SDK_VERSION: '2.0.13986'
+          ARCHS: armv7${{ github.event.inputs.build_vega_aarch64 == 'true' && ' aarch64' || '' }}
         run: |
           curl -fsSL https://sdk-installer.vega.labcollab.net/get_vvm.sh | bash
           # Opt out of the SDK's default telemetry on CI runners.
@@ -214,8 +223,8 @@ jobs:
           cd vega
           npm ci
           (cd hcengine && npm ci)
-          scripts/build.sh Release
-          for arch in armv7 aarch64; do
+          scripts/build.sh Release $ARCHS
+          for arch in $ARCHS; do
             cp "build/$arch-release/hamclock_$arch.vpkg" "../dist/org.openhamclock.hamclock-$TAG-vega-$arch.vpkg"
           done
 

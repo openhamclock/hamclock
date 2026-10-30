@@ -24,8 +24,9 @@ npm ci
 
 ```sh
 source ~/vega/env
-scripts/build.sh                  # Release, armv7 + aarch64
-scripts/build.sh Debug armv7      # Debug, one arch
+scripts/build.sh                  # Release, armv7
+scripts/build.sh Debug armv7      # Debug
+scripts/build.sh Release armv7 aarch64   # also aarch64 (optional; no arm64 Vega device known)
 ```
 
 The engine has to be built for an architecture before the app is built for it; `build.sh` handles that order.
@@ -71,15 +72,15 @@ None of these need the TV.
 
 ## CI and releases
 
-- `.github/workflows/vega.yml` runs on pull requests that touch `vega/` or `ESPHamClock/`, and by hand (Actions → Vega → Run workflow); not on push. It runs the tests, then a Release build of both arches with the Vega SDK installed in the runner (telemetry opted out). The `.vpkg` files are uploaded as an artifact.
-  - GitHub shows "Run workflow" only for workflows on the default branch (`main`). Until `vega.yml` is there, start it with `gh workflow run vega.yml --ref <branch>`.
-- `.github/workflows/release.yml` (input `build_vega`) builds the Vega packages with the release `TAG` and attaches `org.openhamclock.hamclock-<TAG>-vega-<arch>.vpkg` to the release.
+- `.github/workflows/vega.yml` runs on pull requests that touch `vega/` or `ESPHamClock/`, and by hand (Actions → Vega → Run workflow); not on push. It runs the tests, then a Release build with the Vega SDK installed in the runner (telemetry opted out). The `.vpkg` is uploaded as an artifact. It builds armv7; a manual run can tick `build_aarch64` to add aarch64.
+  - GitHub shows "Run workflow" only for workflows on the default branch (`main`). Until `vega.yml` is there, start it with `gh workflow run vega.yml --ref <branch>` (add `-f build_aarch64=true` for aarch64).
+- `.github/workflows/release.yml` (input `build_vega`) builds the Vega package with the release `TAG` and attaches `org.openhamclock.hamclock-<TAG>-vega-armv7.vpkg` to the release. Input `build_vega_aarch64` (default false) adds the aarch64 package. Both arches can share one build number, so aarch64 can be added to an existing release later.
 
 ## Known limitations
 
 - **No subprocesses.** Vega apps can't run subprocesses, so HamClock's `curl`-based fetches fail. This affects the Sat_Alerts (hams.at) and Mesh_Mon panes, which stay in the menus but show no data. They need an in-process HTTP(S) client (see PLAN.md, "Needs work").
 - **No start on boot or background running.** Vega has no supported way to do either.
-- **aarch64 is built but untested.** No arm64 Vega device is known.
+- **aarch64 is optional and untested.** No arm64 Vega device is known, so builds default to armv7 only.
 
 ## Documentation
 
