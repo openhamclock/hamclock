@@ -27,10 +27,10 @@ gh auth login
 Trigger the workflow by specifying the workflow file and the desired `tag_name`:
 
 ```bash
-# Beta release example (auto: Google Play Open Testing, Amazon draft for LAT):
+# Beta release example (Google Play Open Testing; Amazon upload left as a draft):
 gh workflow run release.yml -f tag_name=v4.32b00.0
 
-# Stable release example (auto: Google Play Production, Amazon direct submit for review):
+# Stable release example (Google Play Production; Amazon upload left as a draft):
 gh workflow run release.yml -f tag_name=v4.32.0
 
 # Optional: manually override Google Play track:
@@ -39,8 +39,9 @@ gh workflow run release.yml -f tag_name=v4.32.0 -f play_store_track=beta
 # Optional: stage Google Play upload as draft (required if review was rejected or blocked from auto-submit):
 gh workflow run release.yml -f tag_name=v4.32.0 -f play_store_changes_not_sent_for_review=true
 
-# Optional: manually override Amazon submission behavior:
-gh workflow run release.yml -f tag_name=v4.32.0 -f amazon_submit_for_review=false
+# Optional: manually override Amazon submission behavior (default false = draft):
+gh workflow run release.yml -f tag_name=v4.32.0 -f amazon_submit_for_review=true
+gh workflow run release.yml -f tag_name=v4.32.0 -f amazon_submit_for_review=auto
 
 # Optional: create as a draft release:
 gh workflow run release.yml -f tag_name=v4.32.0 -f publish_release=false
@@ -87,7 +88,7 @@ gh workflow run
 | `push_amazon_appstore` | choice (`true`, `false`) | `true` | When `true`, uploads the Android APK to the Amazon Appstore. |
 | `build_vega` | choice (`true`, `false`) | `true` | When `true`, builds the Vega OS (Fire TV) package (`.vpkg`) and attaches it to the GitHub release. A Vega build failure doesn't stop the release. |
 | `build_vega_aarch64` | choice (`false`, `true`) | `false` | When `true`, also builds the Vega aarch64 package. No arm64 Vega device is known, so only armv7 is built by default. Both arches can share one build number, so aarch64 can be added later. |
-| `amazon_submit_for_review` | choice (`auto`, `true`, `false`) | `auto` | When `auto`, stable tags submit directly for review (to become Current Version) and beta tags leave a draft upcoming version for Live App Testing (LAT). |
+| `amazon_submit_for_review` | choice (`false`, `true`, `auto`) | `false` | When `false`, the upload is left as a draft upcoming version (`--skip-commit`), so DRM can be set in the console before submitting by hand. `true` submits directly for review. `auto` submits stable tags directly for review and leaves beta tags as a draft for Live App Testing (LAT). |
 
 ### Monitoring the Workflow
 
@@ -226,10 +227,11 @@ The release workflow executes two jobs sequentially: `release` followed by `dock
      - **Handling Review Rejections or Blocked Auto-Submissions (`changesNotSentForReview`):** If a previous release was rejected or Google Play requires manual confirmation for policy changes, Google's API rejects automated submissions with `Changes cannot be sent for review automatically. Please set the query parameter changesNotSentForReview to true.` In this situation, set `play_store_changes_not_sent_for_review=true`. The workflow will successfully stage the `.aab` in Google Play Console without error, allowing you to review the changes and click **Send changes for review** manually from the console UI.
      - **Managed Publishing:** Because Managed Publishing is turned ON in Google Play Console, approved releases do *not* go live automatically. Instead, they wait in Google Play Console under **Publishing Overview** -> **Ready to publish**, giving you the final manual control to send changes live to users.
    - **Amazon Appstore (`push_amazon_appstore`):**
-     - Automatically selects submission mode based on the release tag (via `amazon_submit_for_review=auto`):
+     - By default (`amazon_submit_for_review=false`), uploads the APK and release notes to an "Upcoming Version" draft with `--skip-commit`, for every tag. Set DRM in the Amazon Developer Console, then submit by hand.
+     - With `amazon_submit_for_review=auto`, the mode follows the release tag:
        - **Beta tags** (`*b*`): Uploads APK and release notes to an "Upcoming Version" draft with `--skip-commit`. Because Amazon lacks a public REST API for Live App Testing (LAT), this prepares everything as a draft. In the Amazon Developer Console, go to **Live App Testing** $\rightarrow$ **Start a new test** $\rightarrow$ **Copy from upcoming version** and click **Start test**.
        - **Stable tags**: Commits the edit session to submit directly for Amazon review to become the live "Current Version".
-       - Can be overridden via `amazon_submit_for_review` (`auto`, `true`, `false`).
+     - `amazon_submit_for_review=true` always submits directly for review.
 4. **Vega OS (Fire TV) Build (`build_vega`):**
    - Installs the pinned Vega SDK (`VEGA_SDK_VERSION`, currently `2.0.13986`) non-interactively, with SDK telemetry opted out.
    - Runs `vega/scripts/build.sh Release` for armv7, plus aarch64 when `build_vega_aarch64=true`.
@@ -276,7 +278,7 @@ The release workflow executes two jobs sequentially: `release` followed by `dock
 - [ ] **Google Play Console:** Once Google's review completes, open Google Play Console $\rightarrow$ **Publishing Overview** and click **Publish changes** to roll out the release to users (Open testing for beta, Production for stable).
 - [ ] **Amazon Developer Console:**
   - **If Beta:** Open App $\rightarrow$ **Live App Testing** $\rightarrow$ **Start a new test** $\rightarrow$ **Copy from upcoming version** $\rightarrow$ select testers and start test.
-  - **If Stable:** Verify in Amazon Developer Console that the upcoming version shows as "Submitted for review" to become the Current Version.
+  - **If Stable:** The upload is a draft by default: set DRM on the upcoming version, then submit it for review to become the Current Version. (With `amazon_submit_for_review=true` or `auto`, verify it shows as "Submitted for review".)
 - [ ] **Vega OS (Fire TV):** Check that the release has `org.openhamclock.hamclock-<tag>-vega-armv7.vpkg` (a failed Vega build doesn't fail the run). Submit it manually in the Amazon Developer Console (Vega app `org.openhamclock.hamclock`). The build number (git commit count) must be higher than the last submitted one.
 
 ---
