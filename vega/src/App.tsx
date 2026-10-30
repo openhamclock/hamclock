@@ -1052,10 +1052,12 @@ export const App = () => {
   // Keys (incl. Back) go to RN while a native overlay is up, else to the page.
   const webHasKeys = !state.settingsOpen && !firstRun;
 
-  return (
-    <FieldContext.Provider value={fieldCtx}>
-    <View style={styles.root}>
-      {showWeb && (
+  // Memoized so the status polling (a re-render every few seconds) doesn't re-render the WebView;
+  // each WebView render logs Amazon's "useComponentInstance is deprecated" warning. Handlers only
+  // use dispatch, refs and onBack, so they stay valid between the listed deps.
+  const webView = useMemo(
+    () =>
+      showWeb ? (
         <WebView
           key={state.webGeneration}
           ref={webRef as never}
@@ -1083,7 +1085,14 @@ export const App = () => {
             if (isMainFrame) dispatch({type: 'WEB_ERROR', message: `HTTP ${statusCode}`});
           }}
         />
-      )}
+      ) : null,
+    [showWeb, state.webGeneration, liveUri, webHasKeys, injectedJs, onBack],
+  );
+
+  return (
+    <FieldContext.Provider value={fieldCtx}>
+    <View style={styles.root}>
+      {webView}
       {showStatus && (
         <View style={styles.center} pointerEvents="none">
           <StatusCard state={state} metrics={metrics} />
