@@ -2383,6 +2383,7 @@ extern void checkEclipsePopupTimeout (void);
 #define NCDXF_B_MAXLEN          9       // max field length, including EOS
 
 extern void updateBeacons (bool immediate);
+extern void beaconsMapRepainted (const SBox *box);   // NULL means whole map
 extern void updateBeaconMapLocations(void);
 extern bool drawNCDXFBox(void);
 extern void initBRBRotset(void);

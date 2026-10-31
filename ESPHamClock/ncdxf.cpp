@@ -111,7 +111,49 @@ static void drawBeacon (NCDXFBeacon &nb)
     nb.is_drawn = true;
 }
 
+/* return the screen box enclosing nb's symbol and call sign tag, clipped to be non-negative.
+ */
+static SBox beaconBox (const NCDXFBeacon &nb)
+{
+    int x0 = nb.s.x - BEACONR - 1;
+    int y0 = nb.s.y - BEACONR - 1;
+    int x1 = nb.s.x + BEACONR + 1;
+    int y1 = nb.s.y + BEACONR + 1;
+    if ((int)nb.call_b.x < x0) x0 = nb.call_b.x;
+    if ((int)nb.call_b.y < y0) y0 = nb.call_b.y;
+    if ((int)(nb.call_b.x + nb.call_b.w) > x1) x1 = nb.call_b.x + nb.call_b.w;
+    if ((int)(nb.call_b.y + nb.call_b.h) > y1) y1 = nb.call_b.y + nb.call_b.h;
+    if (x0 < 0) x0 = 0;
+    if (y0 < 0) y0 = 0;
+    SBox b;
+    b.x = x0;
+    b.y = y0;
+    b.w = x1 - x0 + 1;
+    b.h = y1 - y0 + 1;
+    return (b);
+}
+
+/* grow *u to also include b; *have says whether *u is valid yet.
+ */
+static void growBox (SBox *u, bool *have, const SBox &b)
+{
+    if (!*have) {
+        *u = b;
+        *have = true;
+        return;
+    }
+    uint16_t x1 = (u->x + u->w > b.x + b.w) ? u->x + u->w : b.x + b.w;
+    uint16_t y1 = (u->y + u->h > b.y + b.h) ? u->y + u->h : b.y + b.h;
+    if (b.x < u->x) u->x = b.x;
+    if (b.y < u->y) u->y = b.y;
+    u->w = x1 - u->x;
+    u->h = y1 - u->y;
+}
+
 /* erase the given beacon symbol and call sign tag from the map by restoring the underlying map pixels.
+ * N.B. this restores ONLY the base map. Anything that was drawn on top of the beacon area (grid,
+ *   spot/DX/PSK paths, satellite path, ...) is wiped too and the caller must repaint it -- see
+ *   updateBeacons(), which does so with redrawMapBox().
  */
 static void eraseBeacon (NCDXFBeacon &nb)
 {
@@ -129,6 +171,28 @@ static void eraseBeacon (NCDXFBeacon &nb)
     }
 
     nb.is_drawn = false;
+}
+
+/* tell us that the map pixels in box (or the whole map if box is NULL) have just been repainted
+ * from the base map, so any beacon symbols/tags wholly within it are already gone from the screen.
+ * This must be called before updateBeacons() runs for that repaint so that a beacon which has since
+ * gone silent is NOT "erased" a second time -- that erase restores base map pixels on top of the
+ * paths and grid lines which were just (re)drawn and leaves a symbol+tag shaped hole in them.
+ */
+void beaconsMapRepainted (const SBox *box)
+{
+    for (NCDXFBeacon *bp = blist; bp < &blist[NBEACONS]; bp++) {
+        if (!bp->is_drawn)
+            continue;
+        if (!box) {
+            bp->is_drawn = false;
+        } else {
+            SBox bb = beaconBox (*bp);
+            if (bb.x >= box->x && bb.y >= box->y
+                        && bb.x + bb.w <= box->x + box->w && bb.y + bb.h <= box->y + box->h)
+                bp->is_drawn = false;
+        }
+    }
 }
 
 /* erase every beacon symbol and call sign tag from the map by restoring the underlying map
@@ -175,6 +239,8 @@ void updateBeacons (bool immediate)
     // now update each beacon as required
     setBeaconStates();
     bool any_changed = false;
+    bool any_erased = false;
+    SBox erased_b = {0,0,0,0};
     for (NCDXFBeacon *bp = blist; bp < &blist[NBEACONS]; bp++) {
         if (bp->c != BCOL_S) {
             if (overMap(bp->s) && !overRSS (bp->call_b)) {
@@ -182,13 +248,29 @@ void updateBeacons (bool immediate)
                 any_changed = true;
             }
         } else if (bp->is_drawn) {
+            SBox bb = beaconBox (*bp);
             eraseBeacon (*bp);
+            growBox (&erased_b, &any_erased, bb);
             any_changed = true;
         }
     }
 
-    if (any_changed && !immediate && !mapSweepActive())
+    // erasing a beacon restored just the base map, punching a symbol+tag shaped hole in whatever
+    // else lives there (grid, spot/DX/PSK paths, sat path, ...). repaint that area properly, but not
+    // while a full sweep is in progress (it will repaint everything anyway) nor recursively, since
+    // redrawMapBox() reaches us again through drawAllSymbols().
+    static bool in_repaint;
+    if (any_erased && !mapSweepActive() && !in_repaint) {
+        in_repaint = true;
+        if (erased_b.x + erased_b.w > map_b.x + map_b.w)
+            erased_b.w = map_b.x + map_b.w - erased_b.x;
+        if (erased_b.y + erased_b.h > map_b.y + map_b.h)
+            erased_b.h = map_b.y + map_b.h - erased_b.y;
+        redrawMapBox (erased_b);
+        in_repaint = false;
+    } else if (any_changed && !immediate && !mapSweepActive()) {
         tft.drawPR();
+    }
 
     updateClocks(false);
 }

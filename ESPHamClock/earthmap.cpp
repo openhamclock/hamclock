@@ -56,6 +56,8 @@ bool mapmenu_pending;
 
 static void updateCircumstances();
 static void drawMapGrid();
+static void drawMapMenuButton();
+static void drawBordersButton();
 
 void finishMapSweepNow (void)
 {
@@ -103,6 +105,9 @@ void redrawMapBox (const SBox &box)
         for (uint16_t x = box.x; x < box.x + box.w; x++)
             drawMapCoord (x, y);
 
+    // any NCDXF beacon wholly inside box was just wiped; don't let updateBeacons() "erase" it again
+    beaconsMapRepainted (&box);
+
     if (core_map != CM_USER) {
         drawMapGrid();
         drawSatPathAndFoot();
@@ -113,6 +118,15 @@ void redrawMapBox (const SBox &box)
         drawSatName();
         drawInfoBox();
     }
+
+    // the box repaint above overwrote any part of the on-map badges inside it (View/Borders/Fires/
+    // WEFAX/Wind/ADS-B) -- restore them exactly as a full sweep does when it finishes, in the same order.
+    drawMapMenuButton();
+    drawBordersButton();
+    drawFiresButton();
+    drawWefaxButton();
+    drawWindButton();
+    drawADSBBadge();
 
     tft.drawPR();
 }
@@ -1367,6 +1381,9 @@ void drawMoreEarth()
 
     // advance row, wrap and reset and finish up at the end
     if ((moremap_s.y += 1) >= map_b.y + EARTH_H) {
+
+        // the whole map was just repainted from the base map, so no beacon symbol is on screen now
+        beaconsMapRepainted (NULL);
 
         // draw goodies unless showing CM_USER
         if (core_map != CM_USER) {
