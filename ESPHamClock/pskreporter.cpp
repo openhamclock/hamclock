@@ -38,6 +38,18 @@ static PSKBandStats bstats[HAMBAND_N];          // band stats
 static time_t psk_next_fetch;                   // wall time when the next network fetch is allowed
 static time_t psk_backoff;                      // current failure backoff, secs (0 when healthy)
 
+// Failure tolerance: a failed poll keeps the last good reports[]/bstats[] on display. Only after
+// PSK_MAX_FAILS successive failed polls do we discard them and show -1 for every band.
+#define PSK_MAX_FAILS   3                       // successive failed polls before we show -1
+static int psk_fail_count;                      // successive failed polls since the last good one
+
+#if defined(_PSK_TEST)
+// test hook, compiled in only with -D_PSK_TEST (make PSKTEST=1). see set_psktest? in webserver.cpp
+static int psk_test_fail;                       // 0 = off, >0 = fail next N polls, <0 = fail all polls
+static int psk_test_polls;                      // total polls attempted since boot
+static int psk_test_forced;                     // total polls failed by the hook
+#endif
+
 // layout
 #define SUBHEAD_DYUP 15                         // distance up from bottom to subheading
 #define TBLHGAP (PLOTBOX123_W/20)               // table horizontal gap
@@ -318,6 +330,15 @@ static bool retrievePSK (void)
     psk_client.setTimeout (PSK_TIMEOUT_MS);             // bound the wait for a slow endpoint
     bool ok = false;
 
+    // Parse into private staging storage and only replace the live reports[]/bstats[] once the whole
+    // body has arrived intact. A failure of any kind thus leaves the previous good data untouched;
+    // the caller decides when enough successive failures have piled up to discard it.
+    DXSpot *new_reports = NULL;                         // staged reports
+    int n_new = 0;                                      // count of staged reports
+    int n_new_malloced = 0;                             // allocated size of new_reports[]
+    PSKBandStats new_bstats[HAMBAND_N] = {};            // staged band stats
+    int new_maxrpt[HAMBAND_N] = {};                     // staged farthest-spot indices
+
     // query type
     bool ispsk = (psk_mask & PSKMB_SRCMASK) == PSKMB_PSK;
     bool iswspr = (psk_mask & PSKMB_SRCMASK) == PSKMB_WSPR;
@@ -346,7 +367,19 @@ static bool retrievePSK (void)
                                         psk_maxage_mins*60 /* wants seconds */);
     Serial.printf ("PSK: query: %s\n", query);
 
-    // fetch and fill reports[]
+#if defined(_PSK_TEST)
+    // test hook: pretend the backend is unreachable without touching the network
+    psk_test_polls++;
+    if (psk_test_fail != 0) {
+        if (psk_test_fail > 0)
+            psk_test_fail--;
+        psk_test_forced++;
+        Serial.print ("PSK: TEST forced failure\n");
+        goto out;
+    }
+#endif
+
+    // fetch and fill staged reports
     if (psk_client.connect(backend_host, backend_port)) {
         updateClocks(false);
 
@@ -362,11 +395,7 @@ static bool retrievePSK (void)
         // N.B. ok is set only after we confirm the whole body arrived; see below.
         // A malformed line below still goes to out with ok == false (a failure),
         // which lets the backoff engage instead of caching a bad/partial response.
-
-        // reset lists
-        n_reports = 0;
-        for (int i = 0; i < HAMBAND_N; i++)
-            bstats[i] = {};
+        // Nothing parsed here touches the live data unless ok ends up true.
 
         // read lines -- anything unexpected is considered an error message
         char line[100];
@@ -434,7 +463,7 @@ static bool retrievePSK (void)
             }
 
             // update stats for this band
-            PSKBandStats &pbs = bstats[band];
+            PSKBandStats &pbs = new_bstats[band];
 
             // update count of this band
             pbs.count++;
@@ -444,12 +473,12 @@ static bool retrievePSK (void)
             ditherLL (new_sp.rx_ll);
 
             // finally! save new report, grow array if out of room
-            if ( !(n_reports < n_malloced) ) {
-                reports = (DXSpot *) realloc (reports, (n_malloced += 100) * sizeof(DXSpot));
-                if (!reports)
-                    fatalError ("Live Spots: no mem %d", n_malloced);
+            if ( !(n_new < n_new_malloced) ) {
+                new_reports = (DXSpot *) realloc (new_reports, (n_new_malloced += 100) * sizeof(DXSpot));
+                if (!new_reports)
+                    fatalError ("Live Spots: no mem %d", n_new_malloced);
             }
-            reports[n_reports] = new_sp;         // N.B. do not inc yet, used last
+            new_reports[n_new] = new_sp;         // N.B. do not inc yet, used last
 
             // check each end for farthest from DE
             float tx_dist, rx_dist, bearing;        
@@ -472,11 +501,11 @@ static bool retrievePSK (void)
                     strcpy (pbs.maxcall, call);
 
                 // newest spot is now farthest for this band
-                spot_maxrpt[band] = n_reports;
+                new_maxrpt[band] = n_new;
             }
 
             // ok, another report
-            n_reports++;
+            n_new++;
         }
 
         // We asked for "Connection: close", so a complete response ends with the
@@ -492,18 +521,21 @@ static bool retrievePSK (void)
         Serial.print ("PSK: Spots connection failed\n");
 
 out:
-    // reset counts if trouble
-    if (!ok) {
-        n_reports = 0;
-        for (int i = 0; i < HAMBAND_N; i++) {
-            bstats[i].count = -1;
-            bstats[i].maxkm = -1;
-        }
-    }
+    // commit the staged data only if the whole fetch succeeded, else keep what we had
+    if (ok) {
+        free (reports);
+        reports = new_reports;
+        n_reports = n_new;
+        n_malloced = n_new_malloced;
+        memcpy (bstats, new_bstats, sizeof(bstats));
+        memcpy (spot_maxrpt, new_maxrpt, sizeof(spot_maxrpt));
+    } else
+        free (new_reports);
 
     // finish up
     psk_client.stop();
-    Serial.printf ("PSK: found %d %s reports %s %s\n",
+    Serial.printf ("PSK: %s: %d %s reports %s %s\n",
+                        ok ? "found" : "fetch failed, keeping",
                         n_reports,
                         (ispsk ? "PSK" : (iswspr ? "WSPR" : "RBN")),
                         of_de ? "of" : "by",
@@ -511,6 +543,18 @@ out:
 
     // already logged any problems
     return (ok);
+}
+
+/* discard all held reports and mark every band as failed (-1), the display for "backend is down".
+ */
+static void markPSKFailed (void)
+{
+    n_reports = 0;
+    for (int i = 0; i < HAMBAND_N; i++) {
+        bstats[i] = {};
+        bstats[i].count = -1;
+        bstats[i].maxkm = -1;
+    }
 }
 
 /* call after a successful fetch: clear any backoff and resume the normal cadence.
@@ -561,6 +605,15 @@ bool updatePSKReporter (const SBox &box, bool force)
     // resetting on force would let it defeat the backoff and hammer the backend.
     if (my_psk_mask != psk_mask || my_psk_maxage_mins != psk_maxage_mins
                                 || my_psk_bands != psk_bands) {
+
+        // held data answers a different question if the source/identity/age changed (a band-only
+        // change does not alter the query), so don't present it as a stand-in for the new one
+        if (my_psk_mask != psk_mask || my_psk_maxage_mins != psk_maxage_mins) {
+            n_reports = 0;
+            for (int i = 0; i < HAMBAND_N; i++)
+                bstats[i] = {};
+            psk_fail_count = 0;
+        }
         my_psk_mask = psk_mask;
         my_psk_maxage_mins = psk_maxage_mins;
         my_psk_bands = psk_bands;
@@ -582,11 +635,18 @@ bool updatePSKReporter (const SBox &box, bool force)
     // time to fetch fresh
     last_ok = retrievePSK();
 
-    // reschedule: normal cadence on success, exponential backoff on failure
-    if (last_ok)
+    // reschedule: normal cadence on success, exponential backoff on failure.
+    // On failure the previous good data stays up until PSK_MAX_FAILS successive failures.
+    if (last_ok) {
+        psk_fail_count = 0;
         resetPSKRetry();
-    else
+    } else {
+        psk_fail_count++;
+        Serial.printf ("PSK: failed poll %d of %d\n", psk_fail_count, PSK_MAX_FAILS);
+        if (psk_fail_count >= PSK_MAX_FAILS)
+            markPSKFailed();
         schedulePSKRetry();
+    }
 
     // display whatever we got regardless
     drawPSKPane (box);
@@ -1092,3 +1152,41 @@ int getRawBandSpotRadius (float kHz)
     HamBandSetting b = findHamBand (kHz);
     return (b != HAMBAND_NONE ? getRawSpotRadius (findColSel(b)) : RAWWIDEPATHSZ);
 }
+
+
+#if defined(_PSK_TEST)
+
+/* test hook for set_psktest? -- all args optional.
+ *   fail: 0 = stop forcing failures, >0 = fail the next fail polls, <0 = fail every poll until reset
+ *   poll_now: allow the very next pane update to poll immediately instead of waiting out PSK_INTERVAL
+ *             or a backoff delay
+ *   reset_stats: clear counters
+ * fill buf with a human readable status.
+ */
+void pskTestControl (bool have_fail, int fail, bool poll_now, bool reset_stats, char *buf, size_t buf_len)
+{
+    if (have_fail)
+        psk_test_fail = fail;
+    if (poll_now)
+        psk_next_fetch = 0;
+    if (reset_stats) {
+        psk_test_polls = 0;
+        psk_test_forced = 0;
+    }
+
+    int n = snprintf (buf, buf_len,
+                "force_fail=%d (0=off, N=next N polls, -1=all)\n"
+                "polls=%d forced_failures=%d\n"
+                "consecutive_failures=%d (show -1 at %d)\n"
+                "backoff_s=%ld next_poll_in_s=%ld\n"
+                "held_reports=%d\n"
+                "# band count\n",
+                psk_test_fail, psk_test_polls, psk_test_forced,
+                psk_fail_count, PSK_MAX_FAILS,
+                (long)psk_backoff, (long)(psk_next_fetch > myNow() ? psk_next_fetch - myNow() : 0),
+                n_reports);
+    for (int i = 0; i < HAMBAND_N && n > 0 && (size_t)n < buf_len; i++)
+        n += snprintf (buf+n, buf_len-n, "%-6s %d\n", findBandName((HamBandSetting)i), bstats[i].count);
+}
+
+#endif // _PSK_TEST

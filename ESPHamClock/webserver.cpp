@@ -5120,6 +5120,50 @@ static bool getWiFiLiveSpots (WiFiClient &client, char *line, size_t line_len)
     return (true);
 }
 
+#if defined(_PSK_TEST)
+/* test the Live Spots failure tolerance without a real outage. Compiled in only with -D_PSK_TEST.
+ *   set_psktest?fail=N|always|off  force the next N polls (or all, or none) to fail
+ *   set_psktest?poll=1             let the next pane update poll right now
+ *   set_psktest?reset=1            zero the counters
+ *   set_psktest?status=1           just report
+ */
+static bool setWiFiPSKTest (WiFiClient &client, char line[], size_t line_len)
+{
+    WebArgs wa;
+    wa.nargs = 0;
+    wa.name[wa.nargs++] = "fail";
+    wa.name[wa.nargs++] = "poll";
+    wa.name[wa.nargs++] = "reset";
+    wa.name[wa.nargs++] = "status";
+
+    if (!parseWebCommand (wa, line, line_len)) {
+        strncpy (line, "fail=N|always|off&poll=1&reset=1&status=1", line_len);
+        return (false);
+    }
+
+    bool have_fail = wa.found[0] && wa.value[0];
+    int fail = 0;
+    if (have_fail) {
+        if (strcmp (wa.value[0], "always") == 0)
+            fail = -1;
+        else if (strcmp (wa.value[0], "off") == 0)
+            fail = 0;
+        else if (isdigit ((unsigned char)wa.value[0][0]))
+            fail = atoi (wa.value[0]);
+        else {
+            strncpy (line, "fail must be N, always or off", line_len);
+            return (false);
+        }
+    }
+
+    char buf[600];
+    pskTestControl (have_fail, fail, wa.found[1], wa.found[2], buf, sizeof(buf));
+    startPlainText (client);
+    client.print (buf);
+    return (true);
+}
+#endif // _PSK_TEST
+
 /* exit
  */
 static bool doWiFiExit (WiFiClient &client, char *unused_line, size_t line_len)
@@ -5212,6 +5256,9 @@ static const CmdTble command_table[] = {
     { "set_newdx?",         setWiFiNewDX,          "grid=AB12&lat=X&lng=Y" },
     { "set_once_alarm?",    setWiFiOnceAlarm,      "state=off|armed&time=YYYY-MM-DDTHR:MN&tz=DE|UTC" },
     { "set_parks?",         setWiFiParks,          "save (POST)" },
+#if defined(_PSK_TEST)
+    { "set_psktest?",       setWiFiPSKTest,        "fail=N|always|off&poll=1&reset=1&status=1 (test build only)" },
+#endif
     { "set_pane?",          setWiFiPane,           "Pane[0123]=X,Y,Z... any from:" },
     { "set_panzoom?",       setWiFiPanZoom,        "pan_x=X&pan_y=Y&pan_dx=dX&pan_dy=dY&zoom=Z" },
     { "set_rotator?",       setWiFiRotator,        "state=[un]stop|[un]auto&az=X&el=X" },
