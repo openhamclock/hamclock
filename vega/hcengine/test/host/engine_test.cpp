@@ -366,6 +366,21 @@ static void testSettings() {
     CHECK(!normalizeBackend(x).empty());
   }
   CHECK(validOverscan(0) && validOverscan(3) && validOverscan(5) && !validOverscan(4));
+
+  // updateCheck: default on, merged and written; a bad value is rejected (strict) or skipped.
+  VegaSettings s;
+  CHECK(s.updateCheck);
+  CHECK(settingsJson(s).find("\"updateCheck\":true") != std::string::npos);
+  CHECK_EQ(mergeSettingsJson("{\"updateCheck\":false}", s, true), "");
+  CHECK(!s.updateCheck);
+  CHECK(settingsJson(s).find("\"updateCheck\":false") != std::string::npos);
+  CHECK(!mergeSettingsJson("{\"updateCheck\":1}", s, true).empty());
+  CHECK(!s.updateCheck);
+  CHECK_EQ(mergeSettingsJson("{\"updateCheck\":\"x\",\"overscan\":3}", s, false), "");
+  CHECK(!s.updateCheck && s.overscan == 3);
+  VegaSettings old;  // a file from before updateCheck existed keeps the default
+  CHECK_EQ(mergeSettingsJson("{\"lanAccess\":true,\"overscan\":0}", old, false), "");
+  CHECK(old.updateCheck && old.lanAccess);
 }
 
 // ---- HttpFetch.cpp ----

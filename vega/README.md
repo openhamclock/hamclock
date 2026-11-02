@@ -83,6 +83,8 @@ None of these need the TV.
 - **No subprocesses.** Vega apps can't run subprocesses, so HamClock can't run `curl`. Its HTTPS fetches (Sat_Alerts/hams.at, Mesh_Mon) go through the app instead: the engine queues them and `src/engine/fetchBridge.ts` fetches them with RN `fetch()` (PHASE10_RESULTS.md).
 - **No start on boot or background running.** Vega has no supported way to do either.
 - **aarch64 is optional and untested.** No arm64 Vega device is known, so builds default to armv7 only.
+- **Updates come from the Appstore only.** The app can't query the Appstore, so it checks the backend's `version.pl` and shows a notice (`src/updateCheck.ts`; Settings → Check for updates). Its "Open Appstore" button appears once `APPSTORE_ASIN` is set.
+- **Debug builds crash after ~9 minutes.** The RN runtime leaks a DNS-resolver thread every ~2 s in Debug builds (likely the dev client's reconnects). Release builds don't (PLAN.md, finding 2026-11-02).
 
 ## Documentation
 

@@ -9,7 +9,7 @@
  *       main: resume, LAN access, Setup HamClock, exit, plus the address and a QR code to open HamClock
  *             (live clock, or the antenna configuration page on the REST port, as in the Android app)
  *             from another device while LAN access is on;
- *       settings: mDNS name, backend host, screen safe margin (overscan).
+ *       settings: mDNS name, backend host, screen safe margin (overscan), update check.
  *     Settings are saved natively in <dataDir>/vega-settings.json (HcEngine.updateSettings). A
  *     backend change is applied with one engine restart when leaving the Settings page.
  *   - applies the screen safe margin inside the page (the clock canvas is fitted, see pageScript);
@@ -31,6 +31,7 @@ import {
   AppState as RNAppState,
   BackHandler,
   Keyboard,
+  Linking,
   StyleSheet,
   Text,
   TextInput,
@@ -53,6 +54,7 @@ import {QrCode} from './QrCode';
 import {antennasReady, engineBusy, firstRunVisible, initialState, lanUrls, lifecycleReducer, qrUrlFor} from './lifecycle';
 import type {LanTarget} from './lifecycle';
 import type {AppEvent, AppState, Lifecycle} from './lifecycle';
+import {APPSTORE_URL, CHECK_INTERVAL_MS, FIRST_CHECK_DELAY_MS, SNOOZE_MS, fetchLatestVersion, noticeFor} from './updateCheck';
 
 /* ────────────────────────────────────────────────────────────────────────── */
 /* Constants                                                                 */
@@ -991,6 +993,7 @@ function PanelSettings(props: {
   const name = settings?.mdnsName ?? DEFAULT_MDNS_NAME;
   const backend = settings?.backend ?? DEFAULT_BACKEND;
   const overscan = settings?.overscan ?? 0;
+  const updateCheck = settings?.updateCheck ?? true;
   const announced = s?.mdnsState === 'announced' ? s.mdnsHost : '';
   let nameHelp = `Other devices can open http://${name}.local:${s?.liveRwPort ?? 8081}/live.html.`;
   if (!s?.lanAccess) nameHelp = 'Used while LAN access is on.';
@@ -1040,6 +1043,17 @@ function PanelSettings(props: {
         </Text>
       </View>
 
+      <View style={{marginTop: 26 * m.dp}}>
+        <Text style={[styles.sectionTitle, {fontSize: 28 * m.dp}]}>Check for updates</Text>
+        <View style={[styles.stepRow, {columnGap: 16 * m.dp}]}>
+          <FocusButton metrics={m} label="On" selected={updateCheck} onPress={() => update({updateCheck: true})} />
+          <FocusButton metrics={m} label="Off" selected={!updateCheck} onPress={() => update({updateCheck: false})} />
+        </View>
+        <Text style={[styles.panelMeta, {fontSize: 22 * m.dp, marginTop: 8 * m.dp}]}>
+          Tells you when a new HamClock is out, so you can update it in the Amazon Appstore.
+        </Text>
+      </View>
+
       <View style={[styles.stepRow, {marginTop: 20 * m.dp}]}>
         <FocusButton
           metrics={m}
@@ -1075,6 +1089,45 @@ function SettingsPanel(props: {
           {width: 1120 * m.dp, right: m.safeX, top: m.safeY, bottom: m.safeY, padding: 40 * m.dp, borderRadius: 24 * m.dp},
         ]}>
         {state.panelPage === 'settings' ? <PanelSettings {...props} /> : <PanelMain {...props} />}
+      </TVFocusGuideView>
+    </View>
+  );
+}
+
+/**
+ * "A new HamClock is out" (update check, see updateCheck.ts). A centered card over the clock,
+ * focus trapped; Back = Later. "Open Appstore" only with an ASIN (APPSTORE_URL) the TV accepts.
+ */
+function UpdateNotice(props: {
+  version: string;
+  canOpenStore: boolean;
+  metrics: TvMetrics;
+  onOpenStore: () => void;
+  onLater: () => void;
+  onNever: () => void;
+}) {
+  const {version, canOpenStore, metrics: m, onOpenStore, onLater, onNever} = props;
+  return (
+    <View style={[styles.backdrop, styles.center]}>
+      <TVFocusGuideView
+        autoFocus
+        trapFocusUp
+        trapFocusDown
+        trapFocusLeft
+        trapFocusRight
+        style={[styles.statusCard, {width: 1100 * m.dp, padding: 48 * m.dp, borderRadius: 24 * m.dp}]}>
+        <Text style={[styles.panelTitle, {fontSize: 44 * m.dp}]}>Update available</Text>
+        <Text style={[styles.updateText, {fontSize: 30 * m.dp, marginTop: 20 * m.dp}]}>
+          A new version of HamClock ({version}) has been released. Check the Amazon Appstore to update.
+        </Text>
+        <View style={[styles.updateButtons, {columnGap: 20 * m.dp, marginTop: 20 * m.dp}]}>
+          {canOpenStore && <FocusButton metrics={m} label="Open Appstore" onPress={onOpenStore} preferred />}
+          <FocusButton metrics={m} label="Later" onPress={onLater} preferred={!canOpenStore} />
+          <FocusButton metrics={m} label="Don't check again" onPress={onNever} />
+        </View>
+        <Text style={[styles.panelMeta, styles.textCenter, {fontSize: 22 * m.dp, marginTop: 16 * m.dp}]}>
+          You can turn update checks back on in Settings.
+        </Text>
       </TVFocusGuideView>
     </View>
   );
@@ -1281,6 +1334,62 @@ export const App = () => {
     return () => clearTimeout(t);
   }, [state.webError, state.lifecycle]);
 
+  // Update check (as the Android app on Amazon): FIRST_CHECK_DELAY_MS after the clock is up, then
+  // every CHECK_INTERVAL_MS, ask the backend for the latest release; if it's newer than the
+  // running HamClock, show UpdateNotice. "Later" snoozes that version for SNOOZE_MS (this run).
+  const [updateNotice, setUpdateNotice] = useState<string | null>(null);
+  const [canOpenStore, setCanOpenStore] = useState(false);
+  const snoozeRef = useRef<{version: string; until: number} | null>(null);
+  const checkOn = state.lifecycle === 'READY' && settings !== null && settings.updateCheck !== false;
+  useEffect(() => {
+    if (!checkOn) return;
+    let cancelled = false;
+    const check = async () => {
+      const st = stateRef.current.status;
+      if (!st?.version) return;
+      const remote = await fetchLatestVersion(st.backend, `HamClock-vega/${st.version}`, fetch, debugLog);
+      if (cancelled) return;
+      const v = noticeFor(st.version, remote, snoozeRef.current, Date.now());
+      debugLog(`[HCUPD] running ${st.version}, latest ${remote ?? '?'}${v ? ': notice' : ''}`);
+      if (!v) return;
+      let can = false;
+      try {
+        can = APPSTORE_URL !== '' && (await Linking.canOpenURL(APPSTORE_URL));
+      } catch (e) {
+        debugLog(`[HCUPD] canOpenURL: ${String(e)}`);
+      }
+      if (cancelled) return;
+      setCanOpenStore(can);
+      setUpdateNotice(v);
+    };
+    const first = setTimeout(check, FIRST_CHECK_DELAY_MS);
+    const every = setInterval(check, CHECK_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(first);
+      clearInterval(every);
+    };
+  }, [checkOn]);
+  // Shown only over the clock: not over the first-run screen or the settings panel (it waits).
+  const showUpdate = updateNotice !== null && !state.settingsOpen && !firstRun && checkOn;
+  const showUpdateRef = useRef(showUpdate);
+  showUpdateRef.current = showUpdate;
+  const updateLater = useCallback(() => {
+    setUpdateNotice(v => {
+      if (v) snoozeRef.current = {version: v, until: Date.now() + SNOOZE_MS};
+      return null;
+    });
+  }, []);
+  const openStore = useCallback(() => {
+    updateLater();
+    Linking.openURL(APPSTORE_URL).catch(e => console.warn(`[HCUPD] openURL failed: ${String(e)}`));
+  }, [updateLater]);
+  const updateNever = useCallback(() => {
+    setUpdateNotice(null);
+    const err = updateSettings({updateCheck: false});
+    if (err) console.warn(`[HCUPD] turning update checks off failed: ${err}`);
+  }, [updateSettings]);
+
   const toggleSettings = useCallback(() => {
     dispatch({type: stateRef.current.settingsOpen ? 'CLOSE_SETTINGS' : 'OPEN_SETTINGS'});
   }, []);
@@ -1291,13 +1400,14 @@ export const App = () => {
     const st = stateRef.current;
     const nav = webNavRef.current;
     if (editCancelRef.current) editCancelRef.current(); // Back while typing: cancel the edit only
+    else if (showUpdateRef.current) updateLater(); // Back on the update notice: Later
     else if (st.settingsOpen && st.panelPage === 'settings') dispatch({type: 'PANEL_PAGE', page: 'main'});
     else if (!st.settingsOpen && nav.url && !isLivePage(nav.url)) {
       debugLog(`[HCWEB] back from ${nav.url}`);
       if (nav.canGoBack) webRef.current?.goBack();
       else dispatch({type: 'WEB_RELOAD'});
     } else toggleSettings();
-  }, [toggleSettings]);
+  }, [toggleSettings, updateLater]);
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       onBack();
@@ -1327,7 +1437,7 @@ export const App = () => {
   const showWeb = state.lifecycle === 'READY' && liveUri !== null;
   const showStatus = (!showWeb || !state.webLoaded) && !firstRun;
   // Keys (incl. Back) go to RN while a native overlay is up, else to the page.
-  const webHasKeys = !state.settingsOpen && !firstRun;
+  const webHasKeys = !state.settingsOpen && !firstRun && !showUpdate;
 
   // Memoized so the status polling (a re-render every few seconds) doesn't re-render the WebView;
   // each WebView render logs Amazon's "useComponentInstance is deprecated" warning. Handlers only
@@ -1384,6 +1494,16 @@ export const App = () => {
       {firstRun && <FirstRunScreen state={state} metrics={metrics} dispatch={dispatch} />}
       {state.settingsOpen && (
         <SettingsPanel state={state} settings={settings} metrics={metrics} dispatch={dispatch} update={updateSettings} />
+      )}
+      {showUpdate && updateNotice && (
+        <UpdateNotice
+          version={updateNotice}
+          canOpenStore={canOpenStore}
+          metrics={metrics}
+          onOpenStore={openStore}
+          onLater={updateLater}
+          onNever={updateNever}
+        />
       )}
     </View>
     </FieldContext.Provider>
@@ -1453,6 +1573,9 @@ const styles = StyleSheet.create({
   qrFrame: {backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center'},
   qrPlaceholder: {color: '#5a6478', textAlign: 'center', paddingHorizontal: 40},
   qrCaption: {textAlign: 'center'},
+
+  updateText: {color: C.text, textAlign: 'center'},
+  updateButtons: {flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center'},
 
   button: {backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 2, borderColor: 'transparent'},
   buttonSelected: {borderColor: C.accent},

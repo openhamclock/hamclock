@@ -1,7 +1,8 @@
 /**
  * Saved app settings: <dataDir>/vega-settings.json, one flat JSON object.
  *
- *   {"lanAccess":true,"mdnsName":"hamclock","backend":"ohb.hamclock.app:80","overscan":0}
+ *   {"lanAccess":true,"mdnsName":"hamclock","backend":"ohb.hamclock.app:80","overscan":0,
+ *    "updateCheck":true}
  *
  * Written atomically (tmp + rename). Bad or missing fields fall back to their defaults, so a
  * damaged file never stops the engine. The Phase 3 file <dataDir>/vega-lan-access ("1"/"0") is
@@ -86,7 +87,8 @@ bool validOverscan(int pct) { return pct == 0 || pct == 3 || pct == 5; }
 std::string settingsJson(const VegaSettings &s) {
   return std::string("{\"lanAccess\":") + (s.lanAccess ? "true" : "false") +
          ",\"mdnsName\":" + jsonQuote(s.mdnsName) + ",\"backend\":" + jsonQuote(s.backend) +
-         ",\"overscan\":" + std::to_string(s.overscan) + "}";
+         ",\"overscan\":" + std::to_string(s.overscan) +
+         ",\"updateCheck\":" + (s.updateCheck ? "true" : "false") + "}";
 }
 
 std::string mergeSettingsJson(const std::string &json, VegaSettings &s, bool strict) {
@@ -107,6 +109,8 @@ std::string mergeSettingsJson(const std::string &json, VegaSettings &s, bool str
     } else if (key == "overscan") {
       if (v.type == JsonValue::Number && validOverscan((int)v.num)) n.overscan = (int)v.num;
       else e = "overscan must be 0, 3 or 5";
+    } else if (key == "updateCheck") {
+      if (v.type == JsonValue::Bool) n.updateCheck = v.b; else e = "updateCheck must be true or false";
     }
     if (!e.empty() && fieldErr.empty()) fieldErr = e;
   });

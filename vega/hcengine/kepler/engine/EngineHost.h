@@ -106,6 +106,7 @@ struct VegaSettings {
   std::string mdnsName = kDefaultMdnsName;  // DNS label; the responder adds -2, -3... on conflict
   std::string backend = kDefaultBackend;    // host:port
   int overscan = 0;                         // screen safe margin in percent: 0, 3 or 5 (app only)
+  bool updateCheck = true;                  // app checks the backend for a newer release (app only)
 };
 /** Trim, lower-case, drop ".local"; '' becomes the default. Returns '' or a message for the user. */
 std::string normalizeMdnsName(std::string &name);
@@ -141,7 +142,8 @@ public:
   /** Saved settings as JSON (loads them if the engine hasn't started yet). */
   std::string settings();
   /**
-   * Change some settings (flat JSON with any of lanAccess, mdnsName, backend, overscan) and save
+   * Change some settings (flat JSON with any of lanAccess, mdnsName, backend, overscan,
+   * updateCheck) and save
    * them. A LAN change restarts a running engine; a backend change is only saved and applies at
    * the next restart (status restartNeeded); a name change makes the mDNS
    * responder probe the new name. Returns '' or a message for the user (nothing is changed).

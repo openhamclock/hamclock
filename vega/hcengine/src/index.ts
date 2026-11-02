@@ -108,6 +108,8 @@ export interface VegaSettings {
   backend: string;
   /** Screen safe margin in percent: 0, 3 or 5. Applied by the app around the WebView. */
   overscan: 0 | 3 | 5;
+  /** Check the backend for a newer HamClock release and suggest the Appstore. Default true. */
+  updateCheck: boolean;
 }
 
 /** A request from the engine (HamClock's curl panes) for the app to fetch. */

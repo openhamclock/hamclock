@@ -636,7 +636,8 @@ std::string EngineHost::updateSettings(const std::string &json) {
     bool backendChanged = n.backend != g_settings.backend;
     bool nameChanged = n.mdnsName != g_settings.mdnsName;
     bool overscanChanged = n.overscan != g_settings.overscan;
-    if (!lanChanged && !backendChanged && !nameChanged && !overscanChanged) return "";
+    bool updateCheckChanged = n.updateCheck != g_settings.updateCheck;
+    if (!lanChanged && !backendChanged && !nameChanged && !overscanChanged && !updateCheckChanged) return "";
     err = saveSettings(g_settingsDir, n);
     if (!err.empty()) { event(err); return err; }
     g_settings = n;
@@ -644,6 +645,7 @@ std::string EngineHost::updateSettings(const std::string &json) {
     if (backendChanged) event("backend set to " + n.backend + (g_supervisorAlive ? " (applies at the next restart)" : ""));
     if (nameChanged) event("mDNS name set to " + n.mdnsName);
     if (overscanChanged) event("screen margin set to " + std::to_string(n.overscan) + "%");
+    if (updateCheckChanged) event(std::string("update check ") + (n.updateCheck ? "on" : "off"));
     syncOptsFromSettings();
     // LAN access restarts at once (the bind address changes). A backend change only saves: the
     // user may have more edits; the app restarts once when leaving the Settings page
