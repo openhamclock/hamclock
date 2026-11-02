@@ -9,7 +9,8 @@
  *              popen()/system() are left alone: glibc implements them with posix_spawn, and
  *              some features shell out to curl.
  *   bind       TCP listeners go to 127.0.0.1 unless LAN access is on; retries while the port is
- *              still held (e.g. by the previous app process during a relaunch).
+ *              still held (e.g. by the previous app process during a relaunch). Ports another app
+ *              holds are avoided before each run (portFree below, PortPick.h).
  *   accept     tracks connections; a thread accepting on a retired listener ends. Peers outside
  *              the allowed ranges (LanFilter.cpp) are closed at once: loopback only, or private
  *              LAN addresses too when LAN access is on.
@@ -105,6 +106,27 @@ void retireEngineSockets() {
   }
   listenFds.clear();
   fprintf(stderr, "HcEngine: retired %d listeners, %d connections\n", nl, nc);
+}
+
+/**
+ * Whether a TCP port can be bound on the address the engine would use (0.0.0.0 with LAN access,
+ * else 127.0.0.1). SO_REUSEADDR like HamClock's listeners, so our own retired listeners and
+ * TIME_WAIT connections don't count; no SO_REUSEPORT, so another app's listener does. Uses the
+ * real bind/close: the wraps would record the probe as an engine listener.
+ */
+bool portFree(int port, bool lan) {
+  if (port <= 0 || port > 65535) return false;
+  int fd = socket(AF_INET, SOCK_STREAM, 0);
+  if (fd < 0) return true;  // can't tell; let HamClock's own bind decide
+  int one = 1;
+  setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof one);
+  sockaddr_in sin{};
+  sin.sin_family = AF_INET;
+  sin.sin_port = htons((uint16_t)port);
+  sin.sin_addr.s_addr = htonl(lan ? INADDR_ANY : INADDR_LOOPBACK);
+  bool ok = __real_bind(fd, reinterpret_cast<sockaddr *>(&sin), sizeof sin) == 0 || errno != EADDRINUSE;
+  __real_close(fd);
+  return ok;
 }
 
 }  // namespace hcengine

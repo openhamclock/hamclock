@@ -3,7 +3,8 @@
  *   - LanFilter.cpp: peerAllowed (which peers may connect);
  *   - MdnsResponder.cpp: name encoding/decoding, records, answers and conflict detection;
  *   - Settings.cpp: mDNS name and backend validation;
- *   - HttpFetch.cpp: curl command parsing and the fetch pipe (body, failure, timeout, stop).
+ *   - HttpFetch.cpp: curl command parsing and the fetch pipe (body, failure, timeout, stop);
+ *   - PortPick.cpp: port choice and fallbacks before each run (as in the Android app).
  * Build and run: make -C vega/hcengine/test/host
  *
  * MdnsResponder.cpp is included directly so its file-local (anonymous namespace) helpers and the
@@ -28,6 +29,7 @@
 
 #include "EngineHost.h"
 #include "HttpFetch.h"
+#include "PortPick.h"
 
 #define private public
 #include "MdnsResponder.cpp"
@@ -477,6 +479,49 @@ static void testFetchPipe() {
   CHECK(!vega_connect_http(nullptr, &fd));
 }
 
+// ---- PortPick.cpp ----
+static void testPortPick() {
+  int waits = 0;
+  auto wait = [&] { ++waits; };
+  auto freeExcept = [](std::set<int> busy) { return [busy](int p) { return !busy.count(p); }; };
+
+  // All preferred ports free: no waiting, no notice.
+  PortPlan p = pickPorts(8081, 8082, 8080, freeExcept({}), wait, 8);
+  CHECK_EQ(p.rw, 8081); CHECK_EQ(p.ro, 8082); CHECK_EQ(p.rest, 8080);
+  CHECK(p.notice.empty()); CHECK(p.events.empty()); CHECK_EQ(waits, 0);
+
+  // A port freed during the grace period (relaunch) is kept.
+  waits = 0;
+  int calls = 0;
+  p = pickPorts(8081, 8082, 8080, [&](int port) { return port != 8081 || ++calls > 3; }, wait, 8);
+  CHECK_EQ(p.rw, 8081); CHECK(p.notice.empty()); CHECK(waits > 0 && waits < 8);
+
+  // Taken by another app: Android's fallbacks, after the full grace period.
+  waits = 0;
+  p = pickPorts(8081, 8082, 8080, freeExcept({8081, 8080}), wait, 8);
+  CHECK_EQ(waits, 8);
+  CHECK_EQ(p.rw, 8083); CHECK_EQ(p.ro, 8082); CHECK_EQ(p.rest, 8088);
+  CHECK(p.notice.find("8081") != std::string::npos && p.notice.find("8083") != std::string::npos);
+  CHECK(p.notice.find("8088") != std::string::npos);
+  CHECK_EQ(p.events.size(), 2u);
+
+  // Skips busy fallbacks; R/O and REST never get the same port (Android's lists share 8085).
+  p = pickPorts(8081, 8082, 8080, freeExcept({8081, 8083, 8082, 8080, 8088}), wait, 0);
+  CHECK_EQ(p.rw, 8084); CHECK_EQ(p.ro, 8085); CHECK_EQ(p.rest, 8089);
+  CHECK(p.notice.find("8082") == std::string::npos);  // R/O change: event only
+  CHECK_EQ(p.events.size(), 3u);
+
+  // Nothing free: R/W keeps the preferred port (HamClock reports the error), REST turns off.
+  p = pickPorts(8081, 8082, 8080, [](int) { return false; }, wait, 0);
+  CHECK_EQ(p.rw, 8081); CHECK_EQ(p.ro, 8082); CHECK_EQ(p.rest, -1);
+  CHECK(p.notice.find("can't start") != std::string::npos);
+  CHECK(p.notice.find("is off") != std::string::npos);
+
+  // Disabled ports (<= 0) are never probed or changed.
+  p = pickPorts(8081, -1, -1, [](int port) { CHECK(port > 0); return true; }, wait, 0);
+  CHECK_EQ(p.ro, -1); CHECK_EQ(p.rest, -1);
+}
+
 int main() {
   testPeerAllowed();
   testNames();
@@ -485,6 +530,7 @@ int main() {
   testSettings();
   testCurlParse();
   testFetchPipe();
+  testPortPick();
   printf("%d checks, %d failed\n", g_checks, g_fail);
   return g_fail ? 1 : 0;
 }

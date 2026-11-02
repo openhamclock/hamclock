@@ -86,6 +86,7 @@ set(HEADERS
   kepler/engine/EngineHost.h
   kepler/engine/FlatJson.h
   kepler/engine/HttpFetch.h
+  kepler/engine/PortPick.h
 )
 set(SOURCES
     kepler/turbo-modules/generated/HcEngineSpec.cpp
@@ -97,6 +98,7 @@ set(SOURCES
     kepler/engine/MdnsResponder.cpp
     kepler/engine/Settings.cpp
     kepler/engine/HttpFetch.cpp
+    kepler/engine/PortPick.cpp
     kepler/AutoLinkInit.cpp
 )
 

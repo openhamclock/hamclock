@@ -3,6 +3,7 @@
  */
 #include "EngineHost.h"
 #include "HttpFetch.h"
+#include "PortPick.h"
 #include "FlatJson.h"
 
 #include <atomic>
@@ -37,12 +38,16 @@ unsigned vega_engine_run = 0;
 
 namespace hcengine {
 
-void retireEngineSockets();  // SysWraps.cpp
+void retireEngineSockets();         // SysWraps.cpp
+bool portFree(int port, bool lan);  // SysWraps.cpp
 
 namespace {
 
 constexpr size_t kEngineStack = 8 * 1024 * 1024;
 constexpr size_t kMaxEvents = 30;
+constexpr int kDefaultRoPort = 8082;     // HamClock's LIVEWEB_RO_PORT (liveRoPort 0)
+constexpr int kPortGraceSteps = 8;      // x 250 ms: a relaunch's previous process may still hold a port
+constexpr useconds_t kPortGraceUs = 250 * 1000;
 
 std::mutex mu;
 EngineState g_state = EngineState::Idle;
@@ -65,6 +70,9 @@ bool g_firstRunLanUsed = false;          // firstRunLanAccess applied (once per 
 VegaSettings g_settings;                 // saved settings; source of truth for LAN and backend
 std::string g_settingsDir;               // data dir g_settings were loaded from ('' = not loaded)
 std::string g_runBackend;                // -b of the current run (HamClock's own restarts keep it)
+// Ports of the current run, after pickPorts (PortPick.h); 0 = no run yet (status shows g_opts).
+int g_rwPort = 0, g_roPort = 0, g_restPort = 0;
+std::string g_portNotice;               // for the user: which preferred ports were taken
 thread_local bool t_isEngine = false;
 
 // argv storage for the current run; hamclock keeps a pointer to it (our_argv).
@@ -98,6 +106,15 @@ void event(const std::string &msg) {  // caller holds mu
   fprintf(stderr, "HcEngine: %s\n", msg.c_str());
   g_events.push_back(msg);
   if (g_events.size() > kMaxEvents) g_events.pop_front();
+}
+
+/** Sets `flag value` in args (replaces the value after flag, or appends both). */
+void setArg(std::vector<std::string> &args, const std::string &flag, int value) {
+  for (size_t i = 0; i + 1 < args.size(); ++i) {
+    if (args[i] == flag) { args[i + 1] = std::to_string(value); return; }
+  }
+  args.push_back(flag);
+  args.push_back(std::to_string(value));
 }
 
 std::string joinArgs(const std::vector<std::string> &a) {
@@ -183,9 +200,13 @@ void takeOpenSetup() {
 }
 
 // ---- engine hooks (run on the engine thread) ----
+// HamClock's own restarts (Restart HamClock in its menu, REST /restart, config restore, fatal
+// error) drop the -k that buildArgs adds, so they show HamClock's usual 10 s Setup countdown, as
+// on a desktop HamClock run without -k. Restarts from the app (buildArgs) still get -k.
 void restartHook(char *argv[]) {
   std::vector<std::string> args;
-  for (int i = 0; argv && argv[i]; ++i) args.emplace_back(argv[i]);
+  for (int i = 0; argv && argv[i]; ++i)
+    if (std::strcmp(argv[i], "-k") != 0) args.emplace_back(argv[i]);
   EngineHost::instance().endEngineThread(0, &args);
 }
 
@@ -251,6 +272,7 @@ std::vector<std::string> buildArgs(const EngineOptions &o) {
   a.push_back("-w"); a.push_back(std::to_string(o.liveRwPort));
   if (o.liveRoPort != 0) { a.push_back("-r"); a.push_back(std::to_string(o.liveRoPort)); }
   // -k: no Setup offer or Skip waits (HamClock still opens Setup if no callsign is stored).
+  //     App starts and restarts only: restartHook drops it for HamClock's own restarts.
   // -u: open Setup at once (one run only; ESP::restart drops it).
   a.push_back("-k");
   if (o.openSetup) a.push_back("-u");
@@ -274,9 +296,9 @@ void EngineHost::noteListening(int port) {
   std::lock_guard<std::mutex> l(mu);
   g_listening.insert(port);
   event("listening on " + std::string(g_lan ? "0.0.0.0" : "127.0.0.1") + ":" + std::to_string(port));
-  if (port == g_opts.liveRwPort && g_state == EngineState::Starting) g_state = EngineState::Running;
+  if (port == g_rwPort && g_state == EngineState::Starting) g_state = EngineState::Running;
   // HamClock starts REST only after Setup, so REST listening means Setup is done.
-  if (port == g_opts.restPort && g_setup != 1) {
+  if (port == g_restPort && g_setup != 1) {
     if (g_setup == 0) event("setup complete");
     g_setup = 1;
   }
@@ -297,7 +319,7 @@ void EngineHost::noteEvent(const std::string &msg) {
 
 bool EngineHost::mdnsWanted(int &port, std::string &name) const {
   std::lock_guard<std::mutex> l(mu);
-  port = g_opts.liveRwPort;
+  port = g_rwPort ? g_rwPort : g_opts.liveRwPort;
   name = g_settings.mdnsName;
   return g_lan && g_supervisorAlive;
 }
@@ -369,8 +391,31 @@ void *EngineHost::supervisorThreadMain(void *) {
 
 void EngineHost::supervisorMain() {
   for (;;) {
+    // Ports for this run, as the Android app does before each start (PortPick.h): the preferred
+    // ports each time, so a port another app gave up is used again. Probed outside mu (may wait).
+    int prefRw, prefRo, prefRest;
+    bool lan;
     {
       std::lock_guard<std::mutex> l(mu);
+      prefRw = g_opts.liveRwPort;
+      prefRo = g_opts.liveRoPort == 0 ? kDefaultRoPort : g_opts.liveRoPort;
+      prefRest = g_opts.restPort;
+      lan = g_lan;
+    }
+    PortPlan ports = pickPorts(
+        prefRw, prefRo, prefRest, [lan](int p) { return portFree(p, lan); }, [] { usleep(kPortGraceUs); },
+        kPortGraceSteps);
+    {
+      std::lock_guard<std::mutex> l(mu);
+      // Also rewrites the ports in HamClock's own restart args (which carry the last run's).
+      setArg(g_runArgs, "-w", ports.rw);
+      setArg(g_runArgs, "-r", ports.ro);
+      setArg(g_runArgs, "-e", ports.rest);
+      g_rwPort = ports.rw;
+      g_roPort = ports.ro;
+      g_restPort = ports.rest;
+      g_portNotice = ports.notice;
+      for (auto &e : ports.events) event(e);
       g_argvStore = g_runArgs;
       g_argv.clear();
       for (auto &s : g_argvStore) g_argv.push_back(s.data());
@@ -556,9 +601,11 @@ std::string EngineHost::statusJson() {
   o << ",\"lastError\":"; jsonStr(o, g_lastError);
   o << ",\"lanAccess\":" << (g_lan ? "true" : "false");
   o << ",\"setupComplete\":" << (g_setup < 0 ? "null" : g_setup ? "true" : "false");
-  o << ",\"restPort\":" << g_opts.restPort;
-  o << ",\"liveRwPort\":" << g_opts.liveRwPort;
-  o << ",\"liveRoPort\":" << g_opts.liveRoPort;
+  // Ports of the current run (after any fallback, see PortPick.h); before the first, the options.
+  o << ",\"restPort\":" << (g_rwPort ? g_restPort : g_opts.restPort);
+  o << ",\"liveRwPort\":" << (g_rwPort ? g_rwPort : g_opts.liveRwPort);
+  o << ",\"liveRoPort\":" << (g_rwPort ? g_roPort : g_opts.liveRoPort);
+  o << ",\"portNotice\":"; jsonStr(o, g_portNotice);
   o << ",\"listening\":[";
   bool first = true;
   for (int p : g_listening) { o << (first ? "" : ",") << p; first = false; }

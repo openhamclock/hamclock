@@ -66,9 +66,15 @@ export interface EngineStatus {
    * once the REST port listens (HamClock starts REST only after Setup). null until checked.
    */
   setupComplete: boolean | null;
+  /**
+   * Ports of the current run. If another app holds a preferred port, the engine falls back to
+   * another one before the run starts, as the Android app does (restPort -1: REST is off).
+   */
   restPort: number;
   liveRwPort: number;
   liveRoPort: number;
+  /** For the user: which preferred ports were taken and what is used instead ('' = none). */
+  portNotice: string;
   /** Ports the engine is listening on right now. */
   listening: number[];
   /** The TV's private IPv4 addresses (for showing the LAN URL). */

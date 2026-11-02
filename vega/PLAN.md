@@ -16,6 +16,8 @@ Phases 0–3 are done and committed on `vega-app` (engine in the app, WebView UI
 
 **Update 2026-11-02 (later):** Phase 10 (curl panes through the app's fetch) is done (see `vega/PHASE10_RESULTS.md`). Sat_Alerts and Mesh_Mon work on the TV. One upstream change (`ESPHamClock/ArduinoLib/WiFiClient.cpp`, the `_IS_VEGA` hook, as on Android). Next: item 4 of "Next (agreed 2026-10-30)" (first Appstore submission), after the LAT and the merge to `main`.
 
+**Bug fix 2026-11-02:** "Restart HamClock" (lock menu) skipped HamClock's 10 s Setup countdown, because `ESP::restart` re-used our `-k`. `restartHook` (`EngineHost.cpp`) now drops `-k` for all of HamClock's own restarts (menu, REST `/restart`, config restore, fatal error), as on a desktop run without `-k`. App starts and restarts (`buildArgs`) keep `-k`. Checked on the TV (Release 1203).
+
 _This file is the maintained copy of the plan (moved into the repo after Phase 6; the original was a conversation artifact)._
 
 **Your decisions (built in below):**
@@ -72,7 +74,7 @@ flowchart LR
   - a live status line: "Waiting for setup…".
 - **Buttons:**
   - "Set up on this TV instead": hides the screen; the user does Setup in live.html with the D-pad.
-  - "Exit app".
+  - "Exit HamClock" (was "Exit app").
 - **Closes by itself** as soon as `setupComplete` turns true.
 - **Back** on this screen opens the normal settings panel.
 
@@ -331,8 +333,8 @@ No manifest change was needed for HTTPS (the cleartext policy only covers plain 
 
 ## Other ideas (not scheduled; your call)
 
-- **Antenna page in the QR screen.** Android offers a second QR for the REST server's antenna page on `:8080`. This could be a second tab in Phase 5.5.
-- **Port conflicts.** If another app holds 8080/8081, binding gives up after 10 s retries. Show a clear error, or fall back to another port as Android does.
+- ~~**Antenna page in the QR screen.**~~ Done 2026-11-02 (settings panel): "Live clock" / "Antennas" choices above the QR switch the QR and URLs to `http://<ip>:8080/antennas.html` (REST port), as Android's tabs do. Until REST listens (Setup not done), the Antennas choice says so instead of a QR. Not on the first-run screen (no REST before Setup). The choice applies on highlight (no OK needed). Checked on the TV (Release 1203).
+- ~~**Port conflicts.**~~ Done 2026-11-02, as in Android (`MainActivity.kt` `findAvailable*Port`): before each run the engine probes 8081/8082/8080 (`PortPick.cpp`, `portFree` in `SysWraps.cpp`) and falls back to Android's lists (R/W 8083, 8084, 8086, 8091; R/O 8085, 8087, 8092, 8093; REST 8088, 8085, 8089, 8090; REST off if none). Android rechecks once after killing leftover processes; Vega rechecks a busy preferred port for up to 2 s instead (relaunch overlap). Status `portNotice` is shown in the settings panel; URLs, QR, mDNS and the WebView follow the ports in use. On the TV (Release 1203) the normal ports come up as before; the fallback itself is covered by host tests only (no conflicting app on the TV).
 - **Update check.** Android tells the user when a new HamClock version exists. On Vega, the Appstore handles updates, so this is probably unnecessary.
 - **Start on boot / keep running after close.** Android offers both. Phase 0 found no supported way on Vega, so leave them out rather than offer them half-working.
 

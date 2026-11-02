@@ -133,14 +133,36 @@ export function engineBusy(s: AppState): boolean {
   return s.lifecycle === 'RESTARTING' || s.lifecycle === 'STARTING' || s.restartHold;
 }
 
+/**
+ * Which page the address and QR code point at, as in the Android app's settings tabs: the live
+ * clock (live.html on the live R/W port) or the antenna configuration page (antennas.html on the
+ * REST port).
+ */
+export type LanTarget = 'live' | 'antennas';
+
+function targetPortPath(s: EngineStatus, target: LanTarget): string {
+  return target === 'antennas' ? `${s.restPort}/antennas.html` : `${s.liveRwPort}/live.html`;
+}
+
 /** URLs another device can open: mDNS name first once announced, then the IP addresses. */
-export function lanUrls(s: EngineStatus): {mdnsUrl: string | null; ipUrls: string[]} {
-  const mdnsUrl = s.mdnsState === 'announced' && s.mdnsHost ? `http://${s.mdnsHost}:${s.liveRwPort}/live.html` : null;
-  const ipUrls = (s.lanAddresses ?? []).map(a => `http://${a}:${s.liveRwPort}/live.html`);
+export function lanUrls(s: EngineStatus, target: LanTarget = 'live'): {mdnsUrl: string | null; ipUrls: string[]} {
+  const pp = targetPortPath(s, target);
+  const mdnsUrl = s.mdnsState === 'announced' && s.mdnsHost ? `http://${s.mdnsHost}:${pp}` : null;
+  const ipUrls = (s.lanAddresses ?? []).map(a => `http://${a}:${pp}`);
   return {mdnsUrl, ipUrls};
 }
 
+/**
+ * The antenna page is served by the REST server, which HamClock starts only after Setup; until
+ * then its address wouldn't answer. restPort -1: REST is off (its ports were taken).
+ */
+export function antennasReady(s: EngineStatus | null): boolean {
+  return !!s && s.restPort > 0 && (s.listening ?? []).includes(s.restPort);
+}
+
 /** The URL QR codes encode: always the first IP URL (decision 4), never .local. */
-export function qrUrlFor(s: EngineStatus | null): string | null {
-  return s?.lanAccess ? lanUrls(s).ipUrls[0] ?? null : null;
+export function qrUrlFor(s: EngineStatus | null, target: LanTarget = 'live'): string | null {
+  if (!s?.lanAccess) return null;
+  if (target === 'antennas' && !antennasReady(s)) return null;
+  return lanUrls(s, target).ipUrls[0] ?? null;
 }

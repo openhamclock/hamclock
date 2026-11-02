@@ -7,6 +7,7 @@
  *   - shows a status card while starting, restarting or after an error;
  *   - gives a native settings panel (Back or Menu) in two pages:
  *       main: resume, LAN access, Setup HamClock, exit, plus the address and a QR code to open HamClock
+ *             (live clock, or the antenna configuration page on the REST port, as in the Android app)
  *             from another device while LAN access is on;
  *       settings: mDNS name, backend host, screen safe margin (overscan).
  *     Settings are saved natively in <dataDir>/vega-settings.json (HcEngine.updateSettings). A
@@ -48,7 +49,8 @@ import type {
 import {DEFAULT_BACKEND, DEFAULT_ENGINE_OPTIONS, DEFAULT_MDNS_NAME, HcEngine, ensureEngineStarted} from './engine';
 import type {EngineStatus, VegaSettings} from './engine';
 import {QrCode} from './QrCode';
-import {engineBusy, firstRunVisible, initialState, lanUrls, lifecycleReducer, qrUrlFor} from './lifecycle';
+import {antennasReady, engineBusy, firstRunVisible, initialState, lanUrls, lifecycleReducer, qrUrlFor} from './lifecycle';
+import type {LanTarget} from './lifecycle';
 import type {AppEvent, AppState, Lifecycle} from './lifecycle';
 
 /* ────────────────────────────────────────────────────────────────────────── */
@@ -311,13 +313,18 @@ function FocusButton(props: {
   tone?: 'default' | 'danger';
   /** Toggle/choice state: amber outline while not focused. */
   selected?: boolean;
+  /** Called when the button gets focus (e.g. a choice that applies on highlight). */
+  onFocus?: () => void;
 }) {
-  const {label, onPress, metrics: m, preferred, tone = 'default', selected} = props;
+  const {label, onPress, metrics: m, preferred, tone = 'default', selected, onFocus} = props;
   const [focused, setFocused] = useState(false);
   return (
     <TouchableOpacity
       hasTVPreferredFocus={preferred}
-      onFocus={() => setFocused(true)}
+      onFocus={() => {
+        setFocused(true);
+        onFocus?.();
+      }}
       onBlur={() => setFocused(false)}
       onPress={onPress}
       activeOpacity={0.85}
@@ -452,7 +459,7 @@ function FirstRunScreen(props: {state: AppState; metrics: TvMetrics; dispatch: R
             onPress={() => dispatch({type: 'SETUP_ON_TV'})}
             preferred={!!s?.lanAccess && !state.settingsOpen}
           />
-          <FocusButton metrics={m} label="Exit app" onPress={() => BackHandler.exitApp()} tone="danger" />
+          <FocusButton metrics={m} label="Exit HamClock" onPress={() => BackHandler.exitApp()} tone="danger" />
         </TVFocusGuideView>
       </View>
 
@@ -518,8 +525,13 @@ function EngineNotice({state, metrics: m}: {state: AppState; metrics: TvMetrics}
   );
 }
 
-/** Where to browse from another device (LAN access on), or what LAN access does (off). */
+/**
+ * Where to browse from another device (LAN access on), or what LAN access does (off). With LAN on,
+ * two choices switch the address and QR code between the live clock and the antenna configuration
+ * page, as the Android app's settings tabs do; moving the highlight onto a choice switches. The choice resets to the clock when the panel opens.
+ */
 function LanInfo({state, metrics: m}: {state: AppState; metrics: TvMetrics}) {
+  const [target, setTarget] = useState<LanTarget>('live');
   const s = state.status;
   if (!s) return null;
   if (engineBusy(state) || state.lifecycle === 'ERROR' || state.lifecycle === 'STOPPED') {
@@ -536,15 +548,46 @@ function LanInfo({state, metrics: m}: {state: AppState; metrics: TvMetrics}) {
       </View>
     );
   }
-  const {mdnsUrl, ipUrls} = lanUrls(s);
+  const antennas = target === 'antennas';
+  const waiting = antennas && !antennasReady(s);
+  const {mdnsUrl, ipUrls} = lanUrls(s, target);
   return (
     <View style={[styles.lanBox, styles.lanBoxCol, {padding: 24 * m.dp, borderRadius: 18 * m.dp}]}>
-      <Text style={[styles.panelMeta, {fontSize: 24 * m.dp}]}>Scan, or open on a phone or computer:</Text>
-      <View style={{marginTop: 16 * m.dp}}>
-        <LanQr url={qrUrlFor(s)} size={300 * m.dp} metrics={m} />
+      <View style={[styles.stepRow, {columnGap: 16 * m.dp, marginTop: -16 * m.dp}]}>
+        {/* The choice applies on highlight; OK isn't needed. */}
+        <FocusButton
+          metrics={m}
+          label="Live clock"
+          selected={!antennas}
+          onFocus={() => setTarget('live')}
+          onPress={() => setTarget('live')}
+        />
+        <FocusButton
+          metrics={m}
+          label="Antennas"
+          selected={antennas}
+          onFocus={() => setTarget('antennas')}
+          onPress={() => setTarget('antennas')}
+        />
       </View>
-      {mdnsUrl && <Text style={[styles.lanUrl, styles.textCenter, {fontSize: 28 * m.dp, marginTop: 18 * m.dp}]}>{mdnsUrl}</Text>}
-      {ipUrls.length > 0 ? (
+      <Text style={[styles.panelMeta, {fontSize: 24 * m.dp, marginTop: 16 * m.dp}]}>
+        {antennas ? 'Antenna configuration page:' : 'Scan, or open on a phone or computer:'}
+      </Text>
+      {waiting ? (
+        <Text style={[styles.lanNoAddr, styles.textCenter, {fontSize: 24 * m.dp, marginTop: 18 * m.dp}]}>
+          {s.restPort > 0
+            ? 'The antenna page opens once HamClock’s Setup is done.'
+            : 'The antenna page is off: its ports are in use by other apps.'}
+        </Text>
+      ) : (
+        <View style={{marginTop: 16 * m.dp}}>
+          <LanQr url={qrUrlFor(s, target)} size={300 * m.dp} metrics={m} />
+        </View>
+      )}
+      {!waiting && mdnsUrl && (
+        <Text style={[styles.lanUrl, styles.textCenter, {fontSize: 28 * m.dp, marginTop: 18 * m.dp}]}>{mdnsUrl}</Text>
+      )}
+      {waiting ? null : ipUrls.length > 0 ? (
         ipUrls.map((u, i) => (
           <Text
             key={u}
@@ -605,11 +648,14 @@ function PanelMain(props: {
           {s?.version ? `  ·  v${s.version}` : ''}
         </Text>
         <Text style={[styles.panelMeta, {fontSize: 22 * m.dp, marginTop: 4 * m.dp}]}>
-          {s ? `Live :${s.liveRwPort}  ·  REST :${s.restPort}` : ''}
+          {s ? `Live :${s.liveRwPort}  ·  REST ${s.restPort > 0 ? `:${s.restPort}` : 'off'}` : ''}
           {lan ? '  ·  LAN on' : '  ·  loopback only'}
         </Text>
+        {!!s?.portNotice && (
+          <Text style={[styles.lanNoAddr, {fontSize: 22 * m.dp, marginTop: 8 * m.dp}]}>{s.portNotice}</Text>
+        )}
         <View style={{height: 20 * m.dp}} />
-        <FocusButton metrics={m} label="Resume clock" onPress={() => dispatch({type: 'CLOSE_SETTINGS'})} preferred />
+        <FocusButton metrics={m} label="Resume HamClock" onPress={() => dispatch({type: 'CLOSE_SETTINGS'})} preferred />
         <FocusButton
           metrics={m}
           label={lan ? 'LAN access: On' : 'LAN access: Off'}
@@ -621,7 +667,7 @@ function PanelMain(props: {
         />
         <FocusButton metrics={m} label="Settings…" onPress={() => dispatch({type: 'PANEL_PAGE', page: 'settings'})} />
         <FocusButton metrics={m} label="Setup HamClock" onPress={openSetup} />
-        <FocusButton metrics={m} label="Exit app" onPress={() => BackHandler.exitApp()} tone="danger" />
+        <FocusButton metrics={m} label="Exit HamClock" onPress={() => BackHandler.exitApp()} tone="danger" />
         {!!error && <Text style={[styles.fieldError, {fontSize: 22 * m.dp, marginTop: 12 * m.dp}]}>{error}</Text>}
       </View>
       <View style={[styles.panelSide, {marginLeft: 40 * m.dp}]}>
@@ -831,7 +877,7 @@ function PanelSettings(props: {
       />
 
       <View style={{marginTop: 26 * m.dp}}>
-        <Text style={[styles.sectionTitle, {fontSize: 28 * m.dp}]}>Screen safe margin</Text>
+        <Text style={[styles.sectionTitle, {fontSize: 28 * m.dp}]}>Screen safe margin (Overscan)</Text>
         <View style={[styles.stepRow, {columnGap: 16 * m.dp}]}>
           {OVERSCAN_CHOICES.map(c => (
             <FocusButton
@@ -1065,7 +1111,7 @@ export const App = () => {
     dispatch({type: stateRef.current.settingsOpen ? 'CLOSE_SETTINGS' : 'OPEN_SETTINGS'});
   }, []);
 
-  // Back: settings page -> main page; otherwise close the panel if open, or open it (it has "Exit app").
+  // Back: settings page -> main page; otherwise close the panel if open, or open it (it has "Exit HamClock").
   const onBack = useCallback(() => {
     const st = stateRef.current;
     if (editCancelRef.current) editCancelRef.current(); // Back while typing: cancel the edit only
