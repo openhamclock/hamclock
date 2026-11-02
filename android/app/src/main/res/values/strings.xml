@@ -68,6 +68,41 @@
     <string name="auto_update_label">Check for updates automatically</string>
     <string name="auto_update_subtext">Automatically check for and notify about new releases</string>
     <string name="auto_update_disabled_toast">Automatic updates disabled. You can re-enable them in HamClock Settings.</string>
+
+    <!-- Vega Settings Redesign Strings -->
+    <string name="resume_hamclock">Resume HamClock</string>
+    <string name="lan_access_on">LAN Access: On</string>
+    <string name="lan_access_off">LAN Access: Off</string>
+    <string name="settings_ellipsis">Settings…</string>
+    <string name="settings_subtitle">Saved on this device. Press Back to return.</string>
+    <string name="network_name_title">Network Name</string>
+    <string name="network_name_suffix">.local</string>
+    <string name="network_name_help_format">Other devices can open http://%1$s.local:%2$d/live.html</string>
+    <string name="network_name_help_lan_off">Used while LAN access is on.</string>
+    <string name="network_name_taken_format">That name is taken on your network, so this device uses %1$s.</string>
+    <string name="network_name_probing_format">Checking that %1$s.local is free…</string>
+    <string name="backend_server_title">Backend Server (host:port)</string>
+    <string name="backend_server_help">Where HamClock gets its data. Leave empty for default. HamClock restarts when you leave.</string>
+    <string name="screen_safe_margin_title">Screen Safe Margin (Overscan)</string>
+    <string name="screen_safe_margin_subtext">Shrinks the clock if your TV cuts off its edges.</string>
+    <string name="check_for_updates_title">Check for Updates</string>
+    <string name="check_for_updates_subtext">Notifies you when updates are available in Google Play or Amazon Appstore.</string>
+    <string name="toggle_on">On</string>
+    <string name="toggle_off">Off</string>
+    <string name="btn_back">&lt; Back</string>
+    <string name="lan_access_off_title">LAN access is off</string>
+    <string name="lan_access_off_desc">Turn it on to open HamClock from a phone, tablet or computer on your home network, for example to change HamClock’s settings with a keyboard.</string>
+    <string name="lan_scan_guidance">Scan, or open on a phone or computer:</string>
+    <string name="antenna_page_guidance">Antenna configuration page:</string>
+    <string name="antenna_page_waiting">The antenna page opens once HamClock’s Setup is done.</string>
+    <string name="antenna_page_ports_conflict">The antenna page is off: its ports are in use by other apps.</string>
+    <string name="engine_status_format">Engine %1$s  ·  v%2$s</string>
+    <string name="engine_status_unknown">Engine unknown</string>
+    <string name="engine_ports_format">Live :%1$d  ·  REST %2$s  ·  %3$s</string>
+    <string name="lan_status_active">LAN on</string>
+    <string name="lan_status_loopback">loopback only</string>
+    <string name="no_network_found">No network address found. Check the network connection.</string>
+    <string name="connections_refused_format">Refused %1$d connection(s) from outside your network.</string>
 </resources>
 
 

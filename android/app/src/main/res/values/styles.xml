@@ -10,4 +10,123 @@
         <item name="android:windowFullscreen">true</item>
         <item name="android:windowContentOverlay">@null</item>
     </style>
+
+    <!-- Vega Theme for Settings Overlay / Dialog -->
+    <style name="Theme.HamClock.VegaDialog" parent="Theme.AppCompat.Dialog">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowIsFloating">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:backgroundDimAmount">0.60</item>
+        <item name="android:windowContentOverlay">@null</item>
+    </style>
+
+    <!-- Vega Typography Styles -->
+    <style name="Vega.Text" parent="android:Widget.TextView">
+        <item name="android:textColor">@color/vega_text</item>
+        <item name="android:fontFamily">sans-serif</item>
+    </style>
+
+    <style name="Vega.Text.Title" parent="Vega.Text">
+        <item name="android:textSize">22sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="Vega.Text.Section" parent="Vega.Text">
+        <item name="android:textSize">14sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="Vega.Text.Body" parent="Vega.Text">
+        <item name="android:textSize">13sp</item>
+        <item name="android:textColor">@color/vega_text</item>
+    </style>
+
+    <style name="Vega.Text.Meta" parent="Vega.Text">
+        <item name="android:textSize">11sp</item>
+        <item name="android:textColor">@color/vega_muted</item>
+    </style>
+
+    <style name="Vega.Text.Url" parent="Vega.Text">
+        <item name="android:textSize">14sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/vega_accent</item>
+    </style>
+
+    <style name="Vega.Text.UrlAlt" parent="Vega.Text">
+        <item name="android:textSize">12sp</item>
+        <item name="android:textColor">@color/vega_text</item>
+    </style>
+
+    <!-- Vega Button Styles -->
+    <style name="Vega.Button" parent="android:Widget.Button">
+        <item name="android:minHeight">44dp</item>
+        <item name="android:paddingStart">16dp</item>
+        <item name="android:paddingEnd">16dp</item>
+        <item name="android:paddingTop">10dp</item>
+        <item name="android:paddingBottom">10dp</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textColor">@color/vega_btn_text_selector</item>
+        <item name="android:background">@drawable/vega_btn_default_selector</item>
+        <item name="android:focusable">true</item>
+        <item name="android:clickable">true</item>
+    </style>
+
+    <style name="Vega.Button.Toggle" parent="Vega.Button">
+        <item name="android:background">@drawable/vega_btn_toggle_selector</item>
+    </style>
+
+    <style name="Vega.Button.Danger" parent="Vega.Button">
+        <item name="android:textColor">@color/vega_btn_danger_text_selector</item>
+        <item name="android:background">@drawable/vega_btn_danger_selector</item>
+    </style>
+
+    <style name="Vega.Button.Tab" parent="Vega.Button">
+        <item name="android:minHeight">36dp</item>
+        <item name="android:paddingStart">12dp</item>
+        <item name="android:paddingEnd">12dp</item>
+        <item name="android:paddingTop">6dp</item>
+        <item name="android:paddingBottom">6dp</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:textColor">@color/vega_tab_text_selector</item>
+        <item name="android:background">@drawable/vega_chip_selector</item>
+    </style>
+
+    <style name="Vega.Button.Chip" parent="Vega.Button">
+        <item name="android:minHeight">36dp</item>
+        <item name="android:paddingStart">10dp</item>
+        <item name="android:paddingEnd">10dp</item>
+        <item name="android:paddingTop">6dp</item>
+        <item name="android:paddingBottom">6dp</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:textColor">@color/vega_tab_text_selector</item>
+        <item name="android:background">@drawable/vega_chip_selector</item>
+    </style>
+
+    <!-- Vega Input Field Style -->
+    <style name="Vega.EditText" parent="android:Widget.EditText">
+        <item name="android:background">@drawable/vega_input_background</item>
+        <item name="android:textColor">@color/vega_text</item>
+        <item name="android:textColorHint">@color/vega_muted</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:paddingStart">12dp</item>
+        <item name="android:paddingEnd">12dp</item>
+        <item name="android:paddingTop">10dp</item>
+        <item name="android:paddingBottom">10dp</item>
+        <item name="android:singleLine">true</item>
+    </style>
+    <!-- Vega CheckBox Style -->
+    <style name="Vega.CheckBox" parent="android:Widget.CompoundButton.CheckBox">
+        <item name="android:textColor">@color/vega_text</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:buttonTint">@color/vega_accent</item>
+        <item name="android:background">@drawable/vega_checkbox_focus</item>
+        <item name="android:focusable">true</item>
+        <item name="android:clickable">true</item>
+        <item name="android:paddingStart">8dp</item>
+        <item name="android:paddingTop">6dp</item>
+        <item name="android:paddingBottom">6dp</item>
+    </style>
 </resources>

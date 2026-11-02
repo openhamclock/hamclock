@@ -1,0 +1,334 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/panel_settings_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <!-- Header -->
+    <TextView
+        android:id="@+id/tv_settings_title"
+        style="@style/Vega.Text.Title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/settings_title" />
+
+    <TextView
+        android:id="@+id/tv_settings_subtitle"
+        style="@style/Vega.Text.Meta"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="16dp"
+        android:text="@string/settings_subtitle" />
+
+    <!-- Setting 1: Network Name -->
+    <TextView
+        android:id="@+id/tv_network_name_label"
+        style="@style/Vega.Text.Section"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/network_name_title" />
+
+    <LinearLayout
+        android:id="@+id/ll_network_name_row"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <EditText
+            android:id="@+id/et_mdns_name"
+            style="@style/Vega.EditText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:hint="@string/mdns_name_hint"
+            android:imeOptions="flagNoExtractUi|actionDone"
+            android:importantForAutofill="no"
+            android:inputType="textNoSuggestions"
+            android:singleLine="true"
+            android:nextFocusDown="@+id/et_backend_host" />
+
+        <TextView
+            android:id="@+id/tv_network_name_suffix"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/vega_badge_suffix"
+            android:paddingStart="10dp"
+            android:paddingTop="8dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="8dp"
+            android:text="@string/network_name_suffix"
+            android:textColor="@color/vega_muted"
+            android:textSize="13sp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/tv_mdns_name_help"
+        style="@style/Vega.Text.Meta"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:layout_marginBottom="18dp"
+        android:text="@string/mdns_name_label" />
+
+    <!-- Setting 2: Backend Server -->
+    <TextView
+        android:id="@+id/tv_backend_server_label"
+        style="@style/Vega.Text.Section"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/backend_server_title" />
+
+    <EditText
+        android:id="@+id/et_backend_host"
+        style="@style/Vega.EditText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:hint="@string/backend_hint"
+        android:imeOptions="flagNoExtractUi|actionDone"
+        android:importantForAutofill="no"
+        android:inputType="textUri"
+        android:singleLine="true"
+        android:nextFocusUp="@+id/et_mdns_name"
+        android:nextFocusDown="@+id/btn_overscan_0" />
+
+    <TextView
+        android:id="@+id/tv_backend_help"
+        style="@style/Vega.Text.Meta"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:layout_marginBottom="18dp"
+        android:text="@string/backend_server_help" />
+
+    <!-- Setting 3: Screen Safe Margin (Overscan) - TV Only -->
+    <LinearLayout
+        android:id="@+id/ll_tv_overscan"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="18dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tv_overscan_label"
+            style="@style/Vega.Text.Section"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/screen_safe_margin_title" />
+
+        <LinearLayout
+            android:id="@+id/ll_overscan_buttons"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_overscan_0"
+                style="@style/Vega.Button.Chip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:text="@string/overscan_none"
+                android:nextFocusUp="@+id/et_backend_host"
+                android:nextFocusRight="@+id/btn_overscan_3"
+                android:nextFocusDown="@+id/cb_start_on_boot" />
+
+            <Button
+                android:id="@+id/btn_overscan_3"
+                style="@style/Vega.Button.Chip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:text="@string/overscan_normal"
+                android:nextFocusUp="@+id/et_backend_host"
+                android:nextFocusLeft="@+id/btn_overscan_0"
+                android:nextFocusRight="@+id/btn_overscan_5"
+                android:nextFocusDown="@+id/cb_start_on_boot" />
+
+            <Button
+                android:id="@+id/btn_overscan_5"
+                style="@style/Vega.Button.Chip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/overscan_large"
+                android:nextFocusUp="@+id/et_backend_host"
+                android:nextFocusLeft="@+id/btn_overscan_3"
+                android:nextFocusDown="@+id/cb_start_on_boot" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tv_overscan_subtext"
+            style="@style/Vega.Text.Meta"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="@string/screen_safe_margin_subtext" />
+    </LinearLayout>
+
+    <!-- Setting 4: Start on Boot -->
+    <LinearLayout
+        android:id="@+id/ll_start_on_boot_section"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="18dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tv_start_on_boot_label"
+            style="@style/Vega.Text.Section"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/start_on_boot_label" />
+
+        <CheckBox
+            android:id="@+id/cb_start_on_boot"
+            style="@style/Vega.CheckBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/start_on_boot_label"
+            android:nextFocusUp="@+id/btn_overscan_0"
+            android:nextFocusDown="@+id/cb_run_in_background" />
+
+        <!-- OEM Autostart Helper Banner (visible when needed) -->
+        <LinearLayout
+            android:id="@+id/ll_autostart_helper"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/vega_card_lan_off"
+            android:orientation="vertical"
+            android:padding="10dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/tv_autostart_notice"
+                style="@style/Vega.Text.Meta"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:text="@string/autostart_oem_notice"
+                android:textColor="@color/vega_accent" />
+
+            <Button
+                android:id="@+id/btn_open_autostart"
+                style="@style/Vega.Button.Tab"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/open_autostart_settings" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Setting 5: Run in Background -->
+    <LinearLayout
+        android:id="@+id/ll_run_in_background_section"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="18dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tv_run_in_background_label"
+            style="@style/Vega.Text.Section"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/run_in_background_label" />
+
+        <CheckBox
+            android:id="@+id/cb_run_in_background"
+            style="@style/Vega.CheckBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/run_in_background_label"
+            android:nextFocusUp="@+id/cb_start_on_boot"
+            android:nextFocusDown="@+id/btn_update_on" />
+
+        <TextView
+            android:id="@+id/tv_run_in_background_subtext"
+            style="@style/Vega.Text.Meta"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="32dp"
+            android:layout_marginTop="2dp"
+            android:text="@string/run_in_background_subtext" />
+    </LinearLayout>
+
+    <!-- Setting 6: Check for Updates -->
+    <LinearLayout
+        android:id="@+id/ll_auto_update_section"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="20dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tv_auto_update_label"
+            style="@style/Vega.Text.Section"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/check_for_updates_title" />
+
+        <LinearLayout
+            android:id="@+id/ll_update_buttons"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_update_on"
+                style="@style/Vega.Button.Chip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:text="@string/toggle_on"
+                android:nextFocusUp="@+id/cb_run_in_background"
+                android:nextFocusRight="@+id/btn_update_off"
+                android:nextFocusDown="@+id/btn_settings_back" />
+
+            <Button
+                android:id="@+id/btn_update_off"
+                style="@style/Vega.Button.Chip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/toggle_off"
+                android:nextFocusUp="@+id/cb_run_in_background"
+                android:nextFocusLeft="@+id/btn_update_on"
+                android:nextFocusDown="@+id/btn_settings_back" />
+
+            <!-- Hidden CheckBox for programmatic sync/callbacks -->
+            <CheckBox
+                android:id="@+id/cb_auto_update"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tv_auto_update_subtext"
+            style="@style/Vega.Text.Meta"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="@string/check_for_updates_subtext" />
+    </LinearLayout>
+
+    <!-- Back Button -->
+    <Button
+        android:id="@+id/btn_settings_back"
+        style="@style/Vega.Button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/btn_back"
+        android:nextFocusUp="@+id/btn_update_on" />
+
+</LinearLayout>
+

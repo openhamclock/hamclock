@@ -79,43 +79,43 @@ class MainActivity : AppCompatActivity() {
     private val DEFAULT_RW_PORT = 8081
     private val DEFAULT_RO_PORT = 8082
 
-    private var actualRestPort = 8080
-    private var actualRwPort = 8081
-    private var actualRoPort = 8082
-    private var restPortConflict = false
+    internal var actualRestPort = 8080
+    internal var actualRwPort = 8081
+    internal var actualRoPort = 8082
+    internal var restPortConflict = false
     private var rwPortConflict = false
-    private var isExplicitExit = false
+    internal var isExplicitExit = false
 
     private var wifiLock: WifiManager.WifiLock? = null
     private var nsdManager: NsdManager? = null
     private var nsdRegistrationListener: NsdManager.RegistrationListener? = null
     private var mdnsResponder: MdnsResponder? = null
-    private var registeredMdnsName: String? = null
+    internal var registeredMdnsName: String? = null
 
-    private lateinit var webView: WebView
+    internal lateinit var webView: WebView
     private lateinit var progressBar: ProgressBar
     private lateinit var statusText: TextView
-    private lateinit var btnSettings: ImageButton
+    internal lateinit var btnSettings: ImageButton
     private lateinit var loadingContainer: LinearLayout
     private lateinit var errorContainer: LinearLayout
     private lateinit var btnCleanRestart: Button
     private lateinit var btnErrorSettings: Button
     @Volatile private var isEmbedVisible = false
-    private lateinit var appUpdateHelper: AppUpdateHelper
-    var isSettingsDialogOpen = false
-        private set
-    private var activeSettingsDialog: AlertDialog? = null
-    private var activeSettingsCbAutoUpdate: CheckBox? = null
+    internal lateinit var appUpdateHelper: AppUpdateHelper
+
+    private var settingsPanelController: SettingsPanelController? = null
+    val isSettingsDialogOpen: Boolean
+        get() = settingsPanelController?.isShowing == true
 
     fun onAutoUpdateSettingChanged(enabled: Boolean) {
-        activeSettingsCbAutoUpdate?.isChecked = enabled
+        settingsPanelController?.onAutoUpdateSettingChanged(enabled)
     }
 
     private val executor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
     private var isDpadCenterLongPressed = false
     private val dpadCenterLongPressRunnable = Runnable {
-        if (!isSettingsDialogOpen && activeSettingsDialog?.isShowing != true) {
+        if (!isSettingsDialogOpen) {
             isDpadCenterLongPressed = true
             showBackendSettingsDialog()
         }
@@ -240,7 +240,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun isCallsignSet(): Boolean {
+    internal fun isCallsignSet(): Boolean {
         val eepromFile = File(File(filesDir, "hamclock_data"), "eeprom")
         if (!eepromFile.exists() || eepromFile.length() < 100) return false
         return try {
@@ -270,7 +270,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun isFireTvOrTv(): Boolean {
+    internal fun isFireTvOrTv(): Boolean {
         val pm = packageManager
         val isAmazonFireTv = pm.hasSystemFeature("amazon.hardware.fire_tv") ||
                 Build.MANUFACTURER.equals("Amazon", ignoreCase = true) ||
@@ -294,7 +294,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun applyOverscanMargin(percent: Int) {
+    internal fun applyOverscanMargin(percent: Int) {
         val effectivePercent = if (isFireTvOrTv()) percent else 0
         val displayMetrics = resources.displayMetrics
         val widthPx = displayMetrics.widthPixels
@@ -322,493 +322,18 @@ class MainActivity : AppCompatActivity() {
             ?: getString(R.string.backend_default)
     }
 
-    private fun showBackendSettingsDialog(isFirstRunTv: Boolean = false) {
-        if (isSettingsDialogOpen || activeSettingsDialog?.isShowing == true) {
+    fun showBackendSettingsDialog(isFirstRunTv: Boolean = false) {
+        if (isSettingsDialogOpen) {
             Log.d(TAG, "Settings dialog already open; ignoring duplicate show request")
             return
         }
-        isSettingsDialogOpen = true
-
-        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val currentHost = getSelectedBackendHost()
-        val currentStartOnBoot = prefs.getBoolean(PREF_START_ON_BOOT, false)
-        val currentAllowExternal = prefs.getBoolean(PREF_ALLOW_EXTERNAL, false)
-        val currentMdnsName = prefs.getString(PREF_MDNS_NAME, "") ?: ""
-
-        val dialogView = layoutInflater.inflate(R.layout.dialog_backend_settings, null)
-        val llTvSetupGuide = dialogView.findViewById<LinearLayout>(R.id.ll_tv_setup_guide)
-        val etBackendHost = dialogView.findViewById<EditText>(R.id.et_backend_host)
-        val llStartOnBootSection = dialogView.findViewById<LinearLayout>(R.id.ll_start_on_boot_section)
-        val cbStartOnBoot = dialogView.findViewById<CheckBox>(R.id.cb_start_on_boot)
-        val llAutostartHelper = dialogView.findViewById<LinearLayout>(R.id.ll_autostart_helper)
-        val tvAutostartNotice = dialogView.findViewById<TextView>(R.id.tv_autostart_notice)
-        val btnOpenAutostart = dialogView.findViewById<Button>(R.id.btn_open_autostart)
-
-        val startOnBootSupported = AutoStartHelper.isStartOnBootSupported(isFireTvOrTv())
-        if (!startOnBootSupported) {
-            llStartOnBootSection?.visibility = View.GONE
+        if (settingsPanelController == null) {
+            settingsPanelController = SettingsPanelController(this)
         }
-
-        val cbAllowExternal = dialogView.findViewById<CheckBox>(R.id.cb_allow_external)
-        val llLocalAccessDetails = dialogView.findViewById<LinearLayout>(R.id.ll_local_access_details)
-        val btnTabLive = dialogView.findViewById<Button>(R.id.btn_tab_live)
-        val btnTabAntennas = dialogView.findViewById<Button>(R.id.btn_tab_antennas)
-        val tvLocalUrlLabel = dialogView.findViewById<TextView>(R.id.tv_local_url_label)
-        val etMdnsName = dialogView.findViewById<EditText>(R.id.et_mdns_name)
-        val tvLocalUrlValue = dialogView.findViewById<TextView>(R.id.tv_local_url_value)
-        val btnCopyLocalUrl = dialogView.findViewById<Button>(R.id.btn_copy_local_url)
-        val ivLocalAccessQr = dialogView.findViewById<ImageView>(R.id.iv_local_access_qr)
-        val tvQrCodeLabel = dialogView.findViewById<TextView>(R.id.tv_qr_code_label)
-        val tvQrUrlValue = dialogView.findViewById<TextView>(R.id.tv_qr_url_value)
-        val cbRunInBackground = dialogView.findViewById<CheckBox>(R.id.cb_run_in_background)
-        val cbAutoUpdate = dialogView.findViewById<CheckBox>(R.id.cb_auto_update)
-
-        activeSettingsCbAutoUpdate = cbAutoUpdate
-
-        val currentRunInBackground = prefs.getBoolean(PREF_RUN_IN_BACKGROUND, false)
-        cbRunInBackground.isChecked = currentRunInBackground
-
-        val currentAutoUpdate = prefs.getBoolean(PREF_AUTO_UPDATE, true)
-        cbAutoUpdate.isChecked = currentAutoUpdate
-
-        val currentOverscan = prefs.getInt(PREF_TV_OVERSCAN, 0)
-        var selectedOverscan = currentOverscan
-
-        val llTvOverscan = dialogView.findViewById<LinearLayout>(R.id.ll_tv_overscan)
-        llTvOverscan?.visibility = if (isFireTvOrTv()) View.VISIBLE else View.GONE
-
-        val btnOverscan0 = dialogView.findViewById<Button>(R.id.btn_overscan_0)
-        val btnOverscan3 = dialogView.findViewById<Button>(R.id.btn_overscan_3)
-        val btnOverscan5 = dialogView.findViewById<Button>(R.id.btn_overscan_5)
-
-        fun updateOverscanButtons(percent: Int) {
-            btnOverscan0?.setBackgroundResource(if (percent == 0) R.drawable.btn_toggle_active_selector else R.drawable.btn_neutral_selector)
-            btnOverscan0?.setTextColor(ContextCompat.getColor(this@MainActivity, if (percent == 0) R.color.white else R.color.hamclock_text))
-
-            btnOverscan3?.setBackgroundResource(if (percent == 3) R.drawable.btn_toggle_active_selector else R.drawable.btn_neutral_selector)
-            btnOverscan3?.setTextColor(ContextCompat.getColor(this@MainActivity, if (percent == 3) R.color.white else R.color.hamclock_text))
-
-            btnOverscan5?.setBackgroundResource(if (percent == 5) R.drawable.btn_toggle_active_selector else R.drawable.btn_neutral_selector)
-            btnOverscan5?.setTextColor(ContextCompat.getColor(this@MainActivity, if (percent == 5) R.color.white else R.color.hamclock_text))
-        }
-
-        updateOverscanButtons(selectedOverscan)
-
-        btnOverscan0?.setOnClickListener {
-            selectedOverscan = 0
-            updateOverscanButtons(0)
-            applyOverscanMargin(0)
-        }
-        btnOverscan3?.setOnClickListener {
-            selectedOverscan = 3
-            updateOverscanButtons(3)
-            applyOverscanMargin(3)
-        }
-        btnOverscan5?.setOnClickListener {
-            selectedOverscan = 5
-            updateOverscanButtons(5)
-            applyOverscanMargin(5)
-        }
-
-        var currentTab = 0 // 0 = Live Clock, 1 = Antennas
-
-        if (isFirstRunTv) {
-            llTvSetupGuide.visibility = View.VISIBLE
-        }
-
-        etBackendHost.setText(currentHost)
-        etBackendHost.setSelection(etBackendHost.text.length)
-        cbStartOnBoot.isChecked = currentStartOnBoot
-
-        etMdnsName.setText(currentMdnsName)
-
-        if (isFireTvOrTv()) {
-            etBackendHost.imeOptions = EditorInfo.IME_ACTION_DONE
-            etMdnsName.imeOptions = EditorInfo.IME_ACTION_DONE
-        }
-
-        fun getEndpointTargetUrl(tab: Int): String {
-            val ip = getDeviceIpAddress()
-            val host = if (!ip.isNullOrEmpty()) ip else {
-                val entered = etMdnsName.text.toString().trim()
-                if (entered.isNotEmpty()) "$entered.local" else (registeredMdnsName ?: "hamclock") + ".local"
-            }
-            return if (tab == 0) {
-                "http://$host:$actualRwPort/live.html"
-            } else {
-                val port = if (actualRestPort > 0) actualRestPort else DEFAULT_REST_PORT
-                "http://$host:$port/antennas.html"
-            }
-        }
-
-        fun formatMdnsUrl(name: String, tab: Int): String {
-            val trimmed = name.trim()
-            val host = if (trimmed.isNotEmpty()) "$trimmed.local" else (registeredMdnsName ?: "hamclock") + ".local"
-            return if (tab == 0) {
-                "http://$host:$actualRwPort/live.html"
-            } else {
-                if (actualRestPort <= 0) {
-                    getString(R.string.rest_port_disabled)
-                } else {
-                    "http://$host:$actualRestPort/antennas.html"
-                }
-            }
-        }
-
-        fun updateLocalAccessVisibility(isChecked: Boolean) {
-            llLocalAccessDetails.visibility = if (isChecked) View.VISIBLE else View.GONE
-
-            if (currentTab == 0) {
-                btnTabLive.setBackgroundResource(R.drawable.btn_setup_selector)
-                btnTabAntennas.setBackgroundResource(R.drawable.btn_neutral_selector)
-                tvLocalUrlLabel.text = getString(R.string.local_url_label)
-            } else {
-                btnTabLive.setBackgroundResource(R.drawable.btn_neutral_selector)
-                btnTabAntennas.setBackgroundResource(R.drawable.btn_setup_selector)
-                tvLocalUrlLabel.text = getString(R.string.antenna_url_label)
-            }
-
-            tvLocalUrlValue.text = formatMdnsUrl(etMdnsName.text.toString(), currentTab)
-            if (isChecked) {
-                val qrUrl = getEndpointTargetUrl(currentTab)
-                val qrBmp = HamClockNative.generateQRCodeBitmap(qrUrl, scale = 5, border = 2)
-                ivLocalAccessQr.setImageBitmap(qrBmp)
-                tvQrCodeLabel.text = getString(R.string.scan_qr_to_open)
-                tvQrUrlValue.text = qrUrl
-            }
-        }
-
-        btnTabLive.setOnClickListener {
-            currentTab = 0
-            updateLocalAccessVisibility(cbAllowExternal.isChecked)
-        }
-
-        btnTabAntennas.setOnClickListener {
-            currentTab = 1
-            updateLocalAccessVisibility(cbAllowExternal.isChecked)
-        }
-
-        // For first run TV guidance, auto-check local network access so QR and web access are immediately live
-        val initialCheckedState = if (isFirstRunTv) true else currentAllowExternal
-        updateLocalAccessVisibility(initialCheckedState)
-        cbAllowExternal.isChecked = initialCheckedState
-        if (initialCheckedState) {
-            HamClockNative.setAllowExternalAccess(true)
-            updateMdnsService(true, currentMdnsName)
-            acquireWifiLock()
-        }
-
-        cbAllowExternal.setOnCheckedChangeListener { _, isChecked ->
-            updateLocalAccessVisibility(isChecked)
-            // Immediately activate or deactivate network access in memory so phone/tablet can connect right away
-            HamClockNative.setAllowExternalAccess(isChecked)
-            updateMdnsService(isChecked, etMdnsName.text.toString().trim())
-            if (isChecked) {
-                acquireWifiLock()
-            } else {
-                releaseWifiLock()
-            }
-        }
-
-        etMdnsName.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                tvLocalUrlValue.text = formatMdnsUrl(s?.toString() ?: "", currentTab)
-                if (cbAllowExternal.isChecked) {
-                    val qrUrl = getEndpointTargetUrl(currentTab)
-                    val qrBmp = HamClockNative.generateQRCodeBitmap(qrUrl, scale = 5, border = 2)
-                    ivLocalAccessQr.setImageBitmap(qrBmp)
-                    tvQrCodeLabel.text = getString(R.string.scan_qr_to_open)
-                    tvQrUrlValue.text = qrUrl
-                    updateMdnsService(true, s?.toString()?.trim())
-                }
-            }
-            override fun afterTextChanged(s: Editable?) {}
-        })
-
-        btnCopyLocalUrl.setOnClickListener {
-            val copyUrl = getEndpointTargetUrl(currentTab)
-            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-            val clip = ClipData.newPlainText("HamClock URL", copyUrl)
-            clipboard?.setPrimaryClip(clip)
-            Toast.makeText(this, getString(R.string.copied_to_clipboard), Toast.LENGTH_SHORT).show()
-        }
-
-        // Check if the current device OS has specific background or OEM auto-start requirements
-        val specialSetting = AutoStartHelper.getSpecialSetting(this)
-        fun updateHelperVisibility(isChecked: Boolean) {
-            if (isChecked && specialSetting != null && startOnBootSupported) {
-                tvAutostartNotice.text = specialSetting.message
-                btnOpenAutostart.setOnClickListener {
-                    try {
-                        startActivity(specialSetting.intent)
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Failed to launch special setting intent: ${e.message}")
-                    }
-                }
-                llAutostartHelper.visibility = View.VISIBLE
-            } else {
-                llAutostartHelper.visibility = View.GONE
-            }
-        }
-
-        updateHelperVisibility(currentStartOnBoot)
-        cbStartOnBoot.setOnCheckedChangeListener { _, isChecked ->
-            updateHelperVisibility(isChecked)
-        }
-
-        val tvPortsInfo = dialogView.findViewById<TextView>(R.id.tv_ports_info)
-        val tvRestPortConflict = dialogView.findViewById<TextView>(R.id.tv_rest_port_conflict)
-
-        val restText = if (actualRestPort > 0) "Port $actualRestPort" else getString(R.string.rest_port_disabled)
-        tvPortsInfo.text = getString(R.string.server_ports_compact, actualRwPort, actualRoPort, restText)
-
-        if (restPortConflict) {
-            tvRestPortConflict.visibility = View.VISIBLE
-            tvRestPortConflict.text = if (actualRestPort > 0) {
-                getString(R.string.rest_port_conflict_warning, actualRestPort)
-            } else {
-                getString(R.string.rest_port_conflict_disabled)
-            }
-        } else {
-            tvRestPortConflict.visibility = View.GONE
-        }
-
-        var isSaved = false
-
-        val dialog = AlertDialog.Builder(this, androidx.appcompat.R.style.Theme_AppCompat_Dialog_Alert)
-            .setTitle(getString(R.string.settings_title))
-            .setView(dialogView)
-            .setPositiveButton(getString(R.string.save)) { _, _ ->
-                isSaved = true
-                val entered = etBackendHost.text.toString().trim()
-                val newHost = if (entered.isNotEmpty()) entered else getString(R.string.backend_default)
-                val newStartOnBoot = if (startOnBootSupported) cbStartOnBoot.isChecked else false
-                val newAllowExternal = cbAllowExternal.isChecked
-                val newMdnsName = etMdnsName.text.toString().trim()
-                val newRunInBackground = cbRunInBackground.isChecked
-                val newAutoUpdate = cbAutoUpdate.isChecked
-
-                Log.i(TAG, "Saving settings: backend=$newHost, startOnBoot=$newStartOnBoot, allowExternal=$newAllowExternal, mdnsName=$newMdnsName, runInBackground=$newRunInBackground, autoUpdate=$newAutoUpdate")
-                val hostChanged = newHost != currentHost
-
-                prefs.edit()
-                    .putString(PREF_BACKEND_HOST, newHost)
-                    .putBoolean(PREF_START_ON_BOOT, newStartOnBoot)
-                    .putBoolean(PREF_ALLOW_EXTERNAL, newAllowExternal)
-                    .putString(PREF_MDNS_NAME, newMdnsName)
-                    .putBoolean(PREF_RUN_IN_BACKGROUND, newRunInBackground)
-                    .putBoolean(PREF_AUTO_UPDATE, newAutoUpdate)
-                    .putInt(PREF_TV_OVERSCAN, selectedOverscan)
-                    .commit()
-
-                if (newAutoUpdate && !currentAutoUpdate) {
-                    appUpdateHelper.checkForUpdates()
-                }
-
-                applyOverscanMargin(selectedOverscan)
-
-                HamClockNative.setAllowExternalAccess(newAllowExternal)
-                updateMdnsService(newAllowExternal, newMdnsName)
-                if (newAllowExternal) {
-                    acquireWifiLock()
-                } else {
-                    releaseWifiLock()
-                }
-
-                if (hostChanged) {
-                    // Clear cached files while preserving the eeprom file (holds config), configurations, and .mac_address
-                    val dataDir = File(filesDir, "hamclock_data")
-                    clearHamClockCache(dataDir)
-
-                    // Restart app process cleanly so native daemon restarts with new backend argument
-                    restartApp()
-                }
-            }
-            .setNegativeButton(getString(R.string.cancel), null)
-            .setOnDismissListener {
-                isSettingsDialogOpen = false
-                activeSettingsDialog = null
-                activeSettingsCbAutoUpdate = null
-                appUpdateHelper.onSettingsDialogDismissed()
-                btnSettings.clearFocus()
-                webView.requestFocus()
-                if (!isSaved) {
-                    applyOverscanMargin(currentOverscan)
-                    // Revert in-memory network access to whatever was previously saved
-                    HamClockNative.setAllowExternalAccess(currentAllowExternal)
-                    updateMdnsService(currentAllowExternal, currentMdnsName)
-                    if (currentAllowExternal) {
-                        acquireWifiLock()
-                    } else {
-                        releaseWifiLock()
-                    }
-                }
-            }
-            .create()
-
-        val btnOpenSetup = dialogView.findViewById<Button>(R.id.btn_open_setup)
-        btnOpenSetup.setOnClickListener {
-            Log.i(TAG, "User requested HamClock Setup screen")
-            prefs.edit().putBoolean(PREF_FORCE_SETUP, true).commit()
-            dialog.dismiss()
-            restartApp()
-        }
-
-        val btnExitApp = dialogView.findViewById<Button>(R.id.btn_exit_app)
-        btnExitApp?.setOnClickListener {
-            Log.i(TAG, "User requested Exit HamClock from settings dialog")
-            isExplicitExit = true
-            dialog.dismiss()
-            finishAndRemoveTask()
-            mainHandler.postDelayed({
-                killLingeringHamClockZombies()
-                android.os.Process.killProcess(android.os.Process.myPid())
-            }, 150)
-        }
-
-        if (isFirstRunTv) {
-            val autoDismissRunnable = object : Runnable {
-                override fun run() {
-                    if (dialog.isShowing) {
-                        if (isCallsignSet()) {
-                            Log.i(TAG, "Callsign configured via web setup! Automatically saving network settings and dismissing first-run TV guidance.")
-                            isSaved = true
-                            val enteredMdns = etMdnsName.text.toString().trim()
-                            prefs.edit()
-                                .putBoolean(PREF_ALLOW_EXTERNAL, true)
-                                .putString(PREF_MDNS_NAME, enteredMdns)
-                                .putInt(PREF_TV_OVERSCAN, selectedOverscan)
-                                .commit()
-                            applyOverscanMargin(selectedOverscan)
-                            HamClockNative.setAllowExternalAccess(true)
-                            updateMdnsService(true, enteredMdns)
-                            acquireWifiLock()
-                            dialog.dismiss()
-                        } else {
-                            mainHandler.postDelayed(this, 1000)
-                        }
-                    }
-                }
-            }
-            mainHandler.postDelayed(autoDismissRunnable, 1000)
-        }
-
-        activeSettingsDialog = dialog
-        dialog.show()
-
-        val btnSave = dialog.getButton(DialogInterface.BUTTON_POSITIVE)
-        val btnCancel = dialog.getButton(DialogInterface.BUTTON_NEGATIVE)
-
-        btnSave?.let { btn ->
-            btn.setBackgroundResource(R.drawable.btn_setup_selector)
-            btn.setTextColor(ContextCompat.getColor(this, R.color.hamclock_text))
-            btn.setPadding(32, 16, 32, 16)
-        }
-        btnCancel?.let { btn ->
-            btn.setBackgroundResource(R.drawable.btn_neutral_selector)
-            btn.setTextColor(ContextCompat.getColor(this, R.color.hamclock_text))
-            btn.setPadding(32, 16, 32, 16)
-        }
-
-        val flQrCodeFrame = dialogView.findViewById<View>(R.id.fl_qr_code_frame)
-
-        // D-pad Right from mDNS name or Copy URL to QR code frame
-        etMdnsName.setOnKeyListener { _, keyCode, keyEvent ->
-            if (keyEvent.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
-                flQrCodeFrame?.requestFocus()
-                true
-            } else {
-                false
-            }
-        }
-
-        btnCopyLocalUrl.setOnKeyListener { _, keyCode, keyEvent ->
-            if (keyEvent.action == KeyEvent.ACTION_DOWN) {
-                when (keyCode) {
-                    KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                        flQrCodeFrame?.requestFocus()
-                        true
-                    }
-                    KeyEvent.KEYCODE_DPAD_DOWN -> {
-                        btnSave?.requestFocus()
-                        true
-                    }
-                    else -> false
-                }
-            } else {
-                false
-            }
-        }
-
-        flQrCodeFrame?.setOnKeyListener { _, keyCode, keyEvent ->
-            if (keyEvent.action == KeyEvent.ACTION_DOWN) {
-                when (keyCode) {
-                    KeyEvent.KEYCODE_DPAD_LEFT -> {
-                        btnCopyLocalUrl.requestFocus()
-                        true
-                    }
-                    KeyEvent.KEYCODE_DPAD_UP -> {
-                        cbAllowExternal.requestFocus()
-                        true
-                    }
-                    KeyEvent.KEYCODE_DPAD_DOWN -> {
-                        btnSave?.requestFocus()
-                        true
-                    }
-                    else -> false
-                }
-            } else {
-                false
-            }
-        }
-
-        // Direct D-pad Down from cbAllowExternal to Save button when details are collapsed
-        cbAllowExternal.setOnKeyListener { _, keyCode, keyEvent ->
-            if (keyEvent.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-                if (llLocalAccessDetails.visibility != View.VISIBLE) {
-                    btnSave?.requestFocus()
-                    true
-                } else {
-                    false
-                }
-            } else {
-                false
-            }
-        }
-
-        // Direct D-pad Up from Save/Cancel back up to Copy URL button or cbAllowExternal
-        val bottomUpListener = View.OnKeyListener { _, keyCode, keyEvent ->
-            if (keyEvent.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_UP) {
-                if (llLocalAccessDetails.visibility == View.VISIBLE) {
-                    btnCopyLocalUrl.requestFocus()
-                } else {
-                    cbAllowExternal.requestFocus()
-                }
-                true
-            } else {
-                false
-            }
-        }
-        btnSave?.setOnKeyListener(bottomUpListener)
-        btnCancel?.setOnKeyListener(bottomUpListener)
-
-        @Suppress("DEPRECATION")
-        dialog.window?.setSoftInputMode(
-            WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN or
-            WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN
-        )
-
-        val displayWidth = resources.displayMetrics.widthPixels
-        val targetWidth = (displayWidth * 0.75).toInt().coerceIn(600, 850)
-        dialog.window?.setLayout(targetWidth, WindowManager.LayoutParams.WRAP_CONTENT)
-
-        dialogView.post {
-            cbAllowExternal.requestFocus()
-        }
+        settingsPanelController?.show(startOnTvSetup = isFirstRunTv)
     }
 
-    private fun clearHamClockCache(dataDir: File) {
+    internal fun clearHamClockCache(dataDir: File) {
         if (!dataDir.exists() || !dataDir.isDirectory) return
         val files = dataDir.listFiles() ?: return
         for (file in files) {
@@ -829,7 +354,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun restartApp() {
+    internal fun restartApp() {
         RestartActivity.restart(this)
     }
 
@@ -1134,7 +659,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun killLingeringHamClockZombies() {
+    internal fun killLingeringHamClockZombies() {
         val myPid = android.os.Process.myPid()
         try {
             val procDir = File("/proc")
@@ -1263,7 +788,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun getDeviceIpAddress(): String? {
+    internal fun getDeviceIpAddress(): String? {
         try {
             val interfaces = java.net.NetworkInterface.getNetworkInterfaces() ?: return null
             for (iface in interfaces) {
@@ -1280,7 +805,7 @@ class MainActivity : AppCompatActivity() {
         return null
     }
 
-    private fun updateMdnsService(enable: Boolean, customName: String?) {
+    internal fun updateMdnsService(enable: Boolean, customName: String?) {
         unregisterMdnsService()
         if (!enable) return
 
@@ -1367,7 +892,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun acquireWifiLock() {
+    internal fun acquireWifiLock() {
         if (wifiLock == null) {
             val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
             @Suppress("DEPRECATION")
@@ -1382,7 +907,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun releaseWifiLock() {
+    internal fun releaseWifiLock() {
         wifiLock?.let {
             if (it.isHeld) {
                 it.release()
@@ -1531,7 +1056,7 @@ class MainActivity : AppCompatActivity() {
     override fun onKeyLongPress(keyCode: Int, event: KeyEvent?): Boolean {
         if (isCenterOrEnterKey(keyCode)) {
             mainHandler.removeCallbacks(dpadCenterLongPressRunnable)
-            if (!isDpadCenterLongPressed && !isSettingsDialogOpen && activeSettingsDialog?.isShowing != true) {
+            if (!isDpadCenterLongPressed && !isSettingsDialogOpen) {
                 isDpadCenterLongPressed = true
                 showBackendSettingsDialog()
             }
@@ -1563,8 +1088,8 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         appUpdateHelper.onDestroy()
-        activeSettingsDialog?.dismiss()
-        activeSettingsDialog = null
+        settingsPanelController?.dismiss()
+        settingsPanelController = null
         mainHandler.removeCallbacks(dpadCenterLongPressRunnable)
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val runInBackground = prefs.getBoolean(PREF_RUN_IN_BACKGROUND, false)

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/dialog_vega_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/transparent">
+
+    <ScrollView
+        android:id="@+id/settings_scroll_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:fillViewport="true"
+        android:scrollbars="none"
+        android:overScrollMode="never">
+
+        <FrameLayout
+            android:id="@+id/settings_panel_card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="16dp"
+            android:background="@drawable/vega_panel_background"
+            android:padding="28dp">
+
+            <ViewFlipper
+                android:id="@+id/settings_flipper"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:measureAllChildren="false"
+                android:inAnimation="@android:anim/fade_in"
+                android:outAnimation="@android:anim/fade_out">
+
+                <!-- Page 0: Main Action & LAN Hub Panel -->
+                <include
+                    android:id="@+id/panel_main"
+                    layout="@layout/view_settings_panel_main" />
+
+                <!-- Page 1: Detailed Configuration Settings Panel -->
+                <include
+                    android:id="@+id/panel_settings"
+                    layout="@layout/view_settings_panel_settings" />
+
+            </ViewFlipper>
+        </FrameLayout>
+    </ScrollView>
+</FrameLayout>
+
