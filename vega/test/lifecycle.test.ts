@@ -1,4 +1,5 @@
 import {
+  engineBusy,
   firstRunVisible,
   initialState,
   lanUrls,
@@ -88,6 +89,34 @@ describe('lifecycleReducer', () => {
     const kept = lifecycleReducer(open, {type: 'RESTART_REQUESTED', keepPanel: true});
     expect(kept.settingsOpen).toBe(true);
     expect(kept.lifecycle).toBe('RESTARTING');
+  });
+
+  it('engineBusy from a LAN restart until the new run listens', () => {
+    const ready = {...reduce(reduce(initialState, status({listening: []})), status()), settingsOpen: true};
+    expect(engineBusy(ready)).toBe(false);
+    let s = lifecycleReducer(ready, {type: 'RESTART_REQUESTED', keepPanel: true});
+    expect(engineBusy(s)).toBe(true);
+    s = reduce(s, status({state: 'stopping', lanAccess: false}));
+    expect(engineBusy(s)).toBe(true);
+    s = reduce(s, status({state: 'starting', runCount: 2, lanAccess: false, listening: []}));
+    expect(engineBusy(s)).toBe(true);
+    s = reduce(s, status({runCount: 2, lanAccess: false}));
+    expect(engineBusy(s)).toBe(false);
+    expect(s.settingsOpen).toBe(true);
+    expect(engineBusy({...s, lifecycle: 'ERROR'})).toBe(false);
+    expect(engineBusy({...s, lifecycle: 'STOPPED'})).toBe(false);
+  });
+
+  it('a LAN restart with hold stays busy until RESTART_HOLD_DONE, even once listening', () => {
+    const ready = {...reduce(reduce(initialState, status({listening: []})), status()), settingsOpen: true};
+    let s = lifecycleReducer(ready, {type: 'RESTART_REQUESTED', keepPanel: true, hold: true});
+    s = reduce(s, status({runCount: 2, lanAccess: false}));
+    expect(s.lifecycle).toBe('READY');
+    expect(engineBusy(s)).toBe(true);
+    s = lifecycleReducer(s, {type: 'RESTART_HOLD_DONE'});
+    expect(engineBusy(s)).toBe(false);
+    // Other restarts (backend, Setup) don't hold.
+    expect(lifecycleReducer(ready, {type: 'RESTART_REQUESTED'}).restartHold).toBe(false);
   });
 
   it('opening the panel starts on the main page', () => {

@@ -24,12 +24,18 @@ export interface AppState {
   panelPage: PanelPage;
   /** The user chose "Set up on this TV instead" on the first-run screen (this launch only). */
   setupOnTv: boolean;
+  /**
+   * Set by a LAN access change (RESTART_REQUESTED with hold), cleared by RESTART_HOLD_DONE after a
+   * minimum time (App). The restart itself takes about a second, too short to see the notice.
+   */
+  restartHold: boolean;
 }
 
 export type AppEvent =
   | {type: 'ENGINE_STATUS'; status: EngineStatus}
   | {type: 'ENGINE_ERROR'; message: string}
-  | {type: 'RESTART_REQUESTED'; keepPanel?: boolean}
+  | {type: 'RESTART_REQUESTED'; keepPanel?: boolean; hold?: boolean}
+  | {type: 'RESTART_HOLD_DONE'}
   | {type: 'WEB_LOADED'}
   | {type: 'WEB_ERROR'; message: string}
   | {type: 'WEB_RELOAD'}
@@ -47,6 +53,7 @@ export const initialState: AppState = {
   settingsOpen: false,
   panelPage: 'main',
   setupOnTv: false,
+  restartHold: false,
 };
 
 /** First-run screen: Setup needed, the user hasn't chosen the TV, and the engine is up or coming up. */
@@ -96,7 +103,10 @@ export function lifecycleReducer(s: AppState, e: AppEvent): AppState {
         lifecycle: 'RESTARTING',
         settingsOpen: e.keepPanel ? s.settingsOpen : false,
         webLoaded: false,
+        restartHold: !!e.hold,
       };
+    case 'RESTART_HOLD_DONE':
+      return {...s, restartHold: false};
     case 'WEB_LOADED':
       return {...s, webLoaded: true, webError: null};
     case 'WEB_ERROR':
@@ -112,6 +122,15 @@ export function lifecycleReducer(s: AppState, e: AppEvent): AppState {
     case 'SETUP_ON_TV':
       return {...s, setupOnTv: true};
   }
+}
+
+/**
+ * The engine is (re)starting and not serving yet, or a LAN restart's minimum display time hasn't
+ * passed. The settings panel shows this in place of the address and QR code (the status card is
+ * behind the panel), and ignores the LAN button meanwhile.
+ */
+export function engineBusy(s: AppState): boolean {
+  return s.lifecycle === 'RESTARTING' || s.lifecycle === 'STARTING' || s.restartHold;
 }
 
 /** URLs another device can open: mDNS name first once announced, then the IP addresses. */

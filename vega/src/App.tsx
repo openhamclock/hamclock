@@ -48,7 +48,7 @@ import type {
 import {DEFAULT_BACKEND, DEFAULT_ENGINE_OPTIONS, DEFAULT_MDNS_NAME, HcEngine, ensureEngineStarted} from './engine';
 import type {EngineStatus, VegaSettings} from './engine';
 import {QrCode} from './QrCode';
-import {firstRunVisible, initialState, lanUrls, lifecycleReducer, qrUrlFor} from './lifecycle';
+import {engineBusy, firstRunVisible, initialState, lanUrls, lifecycleReducer, qrUrlFor} from './lifecycle';
 import type {AppEvent, AppState, Lifecycle} from './lifecycle';
 
 /* ────────────────────────────────────────────────────────────────────────── */
@@ -69,6 +69,11 @@ const POLL_STARTING_MS = 500;
 const POLL_READY_MS = 3_000;
 /** Retry delay after the WebView fails to load the page. */
 const WEB_RETRY_MS = 2_000;
+/**
+ * After a LAN access change, the panel shows "Restarting HamClock…" at least this long. The
+ * restart takes about a second (one or two polls), so the notice would otherwise only flicker.
+ */
+const LAN_RESTART_HOLD_MS = 2_000;
 
 /**
  * Injected into live.html before its own scripts, so this capture-phase listener runs before the
@@ -482,9 +487,44 @@ function LanQr({url, size, metrics: m}: {url: string | null; size: number; metri
   );
 }
 
+/**
+ * In the settings panel instead of the address and QR code while the engine isn't serving: the
+ * status card is hidden behind the panel, and the address wouldn't work yet (e.g. right after a
+ * LAN access change, which restarts the engine with the panel kept open).
+ */
+function EngineNotice({state, metrics: m}: {state: AppState; metrics: TvMetrics}) {
+  const s = state.status;
+  const busy = engineBusy(state);
+  let detail: string;
+  if (busy) {
+    detail = s?.lanAccess
+      ? 'The address and QR code appear here when HamClock is ready.'
+      : 'LAN access is off: only this TV can open HamClock.';
+  } else if (state.lifecycle === 'ERROR') {
+    detail = s?.lastError || state.webError || 'Try Setup HamClock, or exit and open the app again.';
+  } else {
+    detail = 'Try Setup HamClock, or exit and open the app again.';
+  }
+  return (
+    <View style={[styles.lanBoxOff, {padding: 28 * m.dp, borderRadius: 18 * m.dp}]}>
+      <View style={styles.stepRow}>
+        {busy && <PulseDot size={18 * m.dp} color={C.accent} />}
+        <Text style={[styles.sectionTitle, {fontSize: 28 * m.dp}, busy && {marginLeft: 16 * m.dp}]}>
+          {LIFECYCLE_COPY[state.lifecycle]}
+        </Text>
+      </View>
+      <Text style={[styles.panelMeta, {fontSize: 24 * m.dp, marginTop: 12 * m.dp}]}>{detail}</Text>
+    </View>
+  );
+}
+
 /** Where to browse from another device (LAN access on), or what LAN access does (off). */
-function LanInfo({status: s, metrics: m}: {status: EngineStatus | null; metrics: TvMetrics}) {
+function LanInfo({state, metrics: m}: {state: AppState; metrics: TvMetrics}) {
+  const s = state.status;
   if (!s) return null;
+  if (engineBusy(state) || state.lifecycle === 'ERROR' || state.lifecycle === 'STOPPED') {
+    return <EngineNotice state={state} metrics={m} />;
+  }
   if (!s.lanAccess) {
     return (
       <View style={[styles.lanBoxOff, {padding: 28 * m.dp, borderRadius: 18 * m.dp}]}>
@@ -574,7 +614,10 @@ function PanelMain(props: {
           metrics={m}
           label={lan ? 'LAN access: On' : 'LAN access: Off'}
           selected={lan}
-          onPress={() => setError(update({lanAccess: !lan}))}
+          // Ignored while the engine restarts (e.g. from the last press); the side box says so.
+          onPress={() => {
+            if (!engineBusy(state)) setError(update({lanAccess: !lan}));
+          }}
         />
         <FocusButton metrics={m} label="Settings…" onPress={() => dispatch({type: 'PANEL_PAGE', page: 'settings'})} />
         <FocusButton metrics={m} label="Setup HamClock" onPress={openSetup} />
@@ -582,7 +625,7 @@ function PanelMain(props: {
         {!!error && <Text style={[styles.fieldError, {fontSize: 22 * m.dp, marginTop: 12 * m.dp}]}>{error}</Text>}
       </View>
       <View style={[styles.panelSide, {marginLeft: 40 * m.dp}]}>
-        <LanInfo status={s} metrics={m} />
+        <LanInfo state={state} metrics={m} />
       </View>
     </View>
   );
@@ -939,14 +982,22 @@ export const App = () => {
       }
       const running = st && (st.state === 'running' || st.state === 'starting');
       if (running && next && next.lanAccess !== lanBefore) {
-        // The engine restarts at once for LAN; keep the panel open to show the QR. A backend
-        // change is only saved; it's applied when leaving the Settings page (below).
-        dispatch({type: 'RESTART_REQUESTED', keepPanel: true});
+        // The engine restarts at once for LAN; keep the panel open to show the QR. Until the new
+        // run listens, the panel shows "Restarting HamClock…" in its place (EngineNotice). A
+        // backend change is only saved; it's applied when leaving the Settings page (below).
+        dispatch({type: 'RESTART_REQUESTED', keepPanel: true, hold: true});
       }
       return '';
     },
     [],
   );
+
+  // End the minimum display time of a LAN restart (see LAN_RESTART_HOLD_MS).
+  useEffect(() => {
+    if (!state.restartHold) return;
+    const t = setTimeout(() => dispatch({type: 'RESTART_HOLD_DONE'}), LAN_RESTART_HOLD_MS);
+    return () => clearTimeout(t);
+  }, [state.restartHold]);
 
   // Leaving the Settings page (Back button or remote Back) applies a saved backend change with
   // one restart, so several edits on the page cost one restart.

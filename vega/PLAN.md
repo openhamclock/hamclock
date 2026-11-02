@@ -12,6 +12,8 @@ Phases 0–3 are done and committed on `vega-app` (engine in the app, WebView UI
 
 **Update 2026-10-30 (end of Phase 8):** `vega-sdk2` was fast-forwarded into `vega-app`, pushed, and deleted. aarch64 is optional (off by default); the armv7-only CI run 41114619921 passed (4m22s). RELEASE.md documents `build_vega`/`build_vega_aarch64` and the Amazon draft default. The user uploaded the latest build to an Amazon Live App Test (LAT) with one tester. **Merging `vega-app` into `main` is on hold** until the LAT is done. Next: see "Next (agreed 2026-10-30)" below.
 
+**Update 2026-11-02:** Phase 9 (LAN toggle restart UX) is done (see `vega/PHASE9_RESULTS.md`). After a LAN change, the panel shows "Restarting HamClock…" in place of the address/QR for at least 2 s and until the new run listens; the LAN button is locked meanwhile. App only; tested on the TV. Next: item 3 of "Next (agreed 2026-10-30)" (curl panes).
+
 _This file is the maintained copy of the plan (moved into the repo after Phase 6; the original was a conversation artifact)._
 
 **Your decisions (built in below):**
@@ -269,7 +271,7 @@ No code in this repo parses the platform string on the backend side; check the b
 ## Next (agreed 2026-10-30)
 
 1. **Merge `vega-app` into `main`:** on hold (user) until the LAT finishes. After the merge, the Actions tab offers "Run workflow" for Vega, and `main` gets the RELEASE.md Amazon-default fix.
-2. **Phase 9: LAN toggle restart UX** (small). See below.
+2. ~~**Phase 9: LAN toggle restart UX**~~ Done 2026-11-02 (PHASE9_RESULTS.md).
 3. **Decide on the curl panes** (Sat_Alerts, Mesh_Mon): build an in-process HTTP(S) client, or hide/label them on Vega for the first Appstore release. See below.
 4. **First Appstore submission** (manual, user): listing, screenshots (not from `screenshooter`), privacy and network declarations; the armv7 `.vpkg` from a tagged release.
 5. Optional: port conflicts, antenna-page QR ("Other ideas").
@@ -277,7 +279,7 @@ No code in this repo parses the platform string on the backend side; check the b
 ## Needs work (after Phase 7)
 
 - **Vega SDK 2.0 upgrade:** Phase 8 (above); done and merged into `vega-app`.
-- **LAN toggle restart UX.** The settings panel stays open after a LAN change and hides the "Restarting" card.
+- **LAN toggle restart UX:** Phase 9; done (the panel shows the restart itself, with a 2 s minimum).
 - **hams.at (Sat_Alerts) and Mesh_Mon panes on Vega.** Both fetch with `curl` through `WiFiClient::connectCommand`, and Vega apps can't run subprocesses (PHASE6_RESULTS.md 6.5). They need an in-process HTTP(S) client in the engine (e.g. libcurl or a TLS library linked into `libHcEngine.so`, or a fetch through the app, like Android's JNI fetch pipe). The panes stay in the menus meanwhile.
 
 ---

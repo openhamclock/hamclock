@@ -55,6 +55,8 @@ vega device terminate-app -d $DEV -a org.openhamclock.hamclock.main
 vega device uninstall-app -d $DEV -a org.openhamclock.hamclock   # clears app data (next start is a first run)
 ```
 
+If `vega device list` says "No devices found" although the TV is on, reconnect it with the SDK's `vda`: `~/vega/sdk/vega-sdk/main/<sdk-version>/bin/tools/vda connect $DEV`.
+
 On first run, the app turns LAN access on and shows a QR code for `http://<tv-ip>:8081/live.html`. HamClock Setup can then be done with the remote or from a browser on the LAN. For testing, use callsign N0CALL.
 
 Don't run the TV's `screenshooter`. It can't capture app windows, and while it runs it holds enough memory that the WebView renderer gets killed, which takes the app down with it (PHASE4_RESULTS.md).
@@ -85,6 +87,6 @@ None of these need the TV.
 ## Documentation
 
 - [PLAN.md](PLAN.md): the maintained phase plan and decisions log.
-- `PHASE0_RESULTS.md` … `PHASE8_RESULTS.md`: what was built and found in each phase. Where they conflict, the latest one wins.
+- `PHASE0_RESULTS.md` … `PHASE9_RESULTS.md`: what was built and found in each phase. Where they conflict, the latest one wins.
 - [ARCHITECTURE.md](ARCHITECTURE.md): the original design spec (a native re-implementation). It is superseded by the embedded-engine + WebView design.
 - [AGENTS.md](AGENTS.md): notes for coding agents.
