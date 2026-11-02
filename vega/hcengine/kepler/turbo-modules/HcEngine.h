@@ -24,6 +24,8 @@ public:
   std::string qrMatrix(std::string text) override;
   std::string getSettings() override;
   std::string updateSettings(std::string settingsJson) override;
+  std::string takeFetches() override;
+  void fetchDone(double id, bool ok, std::string body) override;
 };
 
 } // namespace HcEngineTurboModule

@@ -27,6 +27,13 @@ export interface HcEngine extends KeplerTurboModule {
    * running engine; a name change re-probes mDNS. Returns '' or a message for the user.
    */
   updateSettings: (settingsJson: string) => string;
+  /**
+   * HTTPS for the engine (HamClock's curl panes): new requests as a JSON array of
+   * {id, url, userAgent, header}, or '' if none. Each request is returned once.
+   */
+  takeFetches: () => string;
+  /** Answer to a request from takeFetches: ok with the body (any HTTP status), or !ok (failed). */
+  fetchDone: (id: number, ok: boolean, body: string) => void;
 }
 
 export default TurboModuleRegistry.getEnforcing<HcEngine>('HcEngine');

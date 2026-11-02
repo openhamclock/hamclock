@@ -2,7 +2,8 @@
  * Host-built tests for engine code that doesn't need the TV (PLAN.md 7.5):
  *   - LanFilter.cpp: peerAllowed (which peers may connect);
  *   - MdnsResponder.cpp: name encoding/decoding, records, answers and conflict detection;
- *   - Settings.cpp: mDNS name and backend validation.
+ *   - Settings.cpp: mDNS name and backend validation;
+ *   - HttpFetch.cpp: curl command parsing and the fetch pipe (body, failure, timeout, stop).
  * Build and run: make -C vega/hcengine/test/host
  *
  * MdnsResponder.cpp is included directly so its file-local (anonymous namespace) helpers and the
@@ -26,6 +27,7 @@
 #include <vector>
 
 #include "EngineHost.h"
+#include "HttpFetch.h"
 
 #define private public
 #include "MdnsResponder.cpp"
@@ -364,12 +366,125 @@ static void testSettings() {
   CHECK(validOverscan(0) && validOverscan(3) && validOverscan(5) && !validOverscan(4));
 }
 
+// ---- HttpFetch.cpp ----
+static std::string readAll(int fd, int timeoutMs = 3000) {
+  std::string out;
+  char buf[4096];
+  for (;;) {
+    pollfd p{fd, POLLIN, 0};
+    if (poll(&p, 1, timeoutMs) <= 0) return out + "<timeout>";
+    ssize_t n = read(fd, buf, sizeof buf);
+    if (n <= 0) return out;
+    out.append(buf, (size_t)n);
+  }
+}
+
+static void testCurlParse() {
+  CurlRequest r;
+  CHECK(parseCurlCommand("curl -A \"HamClock-vega/4.34\" -H \"Authorization: Bearer k1\" --max-time 15 "
+                         "--silent https://hams.at/api/alerts/upcoming", r));
+  CHECK_EQ(r.url, "https://hams.at/api/alerts/upcoming");
+  CHECK_EQ(r.userAgent, "HamClock-vega/4.34");
+  CHECK_EQ(r.header, "Authorization: Bearer k1");
+
+  CHECK(parseCurlCommand("curl -A \"HamClock-vega/4.34\" --max-time 15 --silent "
+                         "https://meshtastic.liamcottle.net/api/v1/nodes/123/neighbours", r));
+  CHECK_EQ(r.url, "https://meshtastic.liamcottle.net/api/v1/nodes/123/neighbours");
+  CHECK_EQ(r.header, "");
+
+  CHECK(parseCurlCommand("curl -A 'x y' http://example.com/a?b=c", r));
+  CHECK_EQ(r.userAgent, "x y");
+  CHECK_EQ(r.url, "http://example.com/a?b=c");
+
+  CHECK(parseCurlCommand("curl -A plain https://h/p", r));
+  CHECK_EQ(r.userAgent, "plain");
+  // "-A" inside another word isn't the flag.
+  CHECK(parseCurlCommand("curl --max-time 15 -Afoo https://h/p", r));
+  CHECK_EQ(r.userAgent, "");
+
+  CHECK(!parseCurlCommand("curl --silent ftp://h/p", r));
+  CHECK(!parseCurlCommand("", r));
+  CHECK_EQ(r.url, "");
+}
+
+static void testFetchPipe() {
+  using namespace hcengine::fetch;
+  CHECK_EQ(take(), "");
+
+  // Body for a taken request.
+  int fd = -1;
+  CHECK(vega_connect_http("curl -A \"UA/1\" -H \"Authorization: Bearer q\\\"x\" --silent https://h/p", &fd));
+  CHECK(fd >= 0);
+  CHECK_EQ(pending(), 1);
+  std::string j = take();
+  CHECK(j.find("\"url\":\"https://h/p\"") != std::string::npos);
+  CHECK(j.find("\"userAgent\":\"UA/1\"") != std::string::npos);
+  CHECK_EQ(take(), "");  // each request once
+  int id = atoi(j.c_str() + j.find("\"id\":") + 5);
+  done(id, true, "{\"data\":[]}");
+  CHECK_EQ(readAll(fd), "{\"data\":[]}");
+  close(fd);
+  CHECK_EQ(pending(), 0);
+
+  // A large body (more than a pipe buffer) arrives whole; the writer waits for the reader.
+  CHECK(vega_connect_http("curl https://h/big", &fd));
+  j = take();
+  id = atoi(j.c_str() + j.find("\"id\":") + 5);
+  std::string big(300000, 'x');
+  done(id, true, big);
+  CHECK_EQ(readAll(fd).size(), big.size());
+  close(fd);
+
+  // Failure: closed empty. Unknown ids are ignored.
+  CHECK(vega_connect_http("curl https://h/fail", &fd));
+  j = take();
+  id = atoi(j.c_str() + j.find("\"id\":") + 5);
+  done(id, false, "");
+  CHECK_EQ(readAll(fd), "");
+  close(fd);
+  done(99999, true, "ignored");
+
+  // Reader gone before the body: no crash, no SIGPIPE.
+  CHECK(vega_connect_http("curl https://h/gone", &fd));
+  j = take();
+  id = atoi(j.c_str() + j.find("\"id\":") + 5);
+  close(fd);
+  done(id, true, std::string(200000, 'y'));
+  usleep(100000);
+
+  // No answer: closed empty at the deadline.
+  setTimeoutForTest(200);
+  CHECK(vega_connect_http("curl https://h/slow", &fd));
+  CHECK(!take().empty());
+  CHECK_EQ(readAll(fd, 3000), "");  // reaper closes it within ~1.2 s
+  close(fd);
+  CHECK_EQ(pending(), 0);
+  setTimeoutForTest(0);
+
+  // Engine stop: all pending closed.
+  int a = -1, b = -1;
+  CHECK(vega_connect_http("curl https://h/a", &a));
+  CHECK(vega_connect_http("curl https://h/b", &b));
+  CHECK_EQ(pending(), 2);
+  closeAll();
+  CHECK_EQ(pending(), 0);
+  CHECK_EQ(readAll(a), "");
+  CHECK_EQ(readAll(b), "");
+  close(a);
+  close(b);
+
+  CHECK(!vega_connect_http("curl --silent nothing", &fd));
+  CHECK(!vega_connect_http(nullptr, &fd));
+}
+
 int main() {
   testPeerAllowed();
   testNames();
   testRecords();
   testResponder();
   testSettings();
+  testCurlParse();
+  testFetchPipe();
   printf("%d checks, %d failed\n", g_checks, g_fail);
   return g_fail ? 1 : 0;
 }

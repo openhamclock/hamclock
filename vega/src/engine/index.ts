@@ -2,10 +2,10 @@
  * App-side access to the embedded HamClock engine (@openhamclock/hcengine).
  */
 import {DEFAULT_BACKEND, DEFAULT_MDNS_NAME, HcEngine} from '@openhamclock/hcengine';
-import type {EngineOptions, EngineState, EngineStatus, VegaSettings} from '@openhamclock/hcengine';
+import type {EngineOptions, EngineState, EngineStatus, FetchRequest, VegaSettings} from '@openhamclock/hcengine';
 
 export {DEFAULT_BACKEND, DEFAULT_MDNS_NAME, HcEngine};
-export type {EngineOptions, EngineState, EngineStatus, VegaSettings};
+export type {EngineOptions, EngineState, EngineStatus, FetchRequest, VegaSettings};
 
 /**
  * Production defaults. lanAccess, backend and mdnsName are left out on purpose: the engine then

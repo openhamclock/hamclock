@@ -102,6 +102,16 @@ export interface VegaSettings {
   overscan: 0 | 3 | 5;
 }
 
+/** A request from the engine (HamClock's curl panes) for the app to fetch. */
+export interface FetchRequest {
+  id: number;
+  url: string;
+  /** From curl -A; '' if none. */
+  userAgent: string;
+  /** From curl -H ("Name: value"); '' if none. */
+  header: string;
+}
+
 export const DEFAULT_MDNS_NAME = 'hamclock';
 export const DEFAULT_BACKEND = 'ohb.hamclock.app:80';
 
@@ -147,6 +157,15 @@ export const HcEngine = {
    */
   updateSettings(changes: Partial<VegaSettings>): string {
     return NativeHcEngine.updateSettings(JSON.stringify(changes));
+  },
+  /** New fetch requests from the engine; each is returned once. */
+  takeFetches(): FetchRequest[] {
+    const j = NativeHcEngine.takeFetches();
+    return j ? (JSON.parse(j) as FetchRequest[]) : [];
+  },
+  /** Answer a fetch request: the body (any HTTP status), or null when the fetch failed. */
+  fetchDone(id: number, body: string | null): void {
+    NativeHcEngine.fetchDone(id, body !== null, body ?? '');
   },
 };
 

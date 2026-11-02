@@ -2,6 +2,7 @@
  * EngineHost implementation. See EngineHost.h for the model.
  */
 #include "EngineHost.h"
+#include "HttpFetch.h"
 #include "FlatJson.h"
 
 #include <atomic>
@@ -404,6 +405,8 @@ void EngineHost::supervisorMain() {
 
     // Old server threads may still hold the ports; retire them before the next run binds.
     retireEngineSockets();
+    // Fetches of the old run get an empty pipe (its WiFiClients are gone or about to be).
+    fetch::closeAll();
 
     std::lock_guard<std::mutex> l(mu);
     if (g_restartPending && !g_stopRequested) {

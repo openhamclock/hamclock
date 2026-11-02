@@ -50,6 +50,8 @@ Checked by eye on the TV, plus the device log (`[HCEV]`, `[HCAPP]`, `[HCWEB]`, l
 
 ### 6.5 curl in the sandbox: not possible; disabled
 
+> **Superseded by Phase 10:** HamClock's curl fetches now go through the app's `fetch()` (`vega_connect_http`, PHASE10_RESULTS.md); Sat_Alerts and Mesh_Mon work.
+
 - Probes from the engine: `popen` of anything (even `echo`) exits 127. `/bin/sh` and `/usr/bin/curl` exist and are executable, but `posix_spawn` of either fails at load: `symbol lookup error: undefined symbol: UP` (sh), `curl_easy_perform` (curl), with or without `LD_LIBRARY_PATH` (`/mnt:/usr/lib/keplerscript-4`). The sandbox's view of the system libraries doesn't fit those binaries. HamClock's own `can not run date??` / `df??` in the diag log is the same.
 - Under `_IS_VEGA` (upstream, minimal):
   - `WiFiClient::connectCommand` returns false at once (`ArduinoLib/WiFiClient.cpp`).

@@ -106,6 +106,10 @@ int WiFiClient::tout (int to_ms, int fd)
 /* Call it instead of connect() when you want to run curl via a pipe */
 #if defined(_IS_ANDROID)
 extern "C" bool android_connect_http(const char *cmd, int *read_fd);
+#elif defined(_IS_VEGA)
+// Vega apps can't run subprocesses; the app fetches the URL and writes the body to read_fd
+// (vega/hcengine/kepler/engine/HttpFetch.cpp).
+extern "C" bool vega_connect_http(const char *cmd, int *read_fd);
 #endif
 
 bool WiFiClient::connectCommand(const char* command)
@@ -115,7 +119,7 @@ bool WiFiClient::connectCommand(const char* command)
         pclose(m_pipe);
         m_pipe = nullptr;
     }
-#if defined(_IS_ANDROID)
+#if defined(_IS_ANDROID) || defined(_IS_VEGA)
     if (m_isPipe && socket >= 0) {
         close(socket);
         socket = -1;
@@ -134,8 +138,14 @@ bool WiFiClient::connectCommand(const char* command)
     }
     return false;
 #elif defined(_IS_VEGA)
-    // Vega apps can't run subprocesses (sh and curl fail to load in the app sandbox).
-    (void) command;
+    int rfd = -1;
+    if (vega_connect_http(command, &rfd)) {
+        socket = rfd;
+        m_isPipe = true;
+        n_peek = 0;
+        next_peek = 0;
+        return true;
+    }
     return false;
 #else
     m_pipe = popen(command, "r");
@@ -232,7 +242,7 @@ void WiFiClient::stop()
             pclose(m_pipe);
             m_pipe = nullptr;
         }
-#if defined(_IS_ANDROID)
+#if defined(_IS_ANDROID) || defined(_IS_VEGA)
         if (socket >= 0) {
             close(socket);
             socket = -1;

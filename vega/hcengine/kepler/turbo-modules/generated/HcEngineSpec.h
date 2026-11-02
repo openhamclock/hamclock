@@ -41,6 +41,8 @@ public:
   virtual std::string qrMatrix(std::string text) = 0;
   virtual std::string getSettings() = 0;
   virtual std::string updateSettings(std::string settingsJson) = 0;
+  virtual std::string takeFetches() = 0;
+  virtual void fetchDone(double id, bool ok, std::string body) = 0;
 };
 
 } // namespace HcEngineTurboModule

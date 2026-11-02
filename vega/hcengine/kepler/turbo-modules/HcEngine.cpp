@@ -4,6 +4,7 @@
 #include "HcEngine.h"
 
 #include "../engine/EngineHost.h"
+#include "../engine/HttpFetch.h"
 
 using namespace com::amazon::kepler::turbomodule;
 using hcengine::EngineHost;
@@ -48,5 +49,9 @@ std::string HcEngine::getSettings() { return EngineHost::instance().settings(); 
 std::string HcEngine::updateSettings(std::string settingsJson) {
   return EngineHost::instance().updateSettings(settingsJson);
 }
+
+std::string HcEngine::takeFetches() { return hcengine::fetch::take(); }
+
+void HcEngine::fetchDone(double id, bool ok, std::string body) { hcengine::fetch::done((int)id, ok, body); }
 
 }  // namespace HcEngineTurboModule

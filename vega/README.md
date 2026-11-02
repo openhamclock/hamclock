@@ -80,13 +80,13 @@ None of these need the TV.
 
 ## Known limitations
 
-- **No subprocesses.** Vega apps can't run subprocesses, so HamClock's `curl`-based fetches fail. This affects the Sat_Alerts (hams.at) and Mesh_Mon panes, which stay in the menus but show no data. They need an in-process HTTP(S) client (see PLAN.md, "Needs work").
+- **No subprocesses.** Vega apps can't run subprocesses, so HamClock can't run `curl`. Its HTTPS fetches (Sat_Alerts/hams.at, Mesh_Mon) go through the app instead: the engine queues them and `src/engine/fetchBridge.ts` fetches them with RN `fetch()` (PHASE10_RESULTS.md).
 - **No start on boot or background running.** Vega has no supported way to do either.
 - **aarch64 is optional and untested.** No arm64 Vega device is known, so builds default to armv7 only.
 
 ## Documentation
 
 - [PLAN.md](PLAN.md): the maintained phase plan and decisions log.
-- `PHASE0_RESULTS.md` … `PHASE9_RESULTS.md`: what was built and found in each phase. Where they conflict, the latest one wins.
+- `PHASE0_RESULTS.md` … `PHASE10_RESULTS.md`: what was built and found in each phase. Where they conflict, the latest one wins.
 - [ARCHITECTURE.md](ARCHITECTURE.md): the original design spec (a native re-implementation). It is superseded by the embedded-engine + WebView design.
 - [AGENTS.md](AGENTS.md): notes for coding agents.

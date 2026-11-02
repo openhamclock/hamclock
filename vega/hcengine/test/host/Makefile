@@ -8,8 +8,8 @@ OUT      ?= engine_test
 test: $(OUT)
 	./$(OUT)
 
-$(OUT): engine_test.cpp $(ENGINE)/MdnsResponder.cpp $(ENGINE)/LanFilter.cpp $(ENGINE)/Settings.cpp $(ENGINE)/EngineHost.h
-	$(CXX) $(CXXFLAGS) -I$(ENGINE) -o $@ engine_test.cpp $(ENGINE)/LanFilter.cpp $(ENGINE)/Settings.cpp -lpthread
+$(OUT): engine_test.cpp $(ENGINE)/MdnsResponder.cpp $(ENGINE)/LanFilter.cpp $(ENGINE)/Settings.cpp $(ENGINE)/HttpFetch.cpp $(ENGINE)/HttpFetch.h $(ENGINE)/EngineHost.h
+	$(CXX) $(CXXFLAGS) -I$(ENGINE) -o $@ engine_test.cpp $(ENGINE)/LanFilter.cpp $(ENGINE)/Settings.cpp $(ENGINE)/HttpFetch.cpp -lpthread
 
 clean:
 	rm -f $(OUT)

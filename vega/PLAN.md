@@ -14,6 +14,8 @@ Phases 0–3 are done and committed on `vega-app` (engine in the app, WebView UI
 
 **Update 2026-11-02:** Phase 9 (LAN toggle restart UX) is done (see `vega/PHASE9_RESULTS.md`). After a LAN change, the panel shows "Restarting HamClock…" in place of the address/QR for at least 2 s and until the new run listens; the LAN button is locked meanwhile. App only; tested on the TV. Next: item 3 of "Next (agreed 2026-10-30)" (curl panes).
 
+**Update 2026-11-02 (later):** Phase 10 (curl panes through the app's fetch) is done (see `vega/PHASE10_RESULTS.md`). Sat_Alerts and Mesh_Mon work on the TV. One upstream change (`ESPHamClock/ArduinoLib/WiFiClient.cpp`, the `_IS_VEGA` hook, as on Android). Next: item 4 of "Next (agreed 2026-10-30)" (first Appstore submission), after the LAT and the merge to `main`.
+
 _This file is the maintained copy of the plan (moved into the repo after Phase 6; the original was a conversation artifact)._
 
 **Your decisions (built in below):**
@@ -268,11 +270,54 @@ No code in this repo parses the platform string on the backend side; check the b
 
 ---
 
+## Phase 10: curl panes through the app's fetch (agreed 2026-11-02)
+
+**Why:** Sat_Alerts (hams.at) and Mesh_Mon fetch over HTTPS by running `curl` (`WiFiClient::connectCommand`). Vega apps can't run subprocesses (PHASE6_RESULTS.md 6.5).
+- The TV does have `/usr/bin/curl`, `libcurl.so.4.8.0`, OpenSSL 3 and mbedTLS, but the app can't use them: the SDK's armv7 sysroot has only libc++ (nothing to link against), and the sandbox can't run the binaries. `dlopen` of the system libcurl would be an undocumented private dependency, so it's ruled out.
+- Vega apps reach HTTPS through RN `fetch()` (the OS network stack and Amazon's CA store). Bundling our own TLS (mbedTLS + CA bundle) was option B; not chosen: we'd own TLS updates and the CA bundle.
+
+**Decision:** option A, the same design as Android's JNI fetch pipe (`android_connect_http` in `android/app/src/main/cpp/hamclock_jni.cpp`): the engine hands the request to the app, the app fetches, and the body comes back through a pipe that HamClock reads like curl's stdout.
+
+**Spike (2026-11-02, Debug build on the TV, RN `fetch`; code not kept):**
+
+| Request | Result |
+|:--|:--|
+| `https://hams.at/api/alerts/upcoming` | 200, `{"data":[]}`, 388 ms (first), ~90 ms after |
+| same with `Authorization: Bearer <invalid>` | 200, same body (header accepted) |
+| `https://meshtastic.liamcottle.net/api/v1/nodes/1` | 200, 881 B JSON, 548 ms / 275 ms |
+| `…/nodes/1/neighbours` | 500 with a JSON body (server side; the body still came through) |
+| `https://httpbin.org/headers` | `User-Agent: HamClock-vega/spike` arrived as set; `Accept-Encoding: deflate, gzip` (fetch decompresses) |
+| 3 requests in parallel | all done in 280 ms |
+
+No manifest change was needed for HTTPS (the cleartext policy only covers plain HTTP).
+
+**Design:**
+1. **`ESPHamClock/ArduinoLib/WiFiClient.cpp`** (the only upstream change, ~10 lines): under `_IS_VEGA`, `connectCommand` calls `extern "C" bool vega_connect_http(const char *cmd, int *read_fd)` and uses the fd like Android does. The two `_IS_ANDROID` fd-close blocks (reconnect, `stop()`) also cover `_IS_VEGA`. Android's code isn't touched. Callers (`hamsat.cpp`, `meshtastic.cpp`, `wifi.cpp`) don't change.
+2. **Engine (`vega/hcengine/kepler/engine/HttpFetch.cpp`):**
+   - `vega_connect_http` parses the curl command: URL (`https://` or `http://`), `-A` (User-Agent), `-H` (one header), the same rules as Android's parser. Unknown flags (`--max-time`, `--silent`) are ignored.
+   - Opens a pipe, queues `{id, url, userAgent, header}`, and returns the read end.
+   - `fetchDone` writes the body to the write end on a small writer thread (never blocks the JS thread; SIGPIPE ignored if HamClock stops reading), then closes it. Body capped at 1 MB.
+   - A request with no answer after 20 s (curl's 15 s + slack) is closed empty, so HamClock sees a failed fetch, as with curl. Engine stop/restart closes all pending ones.
+3. **TurboModule:** `takeFetches(): string` (JSON array of new requests, marked in flight; `""` when none) and `fetchDone(id: number, ok: boolean, body: string)`.
+4. **App (`src/engine/fetchBridge.ts`, started in index.js next to the engine):**
+   - A 250 ms loop calls `takeFetches()` (a cheap native call). For each request: `fetch(url, {headers})` with an `AbortController` timeout of 15 s.
+   - Like `curl --silent` (no `-f`), the body is passed back for any HTTP status. A network error or timeout reports `ok=false` (empty pipe).
+   - Only `http:`/`https:` URLs. Debug builds log `[HCFETCH]` lines.
+5. **Tests:** host C++ for the command parser and the pipe (body, cap, timeout, close on stop). Jest for the bridge with a mocked `HcEngine` and `fetch`.
+6. **On the TV:** Release build. Sat_Alerts shows hams.at's list (may be empty; the spike got `{"data":[]}`). Mesh_Mon with a watched node shows it, plus neighbours when the server answers. No `[HC…]` lines in Release. App in the background: fetches may wait or time out; the panes then retry as they do after a failed curl.
+7. **Docs:** `PHASE10_RESULTS.md`, PHASE6_RESULTS.md 6.5 pointer, this file, README.
+
+**Progress (2026-11-02):** all done (PHASE10_RESULTS.md). Jest 30/30, host C++ 151/0, Release armv7 clean; Sat_Alerts and Mesh_Mon checked on the TV.
+
+**Open questions:** none blocking. `connecthttpsHCGET` (HamClock's version check, `wifi.cpp`) also goes through this path once it works; with `NO_UPGRADE` on Vega it only reports versions.
+
+---
+
 ## Next (agreed 2026-10-30)
 
 1. **Merge `vega-app` into `main`:** on hold (user) until the LAT finishes. After the merge, the Actions tab offers "Run workflow" for Vega, and `main` gets the RELEASE.md Amazon-default fix.
 2. ~~**Phase 9: LAN toggle restart UX**~~ Done 2026-11-02 (PHASE9_RESULTS.md).
-3. **Decide on the curl panes** (Sat_Alerts, Mesh_Mon): build an in-process HTTP(S) client, or hide/label them on Vega for the first Appstore release. See below.
+3. ~~**Curl panes** (Sat_Alerts, Mesh_Mon)~~ Done 2026-11-02: fetch through the app, Phase 10 (PHASE10_RESULTS.md).
 4. **First Appstore submission** (manual, user): listing, screenshots (not from `screenshooter`), privacy and network declarations; the armv7 `.vpkg` from a tagged release.
 5. Optional: port conflicts, antenna-page QR ("Other ideas").
 
@@ -280,7 +325,7 @@ No code in this repo parses the platform string on the backend side; check the b
 
 - **Vega SDK 2.0 upgrade:** Phase 8 (above); done and merged into `vega-app`.
 - **LAN toggle restart UX:** Phase 9; done (the panel shows the restart itself, with a 2 s minimum).
-- **hams.at (Sat_Alerts) and Mesh_Mon panes on Vega.** Both fetch with `curl` through `WiFiClient::connectCommand`, and Vega apps can't run subprocesses (PHASE6_RESULTS.md 6.5). They need an in-process HTTP(S) client in the engine (e.g. libcurl or a TLS library linked into `libHcEngine.so`, or a fetch through the app, like Android's JNI fetch pipe). The panes stay in the menus meanwhile.
+- **hams.at (Sat_Alerts) and Mesh_Mon panes on Vega.** Both fetch with `curl` through `WiFiClient::connectCommand`, and Vega apps can't run subprocesses (PHASE6_RESULTS.md 6.5). Done in Phase 10: fetch through the app (RN `fetch`), like Android's JNI fetch pipe.
 
 ---
 
