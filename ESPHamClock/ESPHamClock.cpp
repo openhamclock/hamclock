@@ -2398,6 +2398,8 @@ void wdDelay(int ms)
     int dt;
     while ((dt = millis() - t0) < ms) {
         checkWebServer(true);
+        if (dt < 0)                     // clock ran backwards: never pass a negative to delay(), it is unsigned
+            dt = 0;
         if (dt < WD_DELAY_DT)
             delay (dt);
         else

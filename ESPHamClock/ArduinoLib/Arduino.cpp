@@ -107,12 +107,12 @@ static void initBuildVariables(void)
  */
 uint32_t millis(void)
 {
-    #if defined(CLOCK_MONOTONIC_FAST_XXXX)
-        // this is only on FreeBSD but is fully 200x faster than gettimeofday or CLOCK_MONOTONIC
-        // as of 14-RELEASE now this one is slow -- use normal gettimeofday
+    #if defined(__linux__)
+        // use the monotonic clock: gettimeofday() follows the wall clock, which can be stepped backwards
+        // (eg by WSL2 or NTP), making millis() run backwards. that turned wdDelay() into a multi-minute sleep.
     static struct timespec t0;
     struct timespec t;
-    clock_gettime (CLOCK_MONOTONIC_FAST, &t);
+    clock_gettime (CLOCK_MONOTONIC, &t);
     if (t0.tv_sec == 0)
         t0 = t;
     uint32_t dt_ms = (t.tv_sec - t0.tv_sec)*1000 + (t.tv_nsec - t0.tv_nsec)/1000000;
