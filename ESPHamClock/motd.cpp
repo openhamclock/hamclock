@@ -178,7 +178,6 @@ void checkMOTD()
     // if the present/absent state changed, or it is new content, redraw the icon
     // without waiting for some other event to trigger a clock-area redraw
     if (had_motd != have_motd || (is_new && !was_new)) {
-        Serial.printf ("MOTD: state or novelty changed, redrawing icon\n");
         drawMOTDIcon();
     }
 
@@ -393,9 +392,6 @@ static void motdShowPopup()
  */
 void motdClicked()
 {
-    Serial.printf ("MOTD: motdClicked() entered, motdIsPresent=%d motd_text=%p\n",
-                   motdIsPresent(), (void*)motd_text);
-
     // if was new, record hash as having been read
     if (motd_is_new && motd_text) {
         uint32_t current_hash = stringHash (motd_text);
@@ -403,15 +399,11 @@ void motdClicked()
         if (h_fp) {
             fprintf (h_fp, "%u\n", current_hash);
             fclose (h_fp);
-            Serial.printf ("MOTD: wrote hash %u to %s\n", current_hash, MOTD_HASH_FN);
         }
         motd_is_new = false;
     }
 
     drawMOTDIcon();
 
-    Serial.printf ("MOTD: calling motdShowPopup() with %lu bytes of text\n",
-                   (unsigned long)(motd_text ? strlen(motd_text) : 0));
     motdShowPopup();
-    Serial.printf ("MOTD: motdShowPopup() returned\n");
 }

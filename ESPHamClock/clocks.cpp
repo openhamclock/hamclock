@@ -1219,9 +1219,6 @@ bool checkClockTouch (SCoord &s)
 
     // check MOTD mailbox icon first since it sits inside clock_b and would otherwise be
     // swallowed by the clock-area dispatch below
-    Serial.printf ("MOTD: checkClockTouch s=(%d,%d) motd_btn_b=(%d,%d %dx%d) present=%d\n",
-                   s.x, s.y, motd_btn_b.x, motd_btn_b.y, motd_btn_b.w, motd_btn_b.h,
-                   motdIsPresent());
     if (inPaddedBox (s, motd_btn_b, ICON_HIT_PAD)) {
         motdClicked();
         return (true);

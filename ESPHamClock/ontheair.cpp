@@ -1612,12 +1612,10 @@ static bool retrieveONTASource (const ONTASource &src)
                 continue;
             }
 
-            // check valid freq
+            // N.B. a freq outside every supported ham band (eg 70cm) is deliberately kept, not
+            // dropped: ontaModeBandOk() buckets it under the "Other" band checkbox, and
+            // getBandColor() etc already degrade gracefully (black/plain) for such freqs
             float kHz = hz * 1e-3F;
-            if (findHamBand (kHz) == HAMBAND_NONE) {
-                Serial.printf ("ONTA: ignoring freq: %s\n", line);
-                continue;
-            }
 
             // DXCC
             if (!call2DXCC (dxcall, new_sp.tx_dxcc)) {

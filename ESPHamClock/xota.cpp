@@ -98,6 +98,103 @@ static bool findWWBOTAShape (const char *comment, char *ref, size_t ref_len)
     return (false);
 }
 
+/* POTA references are "<prefix>-<digits>", eg "US-4778", "K-0001", "DL-01063", but cluster
+ * comments rarely write them cleanly. Real examples seen in the wild:
+ *      "US POTA 4778 MICHIGAN"         prefix BEFORE the label, digits after, no dash
+ *      "POTA - US--2996"               separator then a doubled dash
+ *      "POTA: K-1234", "pota US-0042"  the tidy cases
+ * so this is a dedicated scan rather than the generic label walk below, which would accept
+ * things like "POTA 59" (a signal report) as a reference. Rules:
+ *   - the word POTA must stand alone (not glued to other alnum chars)
+ *   - after it, skip separators, then accept either
+ *        A) 1-3 letters, 1-2 dashes, 3-5 digits   -> normalized to a single dash
+ *        B) 4-5 bare digits -- park numbers are always at least 4 digits, which is also what
+ *           keeps "POTA 599" out -- optionally prefixed by the word just before the label
+ *           when that word looks like a 1-3 letter program prefix ("US POTA 4778" -> US-4778)
+ * a bare "POTA" with no recognizable park number is deliberately NOT a match, same
+ * label-plus-reference strictness as the rest of this file.
+ */
+static bool findPOTAShape (const char *comment, char *ref, size_t ref_len)
+{
+    static const char *not_prefix[] = { "CQ", "DE", "TU", "UP", "ON", "IN", "TO", "AT", "OF",
+                                        "QSY", "QRP", "QRO", "QRZ", "SSB", "LSB", "USB", "FM",
+                                        "AM", "CW", "FT8", "FT4", "THE", "NEW", "FOR" };
+    const char *label = "POTA";
+    const size_t label_len = 4;
+    const char *search_from = comment;
+    const char *hit;
+
+    while ((hit = strcistr (search_from, label)) != NULL) {
+        search_from = hit + label_len;
+        size_t i = hit - comment;
+
+        if ((i > 0 && isalnum ((unsigned char)comment[i-1])) || isalnum ((unsigned char)hit[label_len]))
+            continue;
+
+        size_t j = skipLabelSeparator (comment, i + label_len);
+        size_t n_pfx = 0;
+        while (isalpha ((unsigned char)comment[j+n_pfx]) && n_pfx < 4)
+            n_pfx++;
+
+        char dash_form[16];
+        bool got = false;
+
+        if (n_pfx >= 1 && n_pfx <= 3) {
+            // form A: letters, 1-2 dashes, digits
+            size_t k = j + n_pfx;
+            size_t n_dash = 0;
+            while (comment[k] == '-' && n_dash < 2) { k++; n_dash++; }
+            size_t d0 = k;
+            while (isdigit ((unsigned char)comment[k]) && k - d0 < 6)
+                k++;
+            size_t n_dig = k - d0;
+            if (n_dash >= 1 && n_dig >= 3 && n_dig <= 5 && !isalnum ((unsigned char)comment[k])) {
+                snprintf (dash_form, sizeof(dash_form), "%.*s-%.*s", (int)n_pfx, comment+j, (int)n_dig, comment+d0);
+                got = true;
+            }
+        } else if (n_pfx == 0) {
+            // form B: bare digits, borrow prefix from preceding word if it looks like one
+            size_t k = j;
+            while (isdigit ((unsigned char)comment[k]) && k - j < 6)
+                k++;
+            size_t n_dig = k - j;
+            if (n_dig >= 4 && n_dig <= 5 && !isalnum ((unsigned char)comment[k])) {
+                // preceding word: skip spaces back from the label, then collect letters
+                size_t e = i;
+                while (e > 0 && comment[e-1] == ' ')
+                    e--;
+                size_t b = e;
+                while (b > 0 && isalpha ((unsigned char)comment[b-1]))
+                    b--;
+                size_t n_p = e - b;
+                bool pfx_ok = (n_p >= 1 && n_p <= 3 && (b == 0 || !isalnum ((unsigned char)comment[b-1]))
+                                        && (b == 0 || comment[b-1] != '/'));
+                if (pfx_ok) {
+                    char w[4];
+                    for (size_t q = 0; q < n_p; q++)
+                        w[q] = toupper ((unsigned char)comment[b+q]);
+                    w[n_p] = '\0';
+                    for (const char *np : not_prefix)
+                        if (!strcmp (np, w))
+                            pfx_ok = false;
+                    if (pfx_ok)
+                        snprintf (dash_form, sizeof(dash_form), "%s-%.*s", w, (int)n_dig, comment+j);
+                }
+                if (!pfx_ok)
+                    snprintf (dash_form, sizeof(dash_form), "%.*s", (int)n_dig, comment+j);
+                got = true;
+            }
+        }
+
+        if (got && strlen (dash_form) < ref_len) {
+            for (size_t q = 0; (ref[q] = toupper ((unsigned char)dash_form[q])) != '\0'; q++)
+                continue;
+            return (true);
+        }
+    }
+    return (false);
+}
+
 /* see xota.h
  */
 bool findXOTARef (const char *comment, char *org, size_t org_len, char *ref, size_t ref_len)
@@ -107,6 +204,13 @@ bool findXOTARef (const char *comment, char *org, size_t org_len, char *ref, siz
 
     if (findWWBOTAShape (comment, ref, ref_len)) {
         quietStrncpy (org, "WWBOTA", org_len);
+        return (true);
+    }
+
+    // POTA has its own live feed in the ONTA pane, but DX Cluster spots only ever carry it as
+    // free text in the comment, so it gets a dedicated (stricter-than-generic) scan here
+    if (findPOTAShape (comment, ref, ref_len)) {
+        quietStrncpy (org, "POTA", org_len);
         return (true);
     }
 
