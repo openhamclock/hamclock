@@ -22,6 +22,10 @@ Phases 0–3 are done and committed on `vega-app` (engine in the app, WebView UI
 
 _This file is the maintained copy of the plan (moved into the repo after Phase 6; the original was a conversation artifact)._
 
+**Update 2026-11-02 (pointer for Wind/ADS-B and opened pages):** live.html's embed overlay (Wind, ADS-B: a site in an iframe with "Open in new tab"/"Close") had no remote control: the D-pad and OK drove the clock's hidden cursor underneath, and Back (`GoBack`) didn't close it. Now (`pageScript`, `App.tsx`; app only): while the overlay is up, or on a page HamClock opened, the D-pad moves an arrow pointer over the page (live.html's arrow, taking over from the clock's cursor; hold to speed up; on an opened page, pushing past the top/bottom edge scrolls it). OK sends a real touch through the Vega WebView's `dispatchTouchEvent` (`tapAt`), so it works inside the cross-origin iframe and on the buttons. Back closes the overlay. If the framed site takes the focus, the page takes it back. Checked on the TV (Debug and Release 1205): Close via the pointer and Back both work, coordinates match.
+
+**Finding 2026-11-02 (Debug builds crash after ~9 min):** SIGSEGV on the JS thread after `failed to create thread … err=11`. In **Debug** builds the RN runtime leaks one asio DNS-resolver thread (`resolver_service_base::work_scheduler_runner` in `libkeplerscript-4.so`, each with an eventfd/epoll/timerfd) about every 2 s, started from the JS thread, so the process runs out of address space (~8 MB of stack each). Present since at least Phase 5. Likely the dev client retrying its Metro/inspector connection (`localhost:8081` is also HamClock's live port); not our code. **Release is flat** (67→73 threads over 3 min, same build). Debug builds now log `[HCPROC]` once a minute (threads, RSS, VM, fd kinds, thread names; `procSummary` in `EngineHost.cpp`, status field `proc`, empty in Release). For long Debug sessions, expect the crash.
+
 **Your decisions (built in below):**
 - **No callsign seeding.** The user always enters their own callsign. The Android app never seeds either; it only reads the stored callsign to detect first setup.
 - **First run** turns LAN access on and opens the QR code screen.
@@ -324,6 +328,7 @@ No manifest change was needed for HTTPS (the cleartext policy only covers plain 
 3. ~~**Curl panes** (Sat_Alerts, Mesh_Mon)~~ Done 2026-11-02: fetch through the app, Phase 10 (PHASE10_RESULTS.md).
 4. **First Appstore submission** (manual, user): listing, screenshots (not from `screenshooter`), privacy and network declarations; the armv7 `.vpkg` from a tagged release.
 5. Optional: port conflicts, antenna-page QR ("Other ideas").
+6. **Update check notice** (added 2026-11-02): as on Amazon Fire Android, check backend `/ham/HamClock/version.pl` and tell the user to check the Appstore for updates. See "Other ideas".
 
 ## Needs work (after Phase 7)
 
@@ -337,7 +342,7 @@ No manifest change was needed for HTTPS (the cleartext policy only covers plain 
 
 - ~~**Antenna page in the QR screen.**~~ Done 2026-11-02 (settings panel): "Live clock" / "Antennas" choices above the QR switch the QR and URLs to `http://<ip>:8080/antennas.html` (REST port), as Android's tabs do. Until REST listens (Setup not done), the Antennas choice says so instead of a QR. Not on the first-run screen (no REST before Setup). The choice applies on highlight (no OK needed). Checked on the TV (Release 1203).
 - ~~**Port conflicts.**~~ Done 2026-11-02, as in Android (`MainActivity.kt` `findAvailable*Port`): before each run the engine probes 8081/8082/8080 (`PortPick.cpp`, `portFree` in `SysWraps.cpp`) and falls back to Android's lists (R/W 8083, 8084, 8086, 8091; R/O 8085, 8087, 8092, 8093; REST 8088, 8085, 8089, 8090; REST off if none). Android rechecks once after killing leftover processes; Vega rechecks a busy preferred port for up to 2 s instead (relaunch overlap). Status `portNotice` is shown in the settings panel; URLs, QR, mDNS and the WebView follow the ports in use. On the TV (Release 1203) the normal ports come up as before; the fallback itself is covered by host tests only (no conflicting app on the TV).
-- **Update check.** Android tells the user when a new HamClock version exists. On Vega, the Appstore handles updates, so this is probably unnecessary.
+- **Update check: to do (user, 2026-11-02; come back to it shortly).** Do it the way the Android app does on Amazon Fire: check the backend's `/ham/HamClock/version.pl` for a newer version and, if there is one, suggest that the user check the Appstore for updates. Vega doesn't let the app check the Appstore itself, so this is only a notice.
 - **Start on boot / keep running after close.** Android offers both. Phase 0 found no supported way on Vega, so leave them out rather than offer them half-working.
 
 ## Decisions log

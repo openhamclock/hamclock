@@ -6,6 +6,7 @@
 #include "PortPick.h"
 #include "FlatJson.h"
 
+#include <algorithm>
 #include <atomic>
 #include <cctype>
 #include <cerrno>
@@ -14,6 +15,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <deque>
+#include <dirent.h>
+#include <map>
 #include <exception>
 #include <mutex>
 #include <pthread.h>
@@ -88,6 +91,70 @@ long nowMs() {
   timespec ts{};
   clock_gettime(CLOCK_MONOTONIC, &ts);
   return ts.tv_sec * 1000L + ts.tv_nsec / 1000000L;
+}
+
+// Diagnostics (Debug builds): thread count, memory and open fds of the app process, from
+// /proc/self, e.g. "thr=41 rss=210MB vm=1450MB fds=88". Empty in Release.
+std::string procSummary() {
+#ifdef NDEBUG
+  return "";
+#else
+  std::string thr = "?", rss = "?", vm = "?";
+  if (FILE *f = fopen("/proc/self/status", "r")) {
+    char line[256];
+    while (fgets(line, sizeof line, f)) {
+      long v = 0;
+      if (sscanf(line, "Threads: %ld", &v) == 1) thr = std::to_string(v);
+      else if (sscanf(line, "VmRSS: %ld", &v) == 1) rss = std::to_string(v / 1024) + "MB";
+      else if (sscanf(line, "VmSize: %ld", &v) == 1) vm = std::to_string(v / 1024) + "MB";
+    }
+    fclose(f);
+  }
+  int fds = 0;
+  std::map<std::string, int> fdKinds;
+  if (DIR *d = opendir("/proc/self/fd")) {
+    while (dirent *e = readdir(d)) {
+      if (e->d_name[0] == '.') continue;
+      ++fds;
+      char path[64], target[256];
+      snprintf(path, sizeof path, "/proc/self/fd/%s", e->d_name);
+      ssize_t n = readlink(path, target, sizeof target - 1);
+      std::string t = n > 0 ? std::string(target, (size_t)n) : "?";
+      size_t c = t.find(':');
+      fdKinds[t.rfind("anon_inode:", 0) == 0 ? t : c != std::string::npos && t[0] != '/' ? t.substr(0, c) : t[0] == '/' ? "file" : t]++;
+    }
+    closedir(d);
+    fds -= 1;  // the dir's own fd
+  }
+  // Thread names, most common first; plus the newest threads (highest tids).
+  std::map<std::string, int> names;
+  std::map<long, std::string> byTid;
+  if (DIR *d = opendir("/proc/self/task")) {
+    while (dirent *e = readdir(d)) {
+      if (e->d_name[0] == '.') continue;
+      char path[64], name[64] = "?";
+      snprintf(path, sizeof path, "/proc/self/task/%s/comm", e->d_name);
+      if (FILE *f = fopen(path, "r")) {
+        if (fgets(name, sizeof name, f)) name[strcspn(name, "\n")] = 0;
+        fclose(f);
+      }
+      names[name]++;
+      byTid[atol(e->d_name)] = name;
+    }
+    closedir(d);
+  }
+  std::vector<std::pair<int, std::string>> top;
+  for (auto &[n, c] : names) top.push_back({c, n});
+  std::sort(top.rbegin(), top.rend());
+  std::string s = "thr=" + thr + " rss=" + rss + " vm=" + vm + " fds=" + std::to_string(fds) + " [";
+  for (auto &[k, c] : fdKinds) s += k + ":" + std::to_string(c) + " ";
+  s += "] top:";
+  for (size_t i = 0; i < top.size() && i < 5; ++i) s += " " + top[i].second + "=" + std::to_string(top[i].first);
+  s += " newest:";
+  int k = 0;
+  for (auto it = byTid.rbegin(); it != byTid.rend() && k < 8; ++it, ++k) s += " " + it->second;
+  return s;
+#endif
 }
 
 void *watchdogMain(void *) {
@@ -620,6 +687,7 @@ std::string EngineHost::statusJson() {
   o << ",\"backend\":"; jsonStr(o, g_supervisorAlive && !g_runBackend.empty() ? g_runBackend : g_opts.backend);
   o << ",\"restartNeeded\":" << (g_supervisorAlive && !g_runBackend.empty() && g_runBackend != g_settings.backend ? "true" : "false");
   o << ",\"version\":"; jsonStr(o, hc_version ? hc_version : "");
+  o << ",\"proc\":"; jsonStr(o, procSummary());
   o << ",\"events\":[";
   first = true;
   for (auto &ev : g_events) { o << (first ? "" : ","); jsonStr(o, ev); first = false; }

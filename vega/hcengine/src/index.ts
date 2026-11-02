@@ -93,6 +93,8 @@ export interface EngineStatus {
   /** The saved backend differs from the running one; restart() applies it. */
   restartNeeded: boolean;
   version: string;
+  /** Debug builds: app process threads/memory/fds, e.g. 'thr=41 rss=210MB vm=1450MB fds=88' ('' in Release). */
+  proc?: string;
   /** Recent host events, oldest first. */
   events: string[];
 }

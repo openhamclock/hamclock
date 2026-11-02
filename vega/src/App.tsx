@@ -89,6 +89,9 @@ function isLivePage(url: string): boolean {
  * to the host app (the Android app does it from native key handling). While HamClock shows a
  * dialog with keyboard navigation (QR code: Open/Close), live.html sets window.hc_kbnav and those
  * functions send arrows and OK to it as keys; Back then sends Escape (closes the dialog).
+ * While live.html's embed overlay (Wind, ADS-B) is up, or on a page HamClock opened, the D-pad
+ * moves a pointer drawn over the page and OK taps there (a real touch from RN, see tapAt), so it
+ * works inside the framed site too; Back closes the overlay.
  *
  * It also fits the clock to the screen with the safe margin (overscan). live.html's initCanvas()
  * only shrinks a clock larger than the window and centers a smaller one at its own size, and it
@@ -143,8 +146,139 @@ function pageScript(overscanPct: number): string {
     }
   }, true);
 
+  // A pointer for pages that aren't the clock: live.html's embed overlay (Wind, ADS-B: a site in
+  // an iframe with "Open in new tab" and "Close" buttons) and pages HamClock opened in the WebView
+  // ("Open"). The D-pad moves a cursor drawn over the page (hold to speed up), OK taps where it
+  // points. The page can't click into the framed site (another origin), so the tap goes to RN,
+  // which sends a real touch with the WebView's dispatchTouchEvent; that reaches the iframe and the
+  // overlay's buttons alike. Back closes the overlay (on an opened page, RN goes back). The framed
+  // site must not keep the focus after a tap: its key events would go to the iframe and never
+  // reach this page, so the page takes the focus back.
+  var ptr = {el: null, x: 0, y: 0, key: null, timer: null, v: 0, last: 0, up: true, placed: false};
+  function embedUp() {
+    var ov = document.getElementById('embed-overlay');
+    return !!(ov && getComputedStyle(ov).display !== 'none');
+  }
+  function onClockPage() { return !!document.getElementById('hamclock-cvs'); }
+  function pointerMode() { return embedUp() || !onClockPage(); }
+  function ptrShow() {
+    if (!document.body) return;
+    if (!ptr.el) {
+      // Same arrow as live.html's clock cursor (#virtual-cursor), tip at the pointer position.
+      ptr.el = document.createElement('div');
+      ptr.el.style.cssText = 'position:fixed;left:0;top:0;width:28px;height:28px;pointer-events:none;' +
+        'z-index:2147483647;transition:transform 50ms ease-out;filter:drop-shadow(0 2px 5px rgba(0,0,0,0.85));';
+      ptr.el.innerHTML = '<svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+        '<polygon points="1,1 1,23 6.8,17.2 12,27 15.5,25 10.3,15.5 18,15.5" fill="#000000"/>' +
+        '<polygon points="2,3 2,20.5 6.5,16 11.2,24.8 13.5,23.5 8.8,14.8 15.5,14.8" fill="#FFFFFF"/></svg>';
+    }
+    if (!ptr.el.parentNode) document.body.appendChild(ptr.el);
+    if (!ptr.placed) {
+      // Take over from the clock's cursor: start where it is (if shown) and hide it, so there's
+      // one cursor. Else start in the middle of the overlay (or the page).
+      var ov = document.getElementById('embed-overlay'), r = embedUp() ? ov.getBoundingClientRect() : null;
+      ptr.x = r ? r.left + r.width / 2 : window.innerWidth / 2;
+      ptr.y = r ? r.top + r.height / 2 : window.innerHeight / 2;
+      var vc = document.getElementById('virtual-cursor');
+      if (vc && getComputedStyle(vc).display !== 'none') {
+        var vr = vc.getBoundingClientRect();
+        if (vr.width) { ptr.x = vr.left + 1; ptr.y = vr.top + 1; }
+      }
+      if (typeof hideVirtualCursor === 'function') hideVirtualCursor();
+      ptr.placed = true;
+    }
+    ptr.el.style.display = 'block';
+    ptr.el.style.transform = 'translate(' + Math.round(ptr.x - 1) + 'px,' + Math.round(ptr.y - 1) + 'px)';
+  }
+  function ptrHide() {
+    ptrStop();
+    if (ptr.el) ptr.el.style.display = 'none';
+    ptr.placed = false;
+  }
+  function ptrMove(k, step) {
+    var w = window.innerWidth, h = window.innerHeight;
+    var dx = k === 'ArrowLeft' ? -step : k === 'ArrowRight' ? step : 0;
+    var dy = k === 'ArrowUp' ? -step : k === 'ArrowDown' ? step : 0;
+    var nx = ptr.x + dx, ny = ptr.y + dy;
+    // On an opened page, pushing past the top/bottom edge scrolls it.
+    if (!embedUp() && (ny < 0 || ny > h - 1)) window.scrollBy(0, dy);
+    ptr.x = Math.max(0, Math.min(w - 1, nx));
+    ptr.y = Math.max(0, Math.min(h - 1, ny));
+    ptrShow();
+  }
+  function ptrStop() {
+    if (ptr.timer) clearInterval(ptr.timer);
+    ptr.timer = null;
+    ptr.key = null;
+  }
+  function ptrArrow(e) {
+    var k = e.key, now = Date.now();
+    var repeat = e.repeat || (ptr.lastKey === k && !ptr.up && now - ptr.last < 700);
+    ptr.lastKey = k; ptr.last = now; ptr.up = false;
+    if (ptr.key === k) return;                     // already moving; Vega's repeat keeps it alive
+    if (!repeat) { ptrStop(); ptrMove(k, 12); return; }
+    // Held: move every HOLD_MS, faster the longer it's held, until keyup or no repeat for HOLD_END_MS.
+    ptrStop();
+    ptr.key = k; ptr.v = 6;
+    ptr.timer = setInterval(function () {
+      if (Date.now() - ptr.last > HOLD_END_MS) { ptrStop(); return; }
+      ptr.v = Math.min(30, ptr.v + 1.5);
+      ptrMove(ptr.key, ptr.v);
+    }, HOLD_MS);
+  }
+  window.addEventListener('keyup', function (e) {
+    if (ARROWS[e.key]) {
+      if (ptr.lastKey === e.key) ptr.up = true;
+      if (ptr.key === e.key) ptrStop();
+    }
+  }, true);
+  function ptrTap() {
+    ptrShow();
+    if (ptr.el) {
+      ptr.el.style.opacity = '0.5';
+      setTimeout(function () { if (ptr.el) ptr.el.style.opacity = ''; }, 150);
+    }
+    var t = document.elementFromPoint(ptr.x, ptr.y);
+    dbg('tap:' + Math.round(ptr.x) + ',' + Math.round(ptr.y) + ' on ' + (t ? t.tagName + (t.id ? '#' + t.id : '') : '-'));
+    post('tap:' + Math.round(ptr.x) + ',' + Math.round(ptr.y));
+  }
+  function refocus() {
+    // Focus moved into the iframe (e.g. after a tap on the framed site): take it back.
+    var ov = document.getElementById('embed-overlay');
+    if (!ov) return;
+    if (!ov.hasAttribute('tabindex')) ov.setAttribute('tabindex', '-1');
+    ov.style.outline = 'none';
+    window.focus();
+    ov.focus({preventScroll: true});
+  }
+  window.addEventListener('blur', function () {
+    if (!embedUp()) return;
+    dbg('embed:blur');
+    setTimeout(function () { if (embedUp()) refocus(); }, 0);
+  });
+  // The overlay closes by its own buttons too (a tap on Close): hide the pointer then.
+  setInterval(function () { if (ptr.el && ptr.el.style.display !== 'none' && !pointerMode()) ptrHide(); }, 500);
+  function pointerKey(e) {
+    var k = e.key, c = e.keyCode;
+    if (ARROWS[k]) ptrArrow(e);
+    else if (k === 'Enter' || k === 'Select' || c === 13 || c === 23) { ptrStop(); ptrTap(); }
+    else if (k === 'Escape' || k === 'GoBack' || k === 'BrowserBack' || c === 27) {
+      ptrHide();
+      if (embedUp()) { if (typeof hideEmbed === 'function') hideEmbed(); }
+      else post('back');
+    } else return false;
+    return true;
+  }
+
   window.addEventListener('keydown', function (e) {
     var k = e.key, c = e.keyCode, handled = false;
+    if (pointerMode()) {
+      stopHold();
+      handled = pointerKey(e);
+      if (!ARROWS[k] || !e.repeat) dbg('ptr-key:' + k + ':' + c + (handled ? ':h' : '') + ' active=' + (document.activeElement && document.activeElement.tagName));
+      if (handled) { e.preventDefault(); e.stopImmediatePropagation(); }
+      return;
+    }
     if (ARROWS[k]) {
       if (typeof handleVirtualCursorMove === 'function') { arrowDown(e); handled = true; }
     } else if (k === 'Enter' || k === 'Select' || c === 13 || c === 23) {
@@ -152,12 +286,11 @@ function pageScript(overscanPct: number): string {
       if (typeof handleVirtualCursorClick === 'function') { handleVirtualCursorClick(); handled = true; }
     } else if (k === 'Escape' || k === 'GoBack' || k === 'BrowserBack' || c === 27) {
       stopHold();
-      var ov = document.getElementById('embed-overlay');
       if (window.hc_kbnav && typeof sendKey === 'function') {
         // A HamClock dialog with keyboard navigation (e.g. the QR code) is up: Back closes it.
         sendKey('Escape');
         handled = true;
-      } else if (!(ov && getComputedStyle(ov).display !== 'none')) { post('back'); handled = true; }
+      } else { post('back'); handled = true; }
     }
     dbg('key:' + k + ':' + c + (handled ? ':h' : '') + (e.repeat ? ':r' : ''));
     if (handled) { e.preventDefault(); e.stopImmediatePropagation(); }
@@ -956,7 +1089,21 @@ export const App = () => {
   const metrics = useTvMetrics();
   const stateRef = useRef(state);
   stateRef.current = state;
-  const webRef = useRef<{injectJavaScript: (js: string) => void; goBack: () => void} | null>(null);
+  const webRef = useRef<{
+    injectJavaScript: (js: string) => void;
+    goBack: () => void;
+    dispatchTouchEvent: (ev: {type: 'touchstart' | 'touchend'; touches: {clientX: number; clientY: number}[]}) => void;
+  } | null>(null);
+  // OK on the page's pointer (embed overlay, opened pages): a real touch at "x,y" (CSS px in the
+  // viewport), which reaches cross-origin iframes, unlike a click the page script could make.
+  const tapAt = useCallback((xy: string) => {
+    const [x, y] = xy.split(',').map(Number);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    const touches = [{clientX: x, clientY: y}];
+    debugLog(`[HCWEB] touch ${x},${y}`);
+    webRef.current?.dispatchTouchEvent({type: 'touchstart', touches});
+    setTimeout(() => webRef.current?.dispatchTouchEvent({type: 'touchend', touches}), 60);
+  }, []);
   // Where the WebView is. HamClock's "open" links (e.g. Show movies -> Open Movie) navigate this
   // WebView away from live.html; Back then returns to the clock (see onBack).
   const webNavRef = useRef<{url: string; canGoBack: boolean}>({url: '', canGoBack: false});
@@ -1094,6 +1241,17 @@ export const App = () => {
     if (lanSummary) debugLog(`[HCLAN] ${lanSummary}`);
   }, [lanSummary]);
 
+  // Diagnostics: app process threads/memory/fds once a minute (Debug), to catch a slow leak.
+  const procRef = useRef<string | undefined>(undefined);
+  procRef.current = state.status?.proc;
+  useEffect(() => {
+    if (!DEBUG) return;
+    const log = () => { if (procRef.current) debugLog(`[HCPROC] ${procRef.current}`); };
+    const first = setTimeout(log, 5000);
+    const t = setInterval(log, 60000);
+    return () => { clearTimeout(first); clearInterval(t); };
+  }, []);
+
   const firstRun = firstRunVisible(state);
   const setupSummary = `setupComplete=${String(state.status?.setupComplete ?? 'unknown')} firstRun=${firstRun} onTv=${state.setupOnTv}`;
   useEffect(() => {
@@ -1187,6 +1345,7 @@ export const App = () => {
           onMessage={(e: WebViewMessageEvent) => {
             const data = e.nativeEvent.data;
             if (data === 'back') onBack();
+            else if (data.startsWith('tap:')) tapAt(data.slice(4));
             else debugLog(`[HCWEB] ${data}`);
           }}
           hasTVPreferredFocus={webHasKeys}
@@ -1210,7 +1369,7 @@ export const App = () => {
           }}
         />
       ) : null,
-    [showWeb, state.webGeneration, liveUri, webHasKeys, injectedJs, onBack],
+    [showWeb, state.webGeneration, liveUri, webHasKeys, injectedJs, onBack, tapAt],
   );
 
   return (
