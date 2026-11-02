@@ -34,6 +34,11 @@ endif
 ifdef S
     CXXFLAGS += -D_S=$(S)
 endif
+# PSKTEST=1 compiles in the set_psktest? web command for exercising the Live Spots failure handling.
+# Leave it off for release builds and the command and its hooks do not exist.
+ifeq ($(PSKTEST),1)
+    CXXFLAGS += -D_PSK_TEST
+endif
 # handle WiFi configuration
 ifeq ($(WIFI_NEVER),1)
     CXXFLAGS += -D_WIFI_NEVER

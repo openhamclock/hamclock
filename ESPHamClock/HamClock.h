@@ -2774,6 +2774,9 @@ extern uint8_t psk_showpath;            // whether to draw paths
 extern uint8_t psk_showonmap;           // whether to draw spots on the map at all
 
 extern bool updatePSKReporter (const SBox &box, bool force);
+#if defined(_PSK_TEST)
+extern void pskTestControl (bool have_fail, int fail, bool poll_now, bool reset_stats, char *buf, size_t buf_len);
+#endif
 extern bool checkPSKTouch (const SCoord &s, const SBox &box);
 extern void initPSKState(void);
 extern void savePSKState(void);
