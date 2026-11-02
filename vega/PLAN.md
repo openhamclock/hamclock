@@ -18,6 +18,8 @@ Phases 0–3 are done and committed on `vega-app` (engine in the app, WebView UI
 
 **Bug fix 2026-11-02:** "Restart HamClock" (lock menu) skipped HamClock's 10 s Setup countdown, because `ESP::restart` re-used our `-k`. `restartHook` (`EngineHost.cpp`) now drops `-k` for all of HamClock's own restarts (menu, REST `/restart`, config restore, fatal error), as on a desktop run without `-k`. App starts and restarts (`buildArgs`) keep `-k`. Checked on the TV (Release 1203).
 
+**Update 2026-11-02 (QR dialog and opened pages):** HamClock's QR code dialog (e.g. SDO/Moon "Show movies") works with the D-pad: while it's up, HamClock sends live web clients `kbnav 1` (`setLiveWebKbNav`, `liveweb.cpp`; `qrmodal.cpp` sets it), and `live.html`'s virtual-cursor functions send arrows/OK as keys instead of moving the cursor; on Vega, Back sends Escape (closes it). Up/Down also switch the buttons now. Shared HamClock code, so the Android app gets the D-pad part too (its Back is unchanged). "Open" loads the page in the clock's WebView; on Vega, Back on such a page returns to live.html (history back, else reload), and that page's load errors no longer trigger the clock's retry. Checked on the TV (Release 1204); headless Linux build (`hamclock-web-800x480`) compiles. Note: a stale pre-change `live.html` would draw an unknown `kbnav` message as text (it reloads when HamClock restarts, so low risk).
+
 _This file is the maintained copy of the plan (moved into the repo after Phase 6; the original was a conversation artifact)._
 
 **Your decisions (built in below):**

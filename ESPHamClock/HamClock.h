@@ -2016,6 +2016,7 @@ extern void openLiveWebURL (const char *url);
 extern void openLiveWebURLEmbedded (const char *url);
 extern void requestLiveWebPaste (void);
 extern bool isLiveWebTouch (void);
+extern void setLiveWebKbNav (bool on);
 
 
 

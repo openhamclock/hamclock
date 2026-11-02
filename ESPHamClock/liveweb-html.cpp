@@ -153,6 +153,11 @@ char live_html[] =  R"_raw_html_(
         var arrow_repeat_count = 0;
         const VCURSOR_HIDE_MS = 12000;  // auto-hide after 12s of inactivity
 
+        // true while hamclock shows a modal that takes keyboard navigation (e.g. the QR code
+        // dialog), see "kbnav" message. the D-pad then sends arrows and OK to it as keys instead
+        // of moving the virtual cursor. also exposed as window.hc_kbnav for host apps (Back).
+        var kbnav_active = false;
+
         function isOverSettings(domX, domY) {
             if (!window.AndroidApp) return false;
             if (domX === undefined || domY === undefined) {
@@ -208,6 +213,11 @@ char live_html[] =  R"_raw_html_(
         }
 
         function handleVirtualCursorMove(direction) {
+            if (kbnav_active) {
+                sendKey (direction);
+                return;
+            }
+
             const now = Date.now();
             let step = 6;
             if (now - last_arrow_ms < 200) {
@@ -254,6 +264,11 @@ char live_html[] =  R"_raw_html_(
         }
 
         function handleVirtualCursorClick() {
+            if (kbnav_active) {
+                sendKey ('Enter');
+                return;
+            }
+
             // If cursor was hidden, wake it up in place to prevent accidental blind clicks
             if (!vcursor_visible) {
                 showVirtualCursor();
@@ -741,6 +756,14 @@ char live_html[] =  R"_raw_html_(
                         var url = e.data.substring(6);
                         console.log('embedding ' + url);
                         showEmbed (url);
+                    }
+
+                    else if (e.data.substring(0,6) == 'kbnav ') {
+                        // hamclock modal with keyboard navigation opened (1) or closed (0)
+                        kbnav_active = (e.data.substring(6) === '1');
+                        window.hc_kbnav = kbnav_active;
+                        if (kbnav_active)
+                            hideVirtualCursor();
                     }
 
                     else if (e.data === 'paste') {

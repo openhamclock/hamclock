@@ -70,3 +70,4 @@ No manifest change is needed for HTTPS. `[network-traffic-policy.cleartext]` onl
 - HamClock's version check (`connecthttpsHCGET`, `wifi.cpp`) also goes through this path now. With `NO_UPGRADE` on Vega it can only report a newer version; updates still come from the Appstore.
 - In the background, JS timers may be throttled, so fetches can wait or time out. The panes then retry as they do after a failed curl. Not observed as a problem.
 - The TV now has the Phase 10 Release build (local build number 1201). The LAT copy still needs reinstalling from the Appstore (PHASE9_RESULTS.md).
+

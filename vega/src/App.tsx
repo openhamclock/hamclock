@@ -45,6 +45,7 @@ import type {
   WebViewErrorEvent,
   WebViewHttpErrorEvent,
   WebViewMessageEvent,
+  WebViewNavigationEvent,
 } from '@amazon-devices/webview/dist/types/WebViewTypes';
 import {DEFAULT_BACKEND, DEFAULT_ENGINE_OPTIONS, DEFAULT_MDNS_NAME, HcEngine, ensureEngineStarted} from './engine';
 import type {EngineStatus, VegaSettings} from './engine';
@@ -77,10 +78,17 @@ const WEB_RETRY_MS = 2_000;
  */
 const LAN_RESTART_HOLD_MS = 2_000;
 
+/** The clock page (live.html from the engine), as opposed to a page HamClock opened. */
+function isLivePage(url: string): boolean {
+  return url === '' || (url.startsWith(`http://${ENGINE_HOST}:`) && url.includes('/live.html'));
+}
+
 /**
  * Injected into live.html before its own scripts, so this capture-phase listener runs before the
  * page's keydown handler. live.html defines handleVirtualCursorMove/Click but leaves calling them
- * to the host app (the Android app does it from native key handling).
+ * to the host app (the Android app does it from native key handling). While HamClock shows a
+ * dialog with keyboard navigation (QR code: Open/Close), live.html sets window.hc_kbnav and those
+ * functions send arrows and OK to it as keys; Back then sends Escape (closes the dialog).
  *
  * It also fits the clock to the screen with the safe margin (overscan). live.html's initCanvas()
  * only shrinks a clock larger than the window and centers a smaller one at its own size, and it
@@ -122,7 +130,8 @@ function pageScript(overscanPct: number): string {
     var repeat = e.repeat || (lastDown.key === k && !lastDown.up && now - lastDown.t < 700);
     lastDown = {key: k, t: now, up: false};
     if (holdKey === k) return;                   // already repeating; Vega's repeat just keeps it alive
-    if (repeat) { startHold(k); return; }
+    // While a HamClock dialog takes the arrows as keys (window.hc_kbnav, see below), no speed-up.
+    if (repeat && !window.hc_kbnav) { startHold(k); return; }
     stopHold();
     if (typeof handleVirtualCursorMove === 'function') handleVirtualCursorMove(k);
   }
@@ -144,7 +153,11 @@ function pageScript(overscanPct: number): string {
     } else if (k === 'Escape' || k === 'GoBack' || k === 'BrowserBack' || c === 27) {
       stopHold();
       var ov = document.getElementById('embed-overlay');
-      if (!(ov && getComputedStyle(ov).display !== 'none')) { post('back'); handled = true; }
+      if (window.hc_kbnav && typeof sendKey === 'function') {
+        // A HamClock dialog with keyboard navigation (e.g. the QR code) is up: Back closes it.
+        sendKey('Escape');
+        handled = true;
+      } else if (!(ov && getComputedStyle(ov).display !== 'none')) { post('back'); handled = true; }
     }
     dbg('key:' + k + ':' + c + (handled ? ':h' : '') + (e.repeat ? ':r' : ''));
     if (handled) { e.preventDefault(); e.stopImmediatePropagation(); }
@@ -943,7 +956,10 @@ export const App = () => {
   const metrics = useTvMetrics();
   const stateRef = useRef(state);
   stateRef.current = state;
-  const webRef = useRef<{injectJavaScript: (js: string) => void} | null>(null);
+  const webRef = useRef<{injectJavaScript: (js: string) => void; goBack: () => void} | null>(null);
+  // Where the WebView is. HamClock's "open" links (e.g. Show movies -> Open Movie) navigate this
+  // WebView away from live.html; Back then returns to the clock (see onBack).
+  const webNavRef = useRef<{url: string; canGoBack: boolean}>({url: '', canGoBack: false});
   const [settings, setSettings] = useState<VegaSettings | null>(null);
   const editCancelRef = useRef<(() => void) | null>(null);
   const [fieldNotes, setFieldNotes] = useState<Record<string, FieldNote>>({});
@@ -1112,11 +1128,17 @@ export const App = () => {
   }, []);
 
   // Back: settings page -> main page; otherwise close the panel if open, or open it (it has "Exit HamClock").
+  // On a page HamClock opened (not live.html), Back first returns to the clock.
   const onBack = useCallback(() => {
     const st = stateRef.current;
+    const nav = webNavRef.current;
     if (editCancelRef.current) editCancelRef.current(); // Back while typing: cancel the edit only
     else if (st.settingsOpen && st.panelPage === 'settings') dispatch({type: 'PANEL_PAGE', page: 'main'});
-    else toggleSettings();
+    else if (!st.settingsOpen && nav.url && !isLivePage(nav.url)) {
+      debugLog(`[HCWEB] back from ${nav.url}`);
+      if (nav.canGoBack) webRef.current?.goBack();
+      else dispatch({type: 'WEB_RELOAD'});
+    } else toggleSettings();
   }, [toggleSettings]);
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -1171,15 +1193,20 @@ export const App = () => {
           javaScriptEnabled
           domStorageEnabled
           mediaPlaybackRequiresUserAction={false}
-          onLoad={() => {
+          onLoadStart={({nativeEvent: {url, canGoBack}}: WebViewNavigationEvent) => {
+            webNavRef.current = {url, canGoBack};
+          }}
+          onLoad={({nativeEvent: {url, canGoBack}}: WebViewNavigationEvent) => {
+            webNavRef.current = {url, canGoBack};
             dispatch({type: 'WEB_LOADED'});
             webRef.current?.injectJavaScript(overscanJs(overscanRef.current));
           }}
-          onError={({nativeEvent: {code, description}}: WebViewErrorEvent) =>
-            dispatch({type: 'WEB_ERROR', message: `${code}: ${description}`})
-          }
+          // Errors on a page HamClock opened are that site's; Back returns to the clock.
+          onError={({nativeEvent: {code, description, url}}: WebViewErrorEvent) => {
+            if (!url || isLivePage(url)) dispatch({type: 'WEB_ERROR', message: `${code}: ${description}`});
+          }}
           onHttpError={({nativeEvent: {statusCode, isMainFrame}}: WebViewHttpErrorEvent) => {
-            if (isMainFrame) dispatch({type: 'WEB_ERROR', message: `HTTP ${statusCode}`});
+            if (isMainFrame && isLivePage(webNavRef.current.url)) dispatch({type: 'WEB_ERROR', message: `HTTP ${statusCode}`});
           }}
         />
       ) : null,

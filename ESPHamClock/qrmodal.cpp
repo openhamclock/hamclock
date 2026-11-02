@@ -6,7 +6,7 @@
 // "Open" (default / highlighted) and "Close".
 //
 // Supports keyboard navigation:
-//   - Left / Right / Tab: toggle button focus
+//   - Left / Right / Up / Down / Tab: toggle button focus
 //   - Enter / Space: activate focused button
 //   - ESC: dismiss without action
 //
@@ -203,6 +203,9 @@ bool showQRCodeModal (const char *url, const char *title, const char *subtitle, 
     bool open_focused = can_open_browser;
     drawModalButtons (open_focused);
 
+    // live web pages driven by a TV remote send arrows/OK/Back here as keys while we're up
+    setLiveWebKbNav (true);
+
     // User input loop
     UserInput ui = {
         dlg_b,
@@ -217,7 +220,8 @@ bool showQRCodeModal (const char *url, const char *title, const char *subtitle, 
     while (waitForUser (ui)) {
         if (isLiveWebTouch())
             is_live_session = true;
-        if (ui.kb_char == CHAR_TAB || ui.kb_char == CHAR_LEFT || ui.kb_char == CHAR_RIGHT) {
+        if (ui.kb_char == CHAR_TAB || ui.kb_char == CHAR_LEFT || ui.kb_char == CHAR_RIGHT
+                        || ui.kb_char == CHAR_UP || ui.kb_char == CHAR_DOWN) {
             if (can_open_browser) {
                 open_focused = !open_focused;
                 drawModalButtons (open_focused);
@@ -246,6 +250,7 @@ bool showQRCodeModal (const char *url, const char *title, const char *subtitle, 
         }
     }
     drainTouch();
+    setLiveWebKbNav (false);
 
     // Restore screen pixels
     if (!tft.setBackingStore (backing_store, dlg_b.x, dlg_b.y, dlg_b.w, dlg_b.h))

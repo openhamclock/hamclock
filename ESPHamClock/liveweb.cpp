@@ -51,6 +51,11 @@ static bool liveweb_openurl_embed;                       // true if liveweb_open
 static bool liveweb_dopaste;                            // client should attempt paste
 static pthread_mutex_t lw_url_lock = PTHREAD_MUTEX_INITIALIZER; // thread-safe access for liveweb_openurl
 
+// keyboard-navigable modal (e.g. the QR code dialog) is up, see setLiveWebKbNav().
+// liveweb_kbnav_gen counts changes so each client is told once; both under lw_url_lock.
+static bool liveweb_kbnav;
+static int liveweb_kbnav_gen;
+
 
 // complete scene on browser for each web socket
 typedef struct {
@@ -58,6 +63,7 @@ typedef struct {
     uint8_t *pixels;                                    // this client's current display image
     int pixel_users;                                    // active borrowers of this pixels buffer
     bool pixels_retiring;                               // close has begun; free pixels once the borrowers are gone
+    int kbnav_gen;                                      // liveweb_kbnav_gen last sent to this client
 } SessionInfo;
 static SessionInfo *si_list;                            // malloced list
 static int si_n;                                        // n malloced
@@ -449,6 +455,14 @@ static void sendURL (ws_cli_conn_t *client, const char *url, bool embed)
     ws_sendframe_txt (client, opencmd);
 }
 
+/* send whether a keyboard-navigable modal is up.
+ * N.B. coordinate with liveweb-html
+ */
+static void sendKbNav (ws_cli_conn_t *client, bool on)
+{
+    ws_sendframe_txt (client, on ? "kbnav 1" : "kbnav 0");
+}
+
 /* client running liveweb-html.cpp is asking for a complete screen capture as png file.
  */
 static void getLivePNG (ws_cli_conn_t *client, char args[], size_t args_len)
@@ -493,7 +507,26 @@ static void getLiveUpdate (ws_cli_conn_t *client, char args[], size_t args_len)
             lastest_ws_touch_client = NULL;
         }
     }
+    bool kbnav = liveweb_kbnav;
+    int kbnav_gen = liveweb_kbnav_gen;
     pthread_mutex_unlock (&lw_url_lock);
+
+    // tell this client when a keyboard-navigable modal opens or closes, once per change
+    bool send_kbnav = false;
+    pthread_mutex_lock (&si_lock);
+    for (int i = 0; i < si_n; i++) {
+        SessionInfo *sip = &si_list[i];
+        if (sip->client == client) {
+            if (sip->kbnav_gen != kbnav_gen) {
+                sip->kbnav_gen = kbnav_gen;
+                send_kbnav = true;
+            }
+            break;
+        }
+    }
+    pthread_mutex_unlock (&si_lock);
+    if (send_kbnav)
+        sendKbNav (client, kbnav);
 
     // close if time out
     if (liveweb_to) {
@@ -802,6 +835,7 @@ static void ws_onopen(ws_cli_conn_t *client)
     // init including memory for pixels but don't capture until client asks for them
     if (new_sip) {
         new_sip->client = client;
+        new_sip->kbnav_gen = 0;                         // 0: nothing sent yet, see setLiveWebKbNav()
         new_sip->pixels = (uint8_t *) malloc (LIVE_NBYTES);
         if (!new_sip->pixels)
             bye ("No memory for new live session pixels\n");
@@ -959,6 +993,9 @@ static void ws_not (FILE *sockfp, const char *header)
  */
 void initLiveWeb (bool verbose)
 {
+    // no modal is up at start, even if an embedding host restarted us while one was
+    setLiveWebKbNav (false);
+
     if (verbose) {
 
         // just report
@@ -1055,6 +1092,23 @@ void openLiveWebURLEmbedded (const char *url)
     liveweb_openurl = strdup (url);
     liveweb_openurl_embed = true;
     Serial.printf ("LIVE: live web staging embedded URL %s\n", url);
+    pthread_mutex_unlock (&lw_url_lock);
+}
+
+/* record whether a modal that takes keyboard navigation (arrows, Enter, Esc) is up, e.g. the QR
+ * code dialog. each live web client is told on its next update poll ("kbnav 1" / "kbnav 0"), so a
+ * page driven by a TV remote's virtual cursor (Android, Vega) sends arrows and OK to the modal as
+ * keys instead of moving the cursor.
+ */
+void setLiveWebKbNav (bool on)
+{
+    pthread_mutex_lock (&lw_url_lock);
+    if (liveweb_kbnav != on) {
+        liveweb_kbnav = on;
+        // first change makes gen 1, so new sessions (gen 0) hear about an open modal too;
+        // a new session while none is open gets a harmless "kbnav 0".
+        liveweb_kbnav_gen++;
+    }
     pthread_mutex_unlock (&lw_url_lock);
 }
 
