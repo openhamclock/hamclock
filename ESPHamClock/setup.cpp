@@ -5990,9 +5990,13 @@ void clockSetup()
     // prep shadowed params, if nothing else for logging them
     initShadowedParams();
 
-    // ask user whether they want to run setup, display anyway if any strings are invalid
+    // ask user whether they want to run setup, display anyway if any strings are invalid or -u
     bool str_ok = validateStringPrompts (false);
-    if ((!str_ok || askRun()) && askPasswd ("setup", false)) {
+    bool now = setup_now;
+    setup_now = false;                  // one-shot, even where globals outlive a restart
+    if (now)
+        Serial.printf ("Setup: opening because -u\n");
+    if ((!str_ok || now || askRun()) && askPasswd ("setup", false)) {
 
         // init display prompts and options
         initDisplay();

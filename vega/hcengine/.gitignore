@@ -1,0 +1,14 @@
+*.iml
+*.swp
+.idea
+.DS_Store
+.vscode
+.tmp
+
+dist
+build
+node_modules
+CMakeUserPresets.json
+npm-debug.log
+# Turbo Module codegen output is committed: re-running codegen would overwrite the bridge.
+!kepler/turbo-modules/generated/

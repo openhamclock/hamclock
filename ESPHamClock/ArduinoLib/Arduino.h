@@ -64,6 +64,17 @@ extern char build_variables[];
 extern void capturePasswords (const char *fn);
 extern int hamclock_main (int ac, char *av[]);
 
+// Hooks for hosts that run hamclock_main() on a thread inside their own process (e.g. Vega).
+// Standalone builds leave both unset and behave as before.
+// hamclock_stop_requested: when set, hamclock_main() returns at the next loop() boundary.
+// hamclock_restart_hook: if set, ESP::restart() calls it with the new argv instead of execvp();
+//   it must not return.
+// hamclock_stop_hook: if set, delay() calls it while hamclock_stop_requested is set, so the host can
+//   end the engine thread from inside nested wait loops (Setup, modals); it may return.
+extern volatile bool hamclock_stop_requested;
+extern void (*hamclock_restart_hook) (char *argv[]);
+extern void (*hamclock_stop_hook) (void);
+
 #include "ESP.h"
 #include "Serial.h"
 #include "TimeLib.h"

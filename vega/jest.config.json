@@ -1,0 +1,27 @@
+{
+  "preset": "@amazon-devices/react-native-kepler",
+  "testRegex": "/test/.*\\.(test|spec)\\.(ts|tsx|js)$",
+  "moduleFileExtensions": ["ts", "tsx", "js", "jsx", "json", "node"],
+  "moduleNameMapper": {
+    "^react-native$": "@amazon-devices/react-native-kepler",
+    "^react-native/(.*)$": "@amazon-devices/react-native-kepler/$1",
+    "^~/(.*)$": "<rootDir>/src/$1"
+  },
+  "modulePaths": ["<rootDir>/src"],
+  "roots": [
+    "<rootDir>/src/",
+    "<rootDir>/test/",
+    "<rootDir>/node_modules/"
+  ],
+  "transformIgnorePatterns": [
+    "node_modules/(?!(react-native|@react-native|@amazon-devices/react-native-kepler|@amazon-devices)/)"
+  ],
+  "collectCoverage": false,
+  "collectCoverageFrom": [
+    "src/**/*",
+    "!**/index.{ts,js,tsx}",
+    "!**/types.ts",
+    "!src/**/*.d.ts"
+  ],
+  "coverageDirectory": ".tmp/coverage"
+}

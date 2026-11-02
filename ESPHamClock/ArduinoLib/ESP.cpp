@@ -26,7 +26,7 @@ void ESP::restart (bool minus_K, bool minus_0)
 {
         printf ("Restart -K? %d -0? %d\n", minus_K, minus_0);
 
-        // copy our_argv, removing any -[K0] unless wanted
+        // copy our_argv, removing any -[K0] unless wanted and always removing -u
         char **tmp_argv = NULL;
         int tmp_argc = 0;
         for (char **argv = our_argv; *argv != NULL; argv++) {
@@ -47,6 +47,10 @@ void ESP::restart (bool minus_K, bool minus_0)
                             s -= 1;                             // recheck the new *s
                         }
                         minus_0 = false;                        // prevent dup below
+                        break;
+                    case 'u':
+                        memmove (s, s+1, strlen(s));            // remove u, include EOS
+                        s -= 1;                                 // recheck the new *s
                         break;
                     }
                 }
@@ -74,6 +78,11 @@ void ESP::restart (bool minus_K, bool minus_0)
             printf ("  argv[%d]: %s\n", i, tmp_argv[i]);
         printf ("see you there!\n\n");
 
+        // embedded host: hand over the new args; the hook does not return.
+        // N.B. must come before closing fds, which belong to the host process too.
+        if (hamclock_restart_hook)
+            hamclock_restart_hook (tmp_argv);
+
         // close all but basic fd
         for (int i = 3; i < 100; i++)
             (void) ::close(i);
@@ -94,8 +103,10 @@ uint32_t ESP::getChipId()
         if (sn)
             return (sn);
 
-#if defined(_IS_LINUX)
-        // try cpu serial number
+#if defined(_IS_LINUX) && !defined(_IS_VEGA)
+        // try cpu serial number.
+        // not on Vega: there the S/N always comes from the per-install virtual MAC (see the app's
+        // VirtualMac.cpp) so it can never change to a cpu serial later.
         FILE *fp = fopen ("/proc/cpuinfo", "r");
         if (fp) {
             static const char serial[] = "Serial";

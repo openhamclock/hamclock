@@ -188,6 +188,25 @@ bool Adafruit_RA8875::begin (int not_used)
 
 #if defined(_WEB_ONLY)
 
+        // begin() runs again if the engine is restarted within the same process (embedded hosts).
+        // The canvas, locks and fbThread from the first call stay valid, so just reset the state.
+        static bool web_begun;
+        if (web_begun) {
+            pthread_mutex_lock (&fb_lock);
+            memset (fb_canvas, 0, fb_nbytes);       // black
+            memset (fb_stage, 1, fb_nbytes);        // unlikely color
+            pthread_mutex_unlock (&fb_lock);
+            pthread_mutex_lock (&mouse_lock);
+            mouse_downs = mouse_ups = 0;
+            pthread_mutex_unlock (&mouse_lock);
+            pthread_mutex_lock (&kb_lock);
+            kb_qhead = kb_qtail = 0;
+            pthread_mutex_unlock (&kb_lock);
+            current_font = &Courier_Prime_Sans6pt7b;
+            return (true);
+        }
+        web_begun = true;
+
         // minimal environment to support fbThread
 
         fb_si.xres = FB_XRES;

@@ -1,0 +1,53 @@
+/**
+ * App-side access to the embedded HamClock engine (@openhamclock/hcengine).
+ */
+import {DEFAULT_BACKEND, DEFAULT_MDNS_NAME, HcEngine} from '@openhamclock/hcengine';
+import type {EngineOptions, EngineState, EngineStatus, FetchRequest, VegaSettings} from '@openhamclock/hcengine';
+
+export {DEFAULT_BACKEND, DEFAULT_MDNS_NAME, HcEngine};
+export type {EngineOptions, EngineState, EngineStatus, FetchRequest, VegaSettings};
+
+/**
+ * Production defaults. lanAccess, backend and mdnsName are left out on purpose: the engine then
+ * uses the saved settings (<dataDir>/vega-settings.json; changed with HcEngine.updateSettings).
+ * firstRunLanAccess: with no callsign stored, the engine turns LAN access on (and saves it)
+ * before it binds, so the first-run screen's QR code works without a restart.
+ * The app never seeds a callsign; the user enters it in HamClock's Setup.
+ */
+export const DEFAULT_ENGINE_OPTIONS: EngineOptions = {
+  dataDir: '/data/hamclock',
+  restPort: 8080,
+  liveRwPort: 8081,
+  firstRunLanAccess: true,
+};
+
+/** Start the engine unless it is already starting or running. */
+export function ensureEngineStarted(options: EngineOptions = DEFAULT_ENGINE_OPTIONS): void {
+  const {state} = HcEngine.getStatus();
+  if (state === 'starting' || state === 'running' || state === 'stopping') {
+    return;
+  }
+  HcEngine.start(options);
+}
+
+/** Resolve with the status once `want(status)` holds; reject after timeoutMs. */
+export function waitForEngine(
+  want: (s: EngineStatus) => boolean,
+  timeoutMs: number,
+  pollMs = 250,
+): Promise<EngineStatus> {
+  const t0 = Date.now();
+  return new Promise((resolve, reject) => {
+    const tick = () => {
+      const s = HcEngine.getStatus();
+      if (want(s)) {
+        resolve(s);
+      } else if (Date.now() - t0 > timeoutMs) {
+        reject(new Error(`engine timeout; state=${s.state}`));
+      } else {
+        setTimeout(tick, pollMs);
+      }
+    };
+    tick();
+  });
+}
