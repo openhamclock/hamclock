@@ -1359,6 +1359,7 @@ export const App = () => {
         debugLog(`[HCUPD] canOpenURL: ${String(e)}`);
       }
       if (cancelled) return;
+      debugLog(`[HCUPD] canOpenURL ${APPSTORE_URL}: ${can}`);
       setCanOpenStore(can);
       setUpdateNotice(v);
     };
@@ -1382,7 +1383,10 @@ export const App = () => {
   }, []);
   const openStore = useCallback(() => {
     updateLater();
-    Linking.openURL(APPSTORE_URL).catch(e => console.warn(`[HCUPD] openURL failed: ${String(e)}`));
+    debugLog(`[HCUPD] openURL ${APPSTORE_URL}`);
+    Linking.openURL(APPSTORE_URL)
+      .then(() => debugLog('[HCUPD] openURL ok'))
+      .catch(e => console.warn(`[HCUPD] openURL failed: ${String(e)}`));
   }, [updateLater]);
   const updateNever = useCallback(() => {
     setUpdateNotice(null);

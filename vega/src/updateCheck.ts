@@ -21,11 +21,11 @@ export const SNOOZE_MS = 24 * 3600_000;
 const FETCH_TIMEOUT_MS = 8_000;
 
 /**
- * Amazon Appstore ASIN of this app ('' until it's listed). With an ASIN, the notice offers
+ * Amazon Appstore ASIN of this app (the public listing). The notice offers
  * "Open Appstore" (amzns://apps?asin=…, the app's Appstore page). The package form
  * (amzns://apps?p=<package>) doesn't help: it launches the app if installed, i.e. ourselves.
  */
-export const APPSTORE_ASIN = '';
+export const APPSTORE_ASIN = 'B0HHCXSB4Y'; // the public listing (shared with the Android app)
 export const APPSTORE_URL = APPSTORE_ASIN ? `amzns://apps?asin=${APPSTORE_ASIN}` : '';
 
 /**
