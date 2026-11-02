@@ -2,13 +2,8 @@ name: Vega
 
 # Vega OS (Fire TV) app: lint and tests, then a Release .vpkg for armv7 (and aarch64 if asked for).
 # The packages are uploaded as a workflow artifact. Tagged releases build them in release.yml.
-# Runs on pull requests that touch the Vega app or the engine, or by hand (workflow_dispatch).
+# Runs on demand only (Actions → Vega → Run workflow, or gh workflow run vega.yml).
 on:
-  pull_request:
-    paths:
-      - 'vega/**'
-      - 'ESPHamClock/**'
-      - '.github/workflows/vega.yml'
   workflow_dispatch:
     inputs:
       build_aarch64:
@@ -90,7 +85,7 @@ jobs:
       - name: Build
         working-directory: vega
         env:
-          # inputs is empty on pull_request, so PRs build armv7 only.
+          # armv7, plus aarch64 if build_aarch64 is ticked.
           ARCHS: armv7${{ inputs.build_aarch64 && ' aarch64' || '' }}
         run: |
           source ~/vega/env
