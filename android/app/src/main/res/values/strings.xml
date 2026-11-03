@@ -69,7 +69,7 @@
     <string name="auto_update_subtext">Automatically check for and notify about new releases</string>
     <string name="auto_update_disabled_toast">Automatic updates disabled. You can re-enable them in HamClock Settings.</string>
 
-    <!-- Vega Settings Redesign Strings -->
+    <!-- Settings Panel Redesign Strings -->
     <string name="resume_hamclock">Resume HamClock</string>
     <string name="lan_access_on">LAN Access: On</string>
     <string name="lan_access_off">LAN Access: Off</string>

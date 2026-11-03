@@ -125,41 +125,41 @@ flowchart TD
 **Goal:** Establish the complete visual design language of Vega in Android resource files without altering application logic yet.
 
 - [x] **Colors (`res/values/colors.xml`):**
-  - Add Vega color palette:
-    - `vega_bg`: `#05070C`
-    - `vega_backdrop`: `#99020408` (60% dark overlay)
-    - `vega_panel`: `#F00E1420` (94% opacity `#0E1420`)
-    - `vega_border`: `#2E78AAFF` (18% opacity `#78AAFF`)
-    - `vega_text`: `#E8EEFC`
-    - `vega_muted`: `#8EA0C2`
-    - `vega_accent`: `#FFB547` (Vega Amber)
-    - `vega_accent_bg`: `#14FFB547` (8% opacity Amber)
-    - `vega_accent_border`: `#59FFB547` (35% opacity Amber)
-    - `vega_accent_dim`: `#26FFB547` (15% opacity Amber)
-    - `vega_danger`: `#FF5D6C` (Danger Red)
-    - `vega_danger_dim`: `#26FF5D6C`
-    - `vega_card_bg_off`: `#0AFFFFFF` (4% white)
-    - `vega_btn_bg`: `#0FFFFFFF` (6% white)
-    - `vega_btn_text_focused`: `#10131A`
+  - Add settings overlay color palette (styled from Vega's slate/amber theme):
+    - `settings_bg`: `#05070C`
+    - `settings_backdrop`: `#99020408` (60% dark overlay)
+    - `settings_panel`: `#F00E1420` (94% opacity `#0E1420`)
+    - `settings_border`: `#2E78AAFF` (18% opacity `#78AAFF`)
+    - `settings_text`: `#E8EEFC`
+    - `settings_muted`: `#8EA0C2`
+    - `settings_accent`: `#FFB547` (Amber Accent)
+    - `settings_accent_bg`: `#14FFB547` (8% opacity Amber)
+    - `settings_accent_border`: `#59FFB547` (35% opacity Amber)
+    - `settings_accent_dim`: `#26FFB547` (15% opacity Amber)
+    - `settings_danger`: `#FF5D6C` (Danger Red)
+    - `settings_danger_dim`: `#26FF5D6C`
+    - `settings_card_bg_off`: `#0AFFFFFF` (4% white)
+    - `settings_btn_bg`: `#0FFFFFFF` (6% white)
+    - `settings_btn_text_focused`: `#10131A`
 - [x] **Color State Lists (`res/color/`):**
-  - `vega_btn_text_selector.xml`: Focused dark text (`#10131A`), default light text (`#E8EEFC`).
-  - `vega_btn_danger_text_selector.xml`: Focused white text, default danger red (`#FF5D6C`).
-  - `vega_tab_text_selector.xml`: Focused dark text, selected amber (`#FFB547`), default muted (`#8EA0C2`).
+  - `settings_btn_text_selector.xml`: Focused dark text (`#10131A`), default light text (`#E8EEFC`).
+  - `settings_btn_danger_text_selector.xml`: Focused white text, default danger red (`#FF5D6C`).
+  - `settings_tab_text_selector.xml`: Focused dark text, selected amber (`#FFB547`), default muted (`#8EA0C2`).
 - [x] **Drawable Selectors & Shapes (`res/drawable/`):**
-  - `vega_panel_background.xml`: Rounded 16dp dark translucent container (`#0E1420`, 94%) with subtle border.
-  - `vega_btn_default_selector.xml`: Rounded button (`10dp`) with amber fill and white stroke on focus.
-  - `vega_btn_toggle_selector.xml`: Toggle button with amber outline and tinted background when active/selected.
-  - `vega_btn_danger_selector.xml`: Danger button with `#FF5D6C` fill and white stroke on focus.
-  - `vega_card_lan_active.xml`: Amber-tinted rounded card container (`14dp`).
-  - `vega_card_lan_off.xml`: Subtle dark card container (`14dp`).
-  - `vega_qr_frame.xml`: Clean white rounded frame for QR code (`14dp`).
-  - `vega_input_background.xml`: Dark input with amber border focus glow (`8dp`).
-  - `vega_chip_selector.xml`: Segmented choice chips (overscan, update check, tabs).
-  - `vega_badge_suffix.xml`: Suffix badge (`.local`).
+  - `settings_panel_background.xml`: Rounded 16dp dark translucent container (`#0E1420`, 94%) with subtle border.
+  - `settings_btn_default_selector.xml`: Rounded button (`10dp`) with amber fill and white stroke on focus.
+  - `settings_btn_toggle_selector.xml`: Toggle button with amber outline and tinted background when active/selected.
+  - `settings_btn_danger_selector.xml`: Danger button with `#FF5D6C` fill and white stroke on focus.
+  - `settings_card_lan_active.xml`: Amber-tinted rounded card container (`14dp`).
+  - `settings_card_lan_off.xml`: Subtle dark card container (`14dp`).
+  - `settings_qr_frame.xml`: Clean white rounded frame for QR code (`14dp`).
+  - `settings_input_background.xml`: Dark input with amber border focus glow (`8dp`).
+  - `settings_chip_selector.xml`: Segmented choice chips (overscan, update check, tabs).
+  - `settings_badge_suffix.xml`: Suffix badge (`.local`).
 - [x] **Styles & Themes (`res/values/styles.xml`):**
-  - `Theme.HamClock.VegaDialog`: Borderless floating dialog with 0.60 dim amount.
-  - Typography styles: `Vega.Text.Title` (22sp bold), `Vega.Text.Section` (14sp bold), `Vega.Text.Body`, `Vega.Text.Meta`, `Vega.Text.Url`.
-  - Button & input styles: `Vega.Button`, `Vega.Button.Toggle`, `Vega.Button.Danger`, `Vega.Button.Tab`, `Vega.Button.Chip`, `Vega.EditText`.
+  - `Theme.HamClock.SettingsDialog`: Borderless floating dialog with 0.60 dim amount.
+  - Typography styles: `Settings.Text.Title` (22sp bold), `Settings.Text.Section` (14sp bold), `Settings.Text.Body`, `Settings.Text.Meta`, `Settings.Text.Url`.
+  - Button & input styles: `Settings.Button`, `Settings.Button.Toggle`, `Settings.Button.Danger`, `Settings.Button.Tab`, `Settings.Button.Chip`, `Settings.EditText`.
 - [x] **Verification:** Validated all XML resource files are well-formed and structured cleanly.
 
 ---
@@ -179,8 +179,8 @@ flowchart TD
     - Android platform controls: Start on boot CheckBox, OEM autostart helper banner, Run in background CheckBox.
     - Auto-update toggle (`[On]`, `[Off]`).
     - Back button at bottom.
-  - Create `dialog_vega_settings.xml`:
-    - Root container with `ScrollView`, rounded Vega panel card (`@drawable/vega_panel_background`), and `ViewFlipper` seamlessly hosting both `panel_main` and `panel_settings`.
+  - Create `dialog_settings_panel.xml`:
+    - Root container with `ScrollView`, rounded settings panel card (`@drawable/settings_panel_background`), and `ViewFlipper` seamlessly hosting both `panel_main` and `panel_settings`.
 - [x] **Responsive Design:**
   - On widescreen/TV: Side-by-side two-column presentation (left menu 340dp, right card 420dp in `res/layout-land/`).
   - On phones/portrait: Stacked card view with smooth scrolling and navigation to Page 2 in `res/layout/`.
@@ -236,7 +236,7 @@ flowchart TD
 
 - [x] **Form Factor Customizations:**
   - **TV (Fire TV, Android TV):** Overscan choices visible; 10-ft typography scaling; D-pad optimized; "Copy URL" button omitted/hidden on TV to mirror Vega.
-  - **Phones (Portrait/Landscape):** Hide overscan setting on non-TV; constrain dialog height to 94% on short displays so `ScrollView` can scroll; visible "Copy URL" button with toast notification (`R.string.copied_to_clipboard`); vertical fade scrollbar with custom thumb (`@drawable/vega_scrollbar_thumb`).
+  - **Phones (Portrait/Landscape):** Hide overscan setting on non-TV; constrain dialog height to 94% on short displays so `ScrollView` can scroll; visible "Copy URL" button with toast notification (`R.string.copied_to_clipboard`); vertical fade scrollbar with custom thumb (`@drawable/settings_scrollbar_thumb`).
   - **Tablets (7" & 10"):** Optimal responsive two-column display with weight ratios in `layout-land` preventing card clipping on 600-800dp displays; touch-friendly button targets (minimum 48dp on main buttons, 40dp on tabs/chips).
   - **Hardware Discrimination:** Refined `isFireTvOrTv()` and `isTvDevice()` to distinguish Amazon Fire TV from Amazon Fire Tablets, ensuring Fire Tablets are properly treated as touchscreens without spurious overscan controls.
 - [x] **Distribution Channel Verification:**
@@ -245,7 +245,7 @@ flowchart TD
   - **Sideloaded / GitHub:** Verified fallback `InstallSource.OTHER` queries backend `version.pl` and prompts link to GitHub releases.
 - [x] **Edge Cases & Error Handling:**
   - REST port conflict warning: Clearly displayed on Page 1 (`tv_rest_port_conflict`) and under Antennas tab when port 8080 is blocked.
-  - Network disconnected state: Bound `tv_lan_status_notice` in red warning text (`@color/vega_danger`) with `R.string.no_network_found` when device IP is unavailable.
+  - Network disconnected state: Bound `tv_lan_status_notice` in red warning text (`@color/settings_danger`) with `R.string.no_network_found` when device IP is unavailable.
   - First-run auto-dismiss: Verified remote callsign configuration polling automatically applies settings and dismisses the first-run TV guidance dialog when configured.
 - [x] **Verification:** Comprehensive unit test suite (`FormFactorAndStoreTest`, `AutoStartHelperTest`, `VersionComparatorTest`) and clean APK build (`./gradlew test assembleDebug`).
 

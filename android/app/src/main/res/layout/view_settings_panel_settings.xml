@@ -10,14 +10,14 @@
     <!-- Header -->
     <TextView
         android:id="@+id/tv_settings_title"
-        style="@style/Vega.Text.Title"
+        style="@style/Settings.Text.Title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/settings_title" />
 
     <TextView
         android:id="@+id/tv_settings_subtitle"
-        style="@style/Vega.Text.Meta"
+        style="@style/Settings.Text.Meta"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
@@ -27,7 +27,7 @@
     <!-- Setting 1: Network Name -->
     <TextView
         android:id="@+id/tv_network_name_label"
-        style="@style/Vega.Text.Section"
+        style="@style/Settings.Text.Section"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/network_name_title" />
@@ -44,7 +44,7 @@
 
         <EditText
             android:id="@+id/et_mdns_name"
-            style="@style/Vega.EditText"
+            style="@style/Settings.EditText"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -61,19 +61,19 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
-            android:background="@drawable/vega_badge_suffix"
+            android:background="@drawable/settings_badge_suffix"
             android:paddingStart="10dp"
             android:paddingTop="8dp"
             android:paddingEnd="10dp"
             android:paddingBottom="8dp"
             android:text="@string/network_name_suffix"
-            android:textColor="@color/vega_muted"
+            android:textColor="@color/settings_muted"
             android:textSize="13sp" />
     </LinearLayout>
 
     <TextView
         android:id="@+id/tv_mdns_name_help"
-        style="@style/Vega.Text.Meta"
+        style="@style/Settings.Text.Meta"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="6dp"
@@ -83,14 +83,14 @@
     <!-- Setting 2: Backend Server -->
     <TextView
         android:id="@+id/tv_backend_server_label"
-        style="@style/Vega.Text.Section"
+        style="@style/Settings.Text.Section"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/backend_server_title" />
 
     <EditText
         android:id="@+id/et_backend_host"
-        style="@style/Vega.EditText"
+        style="@style/Settings.EditText"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="6dp"
@@ -104,7 +104,7 @@
 
     <TextView
         android:id="@+id/tv_backend_help"
-        style="@style/Vega.Text.Meta"
+        style="@style/Settings.Text.Meta"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="6dp"
@@ -123,7 +123,7 @@
 
         <TextView
             android:id="@+id/tv_overscan_label"
-            style="@style/Vega.Text.Section"
+            style="@style/Settings.Text.Section"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/screen_safe_margin_title" />
@@ -139,7 +139,7 @@
 
             <Button
                 android:id="@+id/btn_overscan_0"
-                style="@style/Vega.Button.Chip"
+                style="@style/Settings.Button.Chip"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="4dp"
@@ -151,7 +151,7 @@
 
             <Button
                 android:id="@+id/btn_overscan_3"
-                style="@style/Vega.Button.Chip"
+                style="@style/Settings.Button.Chip"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
@@ -163,7 +163,7 @@
 
             <Button
                 android:id="@+id/btn_overscan_5"
-                style="@style/Vega.Button.Chip"
+                style="@style/Settings.Button.Chip"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/overscan_large"
@@ -174,7 +174,7 @@
 
         <TextView
             android:id="@+id/tv_overscan_subtext"
-            style="@style/Vega.Text.Meta"
+            style="@style/Settings.Text.Meta"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
@@ -193,14 +193,14 @@
 
         <TextView
             android:id="@+id/tv_start_on_boot_label"
-            style="@style/Vega.Text.Section"
+            style="@style/Settings.Text.Section"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/start_on_boot_label" />
 
         <CheckBox
             android:id="@+id/cb_start_on_boot"
-            style="@style/Vega.CheckBox"
+            style="@style/Settings.CheckBox"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginStart="6dp"
@@ -216,7 +216,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:background="@drawable/vega_card_lan_off"
+            android:background="@drawable/settings_card_lan_off"
             android:clipChildren="false"
             android:clipToPadding="false"
             android:orientation="vertical"
@@ -225,16 +225,16 @@
 
             <TextView
                 android:id="@+id/tv_autostart_notice"
-                style="@style/Vega.Text.Meta"
+                style="@style/Settings.Text.Meta"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="8dp"
                 android:text="@string/autostart_oem_notice"
-                android:textColor="@color/vega_accent" />
+                android:textColor="@color/settings_accent" />
 
             <Button
                 android:id="@+id/btn_open_autostart"
-                style="@style/Vega.Button.Tab"
+                style="@style/Settings.Button.Tab"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="4dp"
@@ -254,14 +254,14 @@
 
         <TextView
             android:id="@+id/tv_run_in_background_label"
-            style="@style/Vega.Text.Section"
+            style="@style/Settings.Text.Section"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/run_in_background_label" />
 
         <CheckBox
             android:id="@+id/cb_run_in_background"
-            style="@style/Vega.CheckBox"
+            style="@style/Settings.CheckBox"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginStart="6dp"
@@ -273,7 +273,7 @@
 
         <TextView
             android:id="@+id/tv_run_in_background_subtext"
-            style="@style/Vega.Text.Meta"
+            style="@style/Settings.Text.Meta"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginStart="32dp"
@@ -293,7 +293,7 @@
 
         <TextView
             android:id="@+id/tv_auto_update_label"
-            style="@style/Vega.Text.Section"
+            style="@style/Settings.Text.Section"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/check_for_updates_title" />
@@ -309,7 +309,7 @@
 
             <Button
                 android:id="@+id/btn_update_on"
-                style="@style/Vega.Button.Chip"
+                style="@style/Settings.Button.Chip"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="4dp"
@@ -321,7 +321,7 @@
 
             <Button
                 android:id="@+id/btn_update_off"
-                style="@style/Vega.Button.Chip"
+                style="@style/Settings.Button.Chip"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/toggle_off"
@@ -339,7 +339,7 @@
 
         <TextView
             android:id="@+id/tv_auto_update_subtext"
-            style="@style/Vega.Text.Meta"
+            style="@style/Settings.Text.Meta"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
@@ -349,7 +349,7 @@
     <!-- Back Button -->
     <Button
         android:id="@+id/btn_settings_back"
-        style="@style/Vega.Button"
+        style="@style/Settings.Button"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="6dp"
