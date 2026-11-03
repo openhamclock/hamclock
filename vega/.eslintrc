@@ -1,4 +1,5 @@
 {
+  "root": true,
   "plugins": ["@typescript-eslint", "@amazon-devices/eslint-plugin-kepler"],
   "extends": [
     "@react-native",
