@@ -107,62 +107,166 @@ def create_or_get_edit(app_id: str, token: str) -> str:
         sys.exit(1)
 
 
-def upload_apk(app_id: str, edit_id: str, token: str, apk_path: str):
-    """Upload or replace APK in the active edit session."""
-    print(f"Checking existing APKs in edit session {edit_id}...")
+def get_existing_binaries(app_id: str, edit_id: str, token: str) -> list:
+    """Retrieve existing binaries (APKs / VPKGs) and their ETags in the active edit session."""
+    print(f"Checking existing binaries in edit session {edit_id}...")
     apks_url = f"{API_BASE_URL}/{app_id}/edits/{edit_id}/apks"
-    _, _, data = api_request(apks_url, token, method="GET")
-    raw_text = data.decode("utf-8", errors="replace").strip() if data else ""
-    existing_apks = []
+    status, _, data = api_request(apks_url, token, method="GET", allow_error_codes=[400, 404])
+    if status != 200 or not data:
+        return []
+
+    raw_text = data.decode("utf-8", errors="replace").strip()
+    existing_list = []
     if raw_text:
         try:
             parsed = json.loads(raw_text)
             if isinstance(parsed, list):
-                existing_apks = parsed
+                existing_list = parsed
             elif isinstance(parsed, dict):
-                existing_apks = parsed.get("apks", [parsed] if "id" in parsed else [])
+                existing_list = parsed.get("apks", [parsed] if "id" in parsed else [])
         except Exception as e:
-            print(f"Could not parse existing APKs list ({e}), treating as no existing APKs.")
-            existing_apks = []
+            print(f"Could not parse existing APKs list ({e}), treating as no existing binaries.")
+            return []
 
-    file_size = os.path.getsize(apk_path)
-    print(f"Uploading APK ({apk_path}, {file_size} bytes)...")
-
-    with open(apk_path, "rb") as f:
-        apk_bytes = f.read()
-
-    headers = {
-        "Content-Type": "application/vnd.android.package-archive",
-    }
-
-    if existing_apks and len(existing_apks) > 0:
-        apk_id = existing_apks[0].get("id")
-        print(f"Fetching existing APK details and ETag (ID: {apk_id})...")
-        single_apk_url = f"{API_BASE_URL}/{app_id}/edits/{edit_id}/apks/{apk_id}"
-        _, apk_headers, apk_data = api_request(single_apk_url, token, method="GET")
-        etag = apk_headers.get("ETag")
-        if not etag:
+    detailed_binaries = []
+    for item in existing_list:
+        binary_id = item.get("id")
+        if not binary_id:
+            continue
+        single_url = f"{API_BASE_URL}/{app_id}/edits/{edit_id}/apks/{binary_id}"
+        s_status, s_headers, s_data = api_request(single_url, token, method="GET", allow_error_codes=[400, 404])
+        etag = s_headers.get("ETag") if s_headers else None
+        details = {}
+        if s_status == 200 and s_data:
             try:
-                apk_json = json.loads(apk_data.decode("utf-8"))
-                etag = apk_json.get("etag") or apk_json.get("eTag")
+                details = json.loads(s_data.decode("utf-8"))
             except Exception:
                 pass
+        if not etag and details:
+            etag = details.get("etag") or details.get("eTag")
 
+        detailed_binaries.append({
+            "id": binary_id,
+            "etag": etag,
+            "summary": item,
+            "details": details,
+        })
+
+    print(f"Found {len(detailed_binaries)} existing binary entry(ies) in edit session.")
+    return detailed_binaries
+
+
+def find_matching_binary(detailed_binaries: list, file_path: str) -> dict:
+    """Find an existing binary entry that corresponds to the file being uploaded (APK vs VPKG)."""
+    if not detailed_binaries:
+        return None
+
+    is_vpkg = file_path.lower().endswith(".vpkg")
+
+    # 1. Look for explicit indication in summary/details
+    for entry in detailed_binaries:
+        combined_text = json.dumps(entry).lower()
+        if is_vpkg and ("vpkg" in combined_text or "vega" in combined_text):
+            return entry
+        elif not is_vpkg and ("vpkg" not in combined_text and "vega" not in combined_text):
+            if ".apk" in combined_text or '"apk' in combined_text:
+                return entry
+
+    # 2. If looking for APK and only 1 binary exists that does not appear to be Vega:
+    if not is_vpkg and len(detailed_binaries) == 1:
+        entry = detailed_binaries[0]
+        combined_text = json.dumps(entry).lower()
+        if "vpkg" not in combined_text and "vega" not in combined_text:
+            return entry
+
+    # 3. If looking for VPKG and only 1 binary exists and it does appear to be Vega:
+    if is_vpkg and len(detailed_binaries) == 1:
+        entry = detailed_binaries[0]
+        combined_text = json.dumps(entry).lower()
+        if "vpkg" in combined_text or "vega" in combined_text:
+            return entry
+
+    # 4. If looking for APK in multi-binary set, return first non-Vega entry:
+    if not is_vpkg:
+        for entry in detailed_binaries:
+            combined_text = json.dumps(entry).lower()
+            if "vpkg" not in combined_text and "vega" not in combined_text:
+                return entry
+
+    return None
+
+
+def upload_binary(
+    app_id: str,
+    edit_id: str,
+    token: str,
+    file_path: str,
+    binary_label: str = "APK",
+    existing_binaries: list = None,
+    continue_on_error: bool = False,
+) -> bool:
+    """Upload or replace a binary file (APK or VPKG) in the active edit session."""
+    file_name = os.path.basename(file_path)
+    file_size = os.path.getsize(file_path)
+    is_vpkg = file_path.lower().endswith(".vpkg")
+
+    print(f"Preparing to upload {binary_label}: {file_name} ({file_size} bytes)...")
+
+    with open(file_path, "rb") as f:
+        file_bytes = f.read()
+
+    content_type = "application/octet-stream" if is_vpkg else "application/vnd.android.package-archive"
+    headers = {
+        "Content-Type": content_type,
+        "fileName": file_name,
+    }
+
+    matched_entry = find_matching_binary(existing_binaries or [], file_path)
+
+    if matched_entry:
+        binary_id = matched_entry["id"]
+        etag = matched_entry.get("etag")
+        print(f"Replacing existing {binary_label} (ID: {binary_id}, ETag: {etag or 'None'})...")
+        upload_url = f"{API_BASE_URL}/{app_id}/edits/{edit_id}/apks/{binary_id}/replace"
         replace_headers = dict(headers)
         if etag:
-            print(f"Replacing existing APK (ID: {apk_id}, ETag: {etag})...")
             replace_headers["If-Match"] = etag
-        else:
-            print(f"Replacing existing APK (ID: {apk_id}, no ETag found)...")
 
-        upload_url = f"{API_BASE_URL}/{app_id}/edits/{edit_id}/apks/{apk_id}/replace"
-        api_request(upload_url, token, method="PUT", data=apk_bytes, headers=replace_headers)
+        status, _, resp_data = api_request(
+            upload_url,
+            token,
+            method="PUT",
+            data=file_bytes,
+            headers=replace_headers,
+            allow_error_codes=[400, 404, 409, 412, 415, 422, 500] if continue_on_error else None,
+        )
     else:
-        print("Uploading new APK...")
+        print(f"Uploading new {binary_label} ({file_name})...")
         upload_url = f"{API_BASE_URL}/{app_id}/edits/{edit_id}/apks/upload"
-        api_request(upload_url, token, method="POST", data=apk_bytes, headers=headers)
+        status, _, resp_data = api_request(
+            upload_url,
+            token,
+            method="POST",
+            data=file_bytes,
+            headers=headers,
+            allow_error_codes=[400, 404, 409, 412, 415, 422, 500] if continue_on_error else None,
+        )
 
-    print("APK upload complete.")
+    if status not in (200, 201, 204):
+        err = resp_data.decode("utf-8", errors="replace") if resp_data else ""
+        if continue_on_error:
+            print(
+                f"Warning: Failed to upload {binary_label} '{file_name}' to Amazon Appstore (HTTP {status}): {err}\n"
+                f"You can upload '{file_name}' manually in the Amazon Developer Console under the Upcoming Version.",
+                file=sys.stderr,
+            )
+            return False
+        else:
+            print(f"Error: Failed to upload {binary_label} '{file_name}' (HTTP {status}): {err}", file=sys.stderr)
+            sys.exit(1)
+
+    print(f"{binary_label} upload complete.")
+    return True
 
 
 def update_release_notes(app_id: str, edit_id: str, token: str, notes_file: str):
@@ -295,40 +399,94 @@ def commit_edit(app_id: str, edit_id: str, token: str):
     print("Edit committed successfully! Upcoming version submitted for review.")
 
 
-def resolve_apk_path(pattern: str) -> str:
-    """Find the APK file matching the given glob pattern."""
+def resolve_file_path(pattern: str, desc: str = "file") -> str:
+    """Find a file matching the given glob pattern."""
     matches = glob.glob(pattern)
     if not matches:
-        raise FileNotFoundError(f"No APK file found matching pattern: {pattern}")
+        raise FileNotFoundError(f"No {desc} found matching pattern: {pattern}")
     return matches[0]
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Upload APK and update release notes on Amazon Appstore")
+    parser = argparse.ArgumentParser(description="Upload APK / VPKG and update release notes on Amazon Appstore")
     parser.add_argument("--client-id", required=True, help="Amazon LWA Client ID")
     parser.add_argument("--client-secret", required=True, help="Amazon LWA Client Secret")
     parser.add_argument("--app-id", required=True, help="Amazon Appstore App ID")
     parser.add_argument("--apk", required=True, help="Path or glob pattern for the release APK")
+    parser.add_argument(
+        "--vpkg",
+        action="append",
+        default=[],
+        help="Path or glob pattern for the Vega OS release VPKG (can be specified multiple times)",
+    )
+    parser.add_argument(
+        "--vpkg-continue-on-error",
+        action="store_true",
+        default=True,
+        help="Warn and continue if Vega VPKG upload fails rather than aborting release (default: true)",
+    )
     parser.add_argument("--notes-file", default="", help="Path to release notes text file")
     parser.add_argument(
         "--skip-commit",
         action="store_true",
-        help="Upload APK and update notes without committing edit session (leaves draft for Live App Testing)",
+        help="Upload binaries and update notes without committing edit session (leaves draft for Live App Testing)",
     )
 
     args = parser.parse_args()
 
-    apk_file = resolve_apk_path(args.apk)
+    apk_file = resolve_file_path(args.apk, "APK")
     print(f"Target APK: {apk_file}")
 
     token = get_lwa_token(args.client_id, args.client_secret)
     edit_id = create_or_get_edit(args.app_id, token)
 
-    upload_apk(args.app_id, edit_id, token, apk_file)
+    # 1. Fetch current binaries attached to this edit session
+    existing_binaries = get_existing_binaries(args.app_id, edit_id, token)
 
+    # 2. Upload or replace the Android APK
+    upload_binary(
+        args.app_id,
+        edit_id,
+        token,
+        apk_file,
+        binary_label="APK",
+        existing_binaries=existing_binaries,
+        continue_on_error=False,
+    )
+
+    # 3. Upload or replace Vega OS (.vpkg) packages if provided
+    if args.vpkg:
+        vpkg_files = []
+        for pattern in args.vpkg:
+            matched = glob.glob(pattern)
+            if matched:
+                for m in matched:
+                    if m not in vpkg_files:
+                        vpkg_files.append(m)
+            elif os.path.isfile(pattern) and pattern not in vpkg_files:
+                vpkg_files.append(pattern)
+
+        if not vpkg_files:
+            print(f"Notice: No VPKG files found matching pattern(s): {args.vpkg}. Skipping VPKG upload.")
+        else:
+            for vpkg_file in vpkg_files:
+                # Refresh binary list so we know about recently uploaded/replaced APK
+                existing_binaries = get_existing_binaries(args.app_id, edit_id, token)
+                upload_binary(
+                    args.app_id,
+                    edit_id,
+                    token,
+                    vpkg_file,
+                    binary_label="Vega VPKG",
+                    existing_binaries=existing_binaries,
+                    continue_on_error=args.vpkg_continue_on_error,
+                )
+
+    # 4. Update release notes if provided
     if args.notes_file:
         update_release_notes(args.app_id, edit_id, token, args.notes_file)
 
+    # 5. Commit or leave as draft
     if args.skip_commit:
         print(f"Skipping edit commit (--skip-commit specified). Edit session {edit_id} remains active as a draft.")
         print("You can now open the Amazon Developer Console -> Live App Testing -> Start a new test -> 'Copy from upcoming version'.")

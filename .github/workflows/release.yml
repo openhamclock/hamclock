@@ -50,7 +50,7 @@ on:
           - 'true'
         default: 'false'
       push_amazon_appstore:
-        description: 'Upload Android APK to Amazon Appstore'
+        description: 'Upload Android APK and Vega OS package (.vpkg) to Amazon Appstore'
         required: true
         type: choice
         options:
@@ -206,7 +206,7 @@ jobs:
       # Build the Vega OS (Fire TV) packages. Version = the tag (TAG), build number = git commit
       # count, as for Android (vega/scripts/version.js); the engine uses version.cpp as set above.
       # A Vega failure doesn't stop the rest of the release. The .vpkg files are attached to the
-      # GitHub release; Appstore submission is manual (developer console).
+      # GitHub release and uploaded alongside the APK to the Amazon Appstore.
       - name: Build Vega OS packages (.vpkg)
         if: ${{ github.event.inputs.build_vega != 'false' }}
         continue-on-error: true
@@ -282,7 +282,7 @@ jobs:
           mappingFile: dist/mapping.txt
           debugSymbols: dist/native-debug-symbols.zip
 
-      # Upload the signed .apk and release notes to Amazon Appstore
+      # Upload the signed .apk, Vega .vpkg, and release notes to Amazon Appstore
       - name: Upload to Amazon Appstore
         if: ${{ github.event.inputs.push_amazon_appstore == 'true' || github.event.inputs.push_amazon_appstore == true || inputs.push_amazon_appstore == 'true' || inputs.push_amazon_appstore == true }}
         run: |
@@ -304,6 +304,14 @@ jobs:
           else
             echo "Amazon release mode: Submitting directly for review (Current Version)"
           fi
+
+          # Attach Vega OS packages to Amazon upload if built
+          for vpkg in dist/org.openhamclock*-vega-*.vpkg; do
+            if [ -f "$vpkg" ]; then
+              echo "Including Vega OS package for Amazon Appstore: $vpkg"
+              EXTRA_ARGS+=(--vpkg "$vpkg")
+            fi
+          done
 
           python3 .github/scripts/upload_amazon_appstore.py \
             --client-id "${{ secrets.AMAZON_APPSTORE_CLIENT_ID }}" \

@@ -85,7 +85,7 @@ gh workflow run
 | `push_play_store` | choice (`true`, `false`) | `true` | When `true`, uploads the Android AAB to Google Play. |
 | `play_store_track` | choice (`auto`, `beta`, `production`, `internal`) | `auto` | Target Google Play track. `auto` sends beta tags (`*b*`) to Open testing (`beta`) and stable tags to Production (`production`). |
 | `play_store_changes_not_sent_for_review` | choice (`false`, `true`) | `false` | When `true`, stages the upload as a draft in Google Play without auto-submitting for review. Required when Google Play locks automated API submissions following a review rejection or pending policy declaration. |
-| `push_amazon_appstore` | choice (`true`, `false`) | `true` | When `true`, uploads the Android APK to the Amazon Appstore. |
+| `push_amazon_appstore` | choice (`true`, `false`) | `true` | When `true`, uploads the Android APK and Vega OS package (`.vpkg`) to the Amazon Appstore. |
 | `build_vega` | choice (`true`, `false`) | `true` | When `true`, builds the Vega OS (Fire TV) package (`.vpkg`) and attaches it to the GitHub release. A Vega build failure doesn't stop the release. |
 | `build_vega_aarch64` | choice (`false`, `true`) | `false` | When `true`, also builds the Vega aarch64 package. No arm64 Vega device is known, so only armv7 is built by default. Both arches can share one build number, so aarch64 can be added later. |
 | `amazon_submit_for_review` | choice (`false`, `true`, `auto`) | `false` | When `false`, the upload is left as a draft upcoming version (`--skip-commit`), so DRM can be set in the console before submitting by hand. `true` submits directly for review. `auto` submits stable tags directly for review and leaves beta tags as a draft for Live App Testing (LAT). |
@@ -227,7 +227,7 @@ The release workflow executes two jobs sequentially: `release` followed by `dock
      - **Handling Review Rejections or Blocked Auto-Submissions (`changesNotSentForReview`):** If a previous release was rejected or Google Play requires manual confirmation for policy changes, Google's API rejects automated submissions with `Changes cannot be sent for review automatically. Please set the query parameter changesNotSentForReview to true.` In this situation, set `play_store_changes_not_sent_for_review=true`. The workflow will successfully stage the `.aab` in Google Play Console without error, allowing you to review the changes and click **Send changes for review** manually from the console UI.
      - **Managed Publishing:** Because Managed Publishing is turned ON in Google Play Console, approved releases do *not* go live automatically. Instead, they wait in Google Play Console under **Publishing Overview** -> **Ready to publish**, giving you the final manual control to send changes live to users.
    - **Amazon Appstore (`push_amazon_appstore`):**
-     - By default (`amazon_submit_for_review=false`), uploads the APK and release notes to an "Upcoming Version" draft with `--skip-commit`, for every tag. Set DRM in the Amazon Developer Console, then submit by hand.
+     - By default (`amazon_submit_for_review=false`), uploads the APK, Vega `.vpkg` (if built), and release notes to an "Upcoming Version" draft with `--skip-commit`, for every tag. Set DRM in the Amazon Developer Console, then submit by hand.
      - With `amazon_submit_for_review=auto`, the mode follows the release tag:
        - **Beta tags** (`*b*`): Uploads APK and release notes to an "Upcoming Version" draft with `--skip-commit`. Because Amazon lacks a public REST API for Live App Testing (LAT), this prepares everything as a draft. In the Amazon Developer Console, go to **Live App Testing** $\rightarrow$ **Start a new test** $\rightarrow$ **Copy from upcoming version** and click **Start test**.
        - **Stable tags**: Commits the edit session to submit directly for Amazon review to become the live "Current Version".
@@ -238,7 +238,7 @@ The release workflow executes two jobs sequentially: `release` followed by `dock
    - Version = `TAG` without the leading `v` (e.g. `4.32.0`); build number = git commit count, as for Android's `versionCode` (`vega/scripts/version.js`).
    - Outputs `dist/org.openhamclock.hamclock-$TAG-vega-<arch>.vpkg`.
    - `continue-on-error`: a Vega failure leaves the `.vpkg` off the release but doesn't stop it.
-   - No Appstore upload: submit the `.vpkg` manually in the Amazon Developer Console. See [`vega/README.md`](vega/README.md).
+   - Appstore upload: when `push_amazon_appstore` is `true`, the `.vpkg` is automatically uploaded alongside the APK to the Amazon Appstore.
 5. **GitHub Release Publication:**
    - Creates the GitHub Release via `gh release create`. By default creates an active, published release; can be created as a draft using `-f publish_release=false`.
    - Generates release notes automatically from commit log (`--generate-notes`).
