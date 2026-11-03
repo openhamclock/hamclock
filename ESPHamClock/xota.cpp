@@ -15,6 +15,7 @@
 typedef struct {
     const char *label;         // token to search for in the comment, eg "WCA"
     const char *org;           // canonical org name to report, usually == label
+    bool need_dash;            // reference must contain a '-', to reject eg "TOTA 59" (signal report)
 } XOTALabel;
 
 static const XOTALabel xota_labels[] = {
@@ -26,6 +27,9 @@ static const XOTALabel xota_labels[] = {
                                 // both valid on-air calls -- catch either
     { "WCA",    "WCA"    },
     { "WAB",    "WAB"    },
+    { "WWTOTA", "WWTOTA", true },    // World Wide Towers On The Air -- separate program from TOTA below
+    { "TOTA",   "TOTA", true },  // Towers On The Air, eg "TOTA EAR-1315". N.B. must be found here
+                                // so the bare-POTA-shape fallback never claims a TOTA reference
 };
 
 /* true if c can be part of a reference token: alnum, or the separators that
@@ -301,6 +305,67 @@ static bool findWWFFShape (const char *comment, char *ref, size_t ref_len)
     return (false);
 }
 
+/* RDA (Russian Districts Award) references are "XX-NN" (2 letters, dash, 2 digits, eg "BA-56"). Too
+ * generic to trust bare, so the comment must also mention "RDA" -- but comments often glue it to
+ * the next word ("rdacabinet.r"), so unlike the other labels RDA may be followed by more letters.
+ * It must not be glued to alnum on its LEFT, to avoid words that merely contain it. Returns the
+ * first reference found, upper-cased.
+ */
+static bool findRDAShape (const char *comment, char *ref, size_t ref_len)
+{
+    bool has_label = false;
+    const char *hit;
+    for (const char *from = comment; (hit = strcistr (from, "RDA")) != NULL; from = hit + 3)
+        if (hit == comment || !isalnum ((unsigned char)hit[-1])) {
+            has_label = true;
+            break;
+        }
+    if (!has_label || ref_len < 6)
+        return (false);
+
+    for (size_t i = 0; comment[i]; i++) {
+        if (!isalpha ((unsigned char)comment[i]) || !isalpha ((unsigned char)comment[i+1])
+                        || comment[i+2] != '-' || !isdigit ((unsigned char)comment[i+3])
+                        || !isdigit ((unsigned char)comment[i+4]))
+            continue;
+        if (i > 0 && (isalnum ((unsigned char)comment[i-1]) || comment[i-1] == '/' || comment[i-1] == '-'))
+            continue;
+        if (isalnum ((unsigned char)comment[i+5]) || comment[i+5] == '-')
+            continue;
+        for (size_t k = 0; k < 5; k++)
+            ref[k] = toupper ((unsigned char)comment[i+k]);
+        ref[5] = '\0';
+        return (true);
+    }
+    return (false);
+}
+
+/* DME (Diploma de Municipios Espanoles, URE): "DME" followed by the municipality's 5-digit INE code,
+ * eg "DME-28902", "DME 28902", "DME28902". The 5 digits are required so "DME 59" can't match.
+ * The ref reported is just the digits.
+ */
+static bool findDMEShape (const char *comment, char *ref, size_t ref_len)
+{
+    if (ref_len < 6)
+        return (false);
+    const char *hit;
+    for (const char *from = comment; (hit = strcistr (from, "DME")) != NULL; from = hit + 3) {
+        size_t i = hit - comment;
+        if (i > 0 && isalnum ((unsigned char)comment[i-1]))
+            continue;
+        size_t j = skipLabelSeparator (comment, i + 3);
+        size_t k = j;
+        while (isdigit ((unsigned char)comment[k]) && k - j < 6)
+            k++;
+        if (k - j != 5 || isalnum ((unsigned char)comment[k]))
+            continue;
+        memcpy (ref, comment + j, 5);
+        ref[5] = '\0';
+        return (true);
+    }
+    return (false);
+}
+
 /* last-resort POTA detection for comments that give a bare park reference with no "POTA" label,
  * eg "US-6954 8313", "K-1234", "DL-01063". Shape: 1-3 letters, ONE dash, 4-5 digits, standing alone
  * (not glued to other alnum chars or a '/'). Only called after every label-anchored scan has failed,
@@ -321,8 +386,8 @@ static bool findBarePOTAShape (const char *comment, char *ref, size_t ref_len)
         while (isalpha ((unsigned char)comment[j]) && j - i < 4)
             j++;
         size_t n_pfx = j - i;
-        if (n_pfx > 3 || comment[j] != '-')
-            continue;
+        if (n_pfx > 2 || comment[j] != '-')             // real POTA prefixes are 1-2 letters; 3+ is
+            continue;                                   // some other program, eg "DME-28902"
         if (n_pfx >= 2 && toupper((unsigned char)comment[j-1]) == 'F' && toupper((unsigned char)comment[j-2]) == 'F')
             continue;                                       // WWFF, not POTA
         j++;                                                // past the dash
@@ -375,6 +440,16 @@ bool findXOTARef (const char *comment, char *org, size_t org_len, char *ref, siz
         return (true);
     }
 
+    if (findRDAShape (comment, ref, ref_len)) {
+        quietStrncpy (org, "RDA", org_len);
+        return (true);
+    }
+
+    if (findDMEShape (comment, ref, ref_len)) {
+        quietStrncpy (org, "DME", org_len);
+        return (true);
+    }
+
     for (const XOTALabel &xl : xota_labels) {
 
         size_t label_len = strlen (xl.label);
@@ -416,7 +491,9 @@ bool findXOTARef (const char *comment, char *org, size_t org_len, char *ref, siz
                     if (isdigit ((unsigned char)candidate[k]))
                         has_digit = true;
 
-                if (n >= 2 && n < ref_len && has_digit) {
+                bool has_dash = memchr (candidate, '-', n) != NULL;
+
+                if (n >= 2 && n < ref_len && has_digit && (has_dash || !xl.need_dash)) {
                     quietStrncpy (org, xl.org, org_len);
                     for (size_t k = 0; k < n; k++)
                         ref[k] = toupper ((unsigned char)candidate[k]);

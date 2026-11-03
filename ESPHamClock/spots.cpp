@@ -14,11 +14,16 @@ typedef struct {
     const char *org;
     char letter;
     uint16_t color;
+    uint16_t fg;                // letter color; 0 (black) unless a dark background needs white
 } XOTAMarker;
 static const XOTAMarker xota_markers[] = {
     { "POTA",   'P', RGB565(60,200,90)   },     // green -- same as POTA in ontheair.cpp's onta_org_info
     { "SOTA",   'S', RGB565(255,150,30)  },     // orange -- same as SOTA in ontheair.cpp's onta_org_info
     { "WWFF",   'F', RGB565(0,190,160)   },     // teal -- same as WWFF in ontheair.cpp's onta_org_info
+    { "WWTOTA", 'T', RGB565(184,115,51)  },     // copper -- same as WWTOTA in ontheair.cpp's onta_org_info
+    { "TOTA",   'T', RGB565(230,190,40)  },     // amber -- same as TOWERS in ontheair.cpp's onta_org_info
+    { "DME",    'D', RGB565(170,90,200), RA8875_WHITE },  // purple, white letter -- URE's Spanish municipalities award
+    { "RDA",    'R', RGB565(200,30,30), RA8875_WHITE },   // dark red (distinct from RA8875_RED watchlist hits), white letter
     { "WCA",    'C', RGB565(255,215,0)   },     // gold
     { "ARLHS",  'L', RGB565(100,170,255) },     // sky blue -- lighthouses
     { "ILLW",   'L', RGB565(100,170,255) },     // "
@@ -256,7 +261,7 @@ void drawSpotOnList (const SBox &box, const DXSpot &spot, int row, uint16_t bg_c
         char letter = spot.iota[0] ? 'I' : xm->letter;
         uint16_t mark_color = spot.iota[0] ? IOTA_MARK_COLOR : xm->color;
         tft.fillRect (call_end_x, y-LISTING_OS, IOTA_MARK_W, h, mark_color);
-        tft.setTextColor (RA8875_BLACK);
+        tft.setTextColor (spot.iota[0] ? RA8875_BLACK : (xm->fg ? xm->fg : RA8875_BLACK));
         tft.setCursor (call_end_x + 2, y);
         tft.print (letter);
         tft.setTextColor (RA8875_WHITE);
