@@ -45,6 +45,23 @@ class AppUpdateHelper(private val activity: AppCompatActivity) {
         private const val PERIODIC_CHECK_INTERVAL_MS = 6 * 3600 * 1000L // 6 hours
         private const val INITIAL_CHECK_DELAY_MS = 15 * 1000L // 15 seconds after launch
         private const val DISMISS_SNOOZE_MS = 24 * 3600 * 1000L // 24 hours
+
+        fun determineInstallSource(
+            installerPackage: String?,
+            manufacturer: String?,
+            brand: String?,
+            hasFireTvFeature: Boolean
+        ): InstallSource {
+            val isAmazonDevice = manufacturer.equals("Amazon", ignoreCase = true) ||
+                    brand.equals("Amazon", ignoreCase = true) ||
+                    hasFireTvFeature
+
+            return when {
+                installerPackage == "com.android.vending" -> InstallSource.GOOGLE_PLAY
+                installerPackage == "com.amazon.venezia" || (isAmazonDevice && installerPackage != "com.android.vending") -> InstallSource.AMAZON_APPSTORE
+                else -> InstallSource.OTHER
+            }
+        }
     }
 
     fun isAutoUpdateEnabled(): Boolean {
@@ -396,14 +413,11 @@ class AppUpdateHelper(private val activity: AppCompatActivity) {
             null
         }
 
-        val isAmazonDevice = Build.MANUFACTURER.equals("Amazon", ignoreCase = true) ||
-                Build.BRAND.equals("Amazon", ignoreCase = true) ||
-                pm.hasSystemFeature("amazon.hardware.fire_tv")
-
-        return when {
-            installerPackage == "com.android.vending" -> InstallSource.GOOGLE_PLAY
-            installerPackage == "com.amazon.venezia" || (isAmazonDevice && installerPackage != "com.android.vending") -> InstallSource.AMAZON_APPSTORE
-            else -> InstallSource.OTHER
-        }
+        return determineInstallSource(
+            installerPackage = installerPackage,
+            manufacturer = Build.MANUFACTURER,
+            brand = Build.BRAND,
+            hasFireTvFeature = pm.hasSystemFeature("amazon.hardware.fire_tv")
+        )
     }
 }

@@ -119,6 +119,7 @@ object HamClockNative {
     ): Boolean
 
     external fun isDaemonRunning(): Boolean
+    external fun getVersion(): String
     external fun setAllowExternalAccess(allow: Boolean)
     @JvmStatic
     external fun generateQRCodePixels(text: String, scale: Int = 4, border: Int = 2): IntArray?
