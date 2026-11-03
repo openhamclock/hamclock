@@ -434,8 +434,10 @@ class SettingsPanelController(private val activity: MainActivity) {
         fun applyFocusZoom(view: View, scale: Float = 1.04f, onFocus: ((Boolean) -> Unit)? = null) {
             view.setOnFocusChangeListener { v, hasFocus ->
                 if (hasFocus) {
+                    v.translationZ = 8f
                     v.animate().scaleX(scale).scaleY(scale).setDuration(120).start()
                 } else {
+                    v.translationZ = 0f
                     v.animate().scaleX(1.0f).scaleY(1.0f).setDuration(120).start()
                 }
                 onFocus?.invoke(hasFocus)

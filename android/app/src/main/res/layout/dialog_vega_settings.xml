@@ -3,6 +3,8 @@
     android:id="@+id/dialog_vega_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:clipChildren="false"
+    android:clipToPadding="false"
     android:background="@android:color/transparent">
 
     <ScrollView
@@ -11,6 +13,8 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:fillViewport="true"
+        android:clipChildren="false"
+        android:clipToPadding="false"
         android:scrollbars="vertical"
         android:scrollbarThumbVertical="@drawable/vega_scrollbar_thumb"
         android:fadeScrollbars="true"
@@ -22,6 +26,8 @@
             android:layout_height="wrap_content"
             android:layout_margin="16dp"
             android:background="@drawable/vega_panel_background"
+            android:clipChildren="false"
+            android:clipToPadding="false"
             android:padding="28dp">
 
             <ViewFlipper
@@ -29,6 +35,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:measureAllChildren="false"
+                android:clipChildren="false"
+                android:clipToPadding="false"
                 android:inAnimation="@android:anim/fade_in"
                 android:outAnimation="@android:anim/fade_out">
 

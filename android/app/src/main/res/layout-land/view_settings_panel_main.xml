@@ -3,6 +3,8 @@
     android:id="@+id/panel_main_root"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:clipChildren="false"
+    android:clipToPadding="false"
     android:orientation="horizontal"
     android:baselineAligned="false">
 
@@ -12,6 +14,8 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:layout_marginEnd="24dp"
+        android:clipChildren="false"
+        android:clipToPadding="false"
         android:orientation="vertical">
 
         <TextView
@@ -53,6 +57,8 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
             android:background="@drawable/vega_card_lan_active"
+            android:clipChildren="false"
+            android:clipToPadding="false"
             android:orientation="vertical"
             android:padding="10dp"
             android:visibility="gone">
@@ -86,6 +92,8 @@
             style="@style/Vega.Button"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
             android:layout_marginBottom="8dp"
             android:text="@string/resume_hamclock"
             android:nextFocusUp="@+id/btn_exit_app"
@@ -97,6 +105,8 @@
             style="@style/Vega.Button.Toggle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
             android:layout_marginBottom="8dp"
             android:text="@string/lan_access_off"
             android:nextFocusUp="@+id/btn_resume"
@@ -108,6 +118,8 @@
             style="@style/Vega.Button"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
             android:layout_marginBottom="8dp"
             android:text="@string/settings_ellipsis"
             android:nextFocusUp="@+id/btn_toggle_lan"
@@ -119,6 +131,8 @@
             style="@style/Vega.Button"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
             android:layout_marginBottom="8dp"
             android:text="@string/open_setup"
             android:nextFocusUp="@+id/btn_go_to_settings"
@@ -130,6 +144,8 @@
             style="@style/Vega.Button.Danger"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
             android:text="@string/exit_hamclock"
             android:nextFocusUp="@+id/btn_open_setup"
             android:nextFocusDown="@+id/btn_resume"
@@ -150,6 +166,8 @@
         android:id="@+id/card_lan_info"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:clipChildren="false"
+        android:clipToPadding="false"
         android:layout_weight="1.2">
 
         <!-- LAN Off State Container -->
@@ -158,6 +176,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@drawable/vega_card_lan_off"
+            android:clipChildren="false"
+            android:clipToPadding="false"
             android:orientation="vertical"
             android:padding="24dp"
             android:visibility="gone">
@@ -187,6 +207,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@drawable/vega_card_lan_active"
+            android:clipChildren="false"
+            android:clipToPadding="false"
             android:orientation="vertical"
             android:padding="18dp"
             android:visibility="visible">
@@ -195,6 +217,8 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:clipChildren="false"
+                android:clipToPadding="false"
                 android:orientation="horizontal">
 
                 <Button
@@ -202,6 +226,7 @@
                     style="@style/Vega.Button.Tab"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
                     android:layout_marginEnd="4dp"
                     android:layout_weight="1"
                     android:text="@string/endpoint_live_clock"
@@ -216,6 +241,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="4dp"
+                    android:layout_marginEnd="4dp"
                     android:layout_weight="1"
                     android:text="@string/endpoint_antennas"
                     android:nextFocusUp="@+id/btn_copy_local_url"
