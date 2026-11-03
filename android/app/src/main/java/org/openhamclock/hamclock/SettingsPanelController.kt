@@ -191,11 +191,7 @@ class SettingsPanelController(private val activity: MainActivity) {
         fun updateEngineStatusAndPorts() {
             val isRunning = HamClockNative.isDaemonRunning()
             val engineStateText = if (isRunning) "running" else "stopped"
-            val versionName = try {
-                activity.packageManager.getPackageInfo(activity.packageName, 0).versionName ?: "3.10"
-            } catch (e: Exception) {
-                "3.10"
-            }
+            val versionName = HamClockNative.getVersion().removePrefix("v").removePrefix("V")
             tvEngineStatus.text = activity.getString(R.string.engine_status_format, engineStateText, versionName)
 
             val rwPort = activity.actualRwPort
