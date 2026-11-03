@@ -699,25 +699,30 @@ class SettingsPanelController(private val activity: MainActivity) {
         val dlg = builder.create()
         dialog = dlg
 
+        var dialogShownTime = 0L
+
         dlg.setOnKeyListener { _, keyCode, event ->
             if (keyCode == KeyEvent.KEYCODE_BACK) {
                 if (event.action == KeyEvent.ACTION_UP) {
-                    if (currentPage == Page.SETTINGS) {
-                        switchToPage(Page.MAIN)
-                        return@setOnKeyListener true
-                    } else if (currentPage == Page.MAIN) {
-                        dlg.dismiss()
-                        return@setOnKeyListener true
+                    if (android.os.SystemClock.uptimeMillis() - dialogShownTime > 350L) {
+                        if (currentPage == Page.SETTINGS) {
+                            switchToPage(Page.MAIN)
+                        } else if (currentPage == Page.MAIN) {
+                            dlg.dismiss()
+                        }
                     }
+                    return@setOnKeyListener true
                 } else if (event.action == KeyEvent.ACTION_DOWN) {
                     return@setOnKeyListener true
                 }
             }
             if (keyCode == KeyEvent.KEYCODE_MENU || keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
-                if (event.action == KeyEvent.ACTION_UP) {
-                    dlg.dismiss()
+                if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+                    if (android.os.SystemClock.uptimeMillis() - dialogShownTime > 350L) {
+                        dlg.dismiss()
+                    }
                     return@setOnKeyListener true
-                } else if (event.action == KeyEvent.ACTION_DOWN) {
+                } else if (event.action == KeyEvent.ACTION_UP) {
                     return@setOnKeyListener true
                 }
             }
@@ -725,6 +730,7 @@ class SettingsPanelController(private val activity: MainActivity) {
         }
 
         dlg.setOnShowListener {
+            dialogShownTime = android.os.SystemClock.uptimeMillis()
             isShowing = true
             if (initialPage == Page.SETTINGS) {
                 currentPage = Page.SETTINGS

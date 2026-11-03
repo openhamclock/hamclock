@@ -73,7 +73,6 @@ class MainActivity : AppCompatActivity() {
     private val PREF_RUN_IN_BACKGROUND = "run_in_background"
     private val PREF_AUTO_UPDATE = "auto_update_enabled"
     private val PREF_TV_OVERSCAN = "tv_overscan"
-    private var lastBackPressTime: Long = 0
 
     private val DEFAULT_REST_PORT = 8080
     private val DEFAULT_RW_PORT = 8081
@@ -171,13 +170,12 @@ class MainActivity : AppCompatActivity() {
         applyOverscanMargin(initialOverscan)
 
         onBackPressedDispatcher.addCallback(this) {
-            val now = System.currentTimeMillis()
             if (isFireTvOrTv()) {
-                if (now - lastBackPressTime < 2000) {
-                    performAppExitOrBackground()
-                } else {
-                    lastBackPressTime = now
-                    Toast.makeText(this@MainActivity, R.string.press_back_again_to_exit, Toast.LENGTH_SHORT).show()
+                val currentUrl = webView.url
+                if (currentUrl != null && !currentUrl.contains("live.html") && webView.canGoBack()) {
+                    webView.goBack()
+                } else if (!isSettingsDialogOpen) {
+                    showBackendSettingsDialog()
                 }
             } else {
                 performAppExitOrBackground()
@@ -951,7 +949,7 @@ class MainActivity : AppCompatActivity() {
 
         // Quick access remote shortcuts to settings dialog (Menu or Play/Pause)
         if (event.keyCode == KeyEvent.KEYCODE_MENU || event.keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
-            if (event.action == KeyEvent.ACTION_DOWN) {
+            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
                 if (isSettingsDialogOpen) {
                     settingsPanelController?.dismiss()
                 } else {
