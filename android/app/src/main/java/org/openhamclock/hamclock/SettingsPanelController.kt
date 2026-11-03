@@ -28,7 +28,7 @@ import androidx.core.content.ContextCompat
 import java.io.File
 
 /**
- * Controller and state machine managing the Vega two-page settings overlay.
+ * Controller and state machine managing the two-page settings overlay panel.
  *
  * Page 1 (MAIN): Quick operational controls (status, LAN toggle, QR code hub, setup, exit).
  * Page 2 (SETTINGS): Detailed configuration (network name, backend server, overscan, autostart, background, updates).
@@ -89,7 +89,7 @@ class SettingsPanelController(private val activity: MainActivity) {
             return
         }
 
-        val dialogView = activity.layoutInflater.inflate(R.layout.dialog_vega_settings, null)
+        val dialogView = activity.layoutInflater.inflate(R.layout.dialog_settings_panel, null)
 
         // Find views
         val flipper = dialogView.findViewById<ViewFlipper>(R.id.settings_flipper)
@@ -693,7 +693,7 @@ class SettingsPanelController(private val activity: MainActivity) {
         }
 
         // Build AlertDialog
-        val builder = AlertDialog.Builder(activity, R.style.Theme_HamClock_VegaDialog)
+        val builder = AlertDialog.Builder(activity, R.style.Theme_HamClock_SettingsDialog)
         builder.setView(dialogView)
 
         val dlg = builder.create()

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/dialog_vega_root"
+    android:id="@+id/dialog_settings_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:clipChildren="false"
@@ -16,7 +16,7 @@
         android:clipChildren="false"
         android:clipToPadding="false"
         android:scrollbars="vertical"
-        android:scrollbarThumbVertical="@drawable/vega_scrollbar_thumb"
+        android:scrollbarThumbVertical="@drawable/settings_scrollbar_thumb"
         android:fadeScrollbars="true"
         android:overScrollMode="ifContentScrolls">
 
@@ -25,7 +25,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_margin="16dp"
-            android:background="@drawable/vega_panel_background"
+            android:background="@drawable/settings_panel_background"
             android:clipChildren="false"
             android:clipToPadding="false"
             android:padding="28dp">
