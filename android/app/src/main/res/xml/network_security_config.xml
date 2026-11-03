@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!--
+      Google Play Network Security Configuration:
+      Base configuration restricts cleartext traffic to ensure all remote communication
+      is encrypted over TLS/HTTPS by default.
+
+      Domain-specific exceptions are granted strictly for:
+      1. Local loopback interfaces (localhost, 127.0.0.1, ::1) required for the embedded
+         C++ daemon HTTP/WebSocket server and WebView communication.
+      2. Amateur radio upstream backend endpoints if fallback HTTP connection is required.
+    -->
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- Local loopback and Android emulator -->
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">::1</domain>
+        <domain includeSubdomains="false">10.0.2.2</domain>
+
+        <!-- Local mDNS and home LAN search domains -->
+        <domain includeSubdomains="true">local</domain>
+        <domain includeSubdomains="true">lan</domain>
+        <domain includeSubdomains="true">home.arpa</domain>
+
+        <!-- Official HamClock backends -->
+        <domain includeSubdomains="true">hamclock.app</domain>
+        <domain includeSubdomains="true">hamclock.com</domain>
+    </domain-config>
+
+    <!-- Disallow cleartext HTTP traffic globally by default -->
+    <base-config cleartextTrafficPermitted="false" />
+</network-security-config>
+
