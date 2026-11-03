@@ -154,6 +154,7 @@ class SettingsPanelController(private val activity: MainActivity) {
         cbAutoUpdate.isChecked = currentAutoUpdate
 
         if (startOnTvSetup) {
+            prefs.edit().putBoolean(PREF_ALLOW_EXTERNAL, true).apply()
             HamClockNative.setAllowExternalAccess(true)
             activity.updateMdnsService(true, currentMdnsName)
             activity.acquireWifiLock()
@@ -763,14 +764,18 @@ class SettingsPanelController(private val activity: MainActivity) {
                             Log.i(TAG, "Callsign configured via web setup! Automatically saving network settings and dismissing first-run TV guidance.")
                             val enteredMdns = etMdnsName.text.toString().trim()
                             prefs.edit()
-                                .putBoolean(PREF_ALLOW_EXTERNAL, true)
+                                .putBoolean(PREF_ALLOW_EXTERNAL, lanAccessEnabled)
                                 .putString(PREF_MDNS_NAME, enteredMdns)
                                 .putInt(PREF_TV_OVERSCAN, selectedOverscan)
                                 .commit()
                             activity.applyOverscanMargin(selectedOverscan)
-                            HamClockNative.setAllowExternalAccess(true)
-                            activity.updateMdnsService(true, enteredMdns)
-                            activity.acquireWifiLock()
+                            HamClockNative.setAllowExternalAccess(lanAccessEnabled)
+                            activity.updateMdnsService(lanAccessEnabled, enteredMdns)
+                            if (lanAccessEnabled) {
+                                activity.acquireWifiLock()
+                            } else {
+                                activity.releaseWifiLock()
+                            }
                             dlg.dismiss()
                         } else {
                             mainHandler.postDelayed(this, 1000)
