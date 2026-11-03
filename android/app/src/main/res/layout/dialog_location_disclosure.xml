@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/dialog_location_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:padding="20dp"
+    android:background="@android:color/transparent">
+
+    <LinearLayout
+        android:id="@+id/location_panel_card"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:maxWidth="520dp"
+        android:background="@drawable/settings_panel_background"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:orientation="vertical"
+        android:padding="28dp">
+
+        <!-- Title -->
+        <TextView
+            android:id="@+id/tv_location_title"
+            style="@style/Settings.Text.Title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/location_disclosure_title" />
+
+        <!-- Purpose Description -->
+        <TextView
+            android:id="@+id/tv_location_desc"
+            style="@style/Settings.Text.Body"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:lineSpacingMultiplier="1.25"
+            android:text="@string/location_disclosure_desc" />
+
+        <!-- Privacy Box -->
+        <LinearLayout
+            android:id="@+id/ll_location_privacy_box"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/settings_card_lan_off"
+            android:orientation="vertical"
+            android:padding="14dp">
+
+            <TextView
+                android:id="@+id/tv_location_privacy"
+                style="@style/Settings.Text.Meta"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:lineSpacingMultiplier="1.2"
+                android:text="@string/location_disclosure_privacy"
+                android:textColor="@color/settings_muted" />
+        </LinearLayout>
+
+        <!-- Actions -->
+        <LinearLayout
+            android:id="@+id/ll_location_buttons"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:gravity="end"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_manual_location"
+                style="@style/Settings.Button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="12dp"
+                android:text="@string/location_disclosure_btn_manual"
+                android:nextFocusRight="@+id/btn_use_location" />
+
+            <Button
+                android:id="@+id/btn_use_location"
+                style="@style/Settings.Button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/location_disclosure_btn_enable"
+                android:nextFocusLeft="@+id/btn_manual_location" />
+
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>
+

@@ -317,7 +317,7 @@
                 android:text="@string/toggle_on"
                 android:nextFocusUp="@+id/cb_run_in_background"
                 android:nextFocusRight="@+id/btn_update_off"
-                android:nextFocusDown="@+id/btn_settings_back" />
+                android:nextFocusDown="@+id/btn_refresh_location" />
 
             <Button
                 android:id="@+id/btn_update_off"
@@ -327,7 +327,7 @@
                 android:text="@string/toggle_off"
                 android:nextFocusUp="@+id/cb_run_in_background"
                 android:nextFocusLeft="@+id/btn_update_on"
-                android:nextFocusDown="@+id/btn_settings_back" />
+                android:nextFocusDown="@+id/btn_refresh_location" />
 
             <!-- Hidden CheckBox for programmatic sync/callbacks -->
             <CheckBox
@@ -346,6 +346,59 @@
             android:text="@string/check_for_updates_subtext" />
     </LinearLayout>
 
+    <!-- Setting 7: Station Location -->
+    <LinearLayout
+        android:id="@+id/ll_location_section"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="16dp"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tv_location_setting_title"
+            style="@style/Settings.Text.Section"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/location_setting_title" />
+
+        <LinearLayout
+            android:id="@+id/ll_location_setting_row"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tv_location_setting_status"
+                style="@style/Settings.Text.Body"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/location_setting_not_granted" />
+
+            <Button
+                android:id="@+id/btn_refresh_location"
+                style="@style/Settings.Button.Chip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/btn_refresh_location"
+                android:nextFocusUp="@+id/btn_update_on"
+                android:nextFocusDown="@+id/btn_settings_back" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tv_location_setting_subtext"
+            style="@style/Settings.Text.Meta"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/location_disclosure_privacy" />
+    </LinearLayout>
+
     <!-- Back Button -->
     <Button
         android:id="@+id/btn_settings_back"
@@ -355,7 +408,7 @@
         android:layout_marginStart="6dp"
         android:layout_marginTop="8dp"
         android:text="@string/btn_back"
-        android:nextFocusUp="@+id/btn_update_on"
+        android:nextFocusUp="@+id/btn_refresh_location"
         android:nextFocusDown="@+id/et_mdns_name" />
 
 </LinearLayout>

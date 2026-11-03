@@ -103,6 +103,17 @@
     <string name="lan_status_loopback">loopback only</string>
     <string name="no_network_found">No network address found. Check the network connection.</string>
     <string name="connections_refused_format">Refused %1$d connection(s) from outside your network.</string>
+
+    <!-- Location Permission & Prominent Disclosure Strings -->
+    <string name="location_disclosure_title">Station Location Setup</string>
+    <string name="location_disclosure_desc">HamClock uses your device location once to automatically determine your amateur radio grid square, local solar times, satellite passes, and antenna beam bearings.</string>
+    <string name="location_disclosure_privacy">Privacy Guarantee: Coordinates are processed strictly on this device and are never shared, tracked, or uploaded.</string>
+    <string name="location_disclosure_btn_enable">Use Device Location</string>
+    <string name="location_disclosure_btn_manual">Set Manually in Setup</string>
+    <string name="location_setting_title">Station Location (GPS / Network)</string>
+    <string name="location_setting_granted">Granted (Coordinates available)</string>
+    <string name="location_setting_not_granted">Not granted (Manual setup in HamClock)</string>
+    <string name="btn_refresh_location">Update Location</string>
 </resources>
 
 

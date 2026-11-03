@@ -73,6 +73,7 @@ class MainActivity : AppCompatActivity() {
     private val PREF_RUN_IN_BACKGROUND = "run_in_background"
     private val PREF_AUTO_UPDATE = "auto_update_enabled"
     private val PREF_TV_OVERSCAN = "tv_overscan"
+    private val PREF_LOCATION_DISCLOSURE_SEEN = "location_disclosure_seen"
 
     private val DEFAULT_REST_PORT = 8080
     private val DEFAULT_RW_PORT = 8081
@@ -120,10 +121,17 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private var isBackendStarted = false
+    private var locationDisclosureDialog: AlertDialog? = null
+
     private val locationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) {
-        startNativeBackend()
+        if (!isBackendStarted) {
+            startNativeBackend()
+        } else {
+            settingsPanelController?.onLocationPermissionResult()
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -225,16 +233,21 @@ class MainActivity : AppCompatActivity() {
         appUpdateHelper = AppUpdateHelper(this)
         appUpdateHelper.start()
 
-        // Check or request location permissions to obtain host coordinates
+        // Check or request location permissions in compliance with Google Play Developer Policy:
+        // 1. If permission already granted -> start native backend immediately.
+        // 2. If first run without permission -> show prominent disclosure dialog explaining
+        //    that location is used strictly on-device for astronomical & grid calculations.
+        // 3. If disclosure was previously seen and user declined/skipped -> start immediately
+        //    without interrupting cold launch.
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val locationDisclosureSeen = prefs.getBoolean(PREF_LOCATION_DISCLOSURE_SEEN, false)
+
         if (hasLocationPermission()) {
             startNativeBackend()
+        } else if (!locationDisclosureSeen) {
+            showLocationDisclosureDialog()
         } else {
-            locationPermissionLauncher.launch(
-                arrayOf(
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                )
-            )
+            startNativeBackend()
         }
     }
 
@@ -364,14 +377,82 @@ class MainActivity : AppCompatActivity() {
         RestartActivity.restart(this)
     }
 
-
-
-    private fun hasLocationPermission(): Boolean {
+    internal fun hasLocationPermission(): Boolean {
         return ContextCompat.checkSelfPermission(
             this, Manifest.permission.ACCESS_FINE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(
             this, Manifest.permission.ACCESS_COARSE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    internal fun requestLocationPermission() {
+        locationPermissionLauncher.launch(
+            arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            )
+        )
+    }
+
+    private fun showLocationDisclosureDialog() {
+        if (isFinishing || isDestroyed) return
+
+        val dialogView = layoutInflater.inflate(R.layout.dialog_location_disclosure, null)
+        val btnUseLocation = dialogView.findViewById<Button>(R.id.btn_use_location)
+        val btnManual = dialogView.findViewById<Button>(R.id.btn_manual_location)
+
+        val builder = AlertDialog.Builder(this, R.style.Theme_HamClock_SettingsDialog)
+        builder.setView(dialogView)
+        builder.setCancelable(false)
+
+        val dlg = builder.create()
+        locationDisclosureDialog = dlg
+
+        fun applyFocusZoom(view: View) {
+            view.setOnFocusChangeListener { v, hasFocus ->
+                if (hasFocus) {
+                    v.translationZ = 8f
+                    v.animate().scaleX(1.04f).scaleY(1.04f).setDuration(120).start()
+                } else {
+                    v.translationZ = 0f
+                    v.animate().scaleX(1.0f).scaleY(1.0f).setDuration(120).start()
+                }
+            }
+        }
+
+        applyFocusZoom(btnUseLocation)
+        applyFocusZoom(btnManual)
+
+        btnUseLocation.setOnClickListener {
+            val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            prefs.edit().putBoolean(PREF_LOCATION_DISCLOSURE_SEEN, true).apply()
+            dlg.dismiss()
+            requestLocationPermission()
+        }
+
+        btnManual.setOnClickListener {
+            val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            prefs.edit().putBoolean(PREF_LOCATION_DISCLOSURE_SEEN, true).apply()
+            dlg.dismiss()
+            startNativeBackend()
+        }
+
+        dlg.setOnKeyListener { _, keyCode, event ->
+            if (keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP) {
+                val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                prefs.edit().putBoolean(PREF_LOCATION_DISCLOSURE_SEEN, true).apply()
+                dlg.dismiss()
+                startNativeBackend()
+                true
+            } else {
+                false
+            }
+        }
+
+        dlg.show()
+        btnUseLocation.post {
+            btnUseLocation.requestFocus()
+        }
     }
 
     private fun getHostLocation(): Pair<Double, Double>? {
@@ -1097,6 +1178,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        locationDisclosureDialog?.dismiss()
+        locationDisclosureDialog = null
         appUpdateHelper.onDestroy()
         settingsPanelController?.dismiss()
         settingsPanelController = null

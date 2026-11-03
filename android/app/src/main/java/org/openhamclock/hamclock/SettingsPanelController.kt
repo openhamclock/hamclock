@@ -82,6 +82,13 @@ class SettingsPanelController(private val activity: MainActivity) {
     private var cbAutoUpdateRef: CheckBox? = null
     private var btnUpdateOnRef: Button? = null
     private var btnUpdateOffRef: Button? = null
+    private var updateLocationStatusRef: (() -> Unit)? = null
+
+    fun onLocationPermissionResult() {
+        mainHandler.post {
+            updateLocationStatusRef?.invoke()
+        }
+    }
 
     fun show(startOnTvSetup: Boolean = false, initialPage: Page = Page.MAIN) {
         if (isShowing && dialog?.isShowing == true) {
@@ -132,6 +139,8 @@ class SettingsPanelController(private val activity: MainActivity) {
         val btnUpdateOn = dialogView.findViewById<Button>(R.id.btn_update_on)
         val btnUpdateOff = dialogView.findViewById<Button>(R.id.btn_update_off)
         val cbAutoUpdate = dialogView.findViewById<CheckBox>(R.id.cb_auto_update)
+        val tvLocationSettingStatus = dialogView.findViewById<TextView>(R.id.tv_location_setting_status)
+        val btnRefreshLocation = dialogView.findViewById<Button>(R.id.btn_refresh_location)
         val btnSettingsBack = dialogView.findViewById<Button>(R.id.btn_settings_back)
 
         cbAutoUpdateRef = cbAutoUpdate
@@ -687,6 +696,30 @@ class SettingsPanelController(private val activity: MainActivity) {
             updateUpdateButtons(isChecked)
         }
 
+        // Station Location setting
+        fun updateLocationSettingStatus() {
+            if (activity.hasLocationPermission()) {
+                tvLocationSettingStatus.text = activity.getString(R.string.location_setting_granted)
+                tvLocationSettingStatus.setTextColor(ContextCompat.getColor(activity, R.color.settings_text))
+                btnRefreshLocation.text = activity.getString(R.string.btn_refresh_location)
+            } else {
+                tvLocationSettingStatus.text = activity.getString(R.string.location_setting_not_granted)
+                tvLocationSettingStatus.setTextColor(ContextCompat.getColor(activity, R.color.settings_muted))
+                btnRefreshLocation.text = activity.getString(R.string.location_disclosure_btn_enable)
+            }
+        }
+        updateLocationSettingStatus()
+        updateLocationStatusRef = ::updateLocationSettingStatus
+
+        applyFocusZoom(btnRefreshLocation)
+        btnRefreshLocation.setOnClickListener {
+            if (!activity.hasLocationPermission()) {
+                activity.requestLocationPermission()
+            } else {
+                Toast.makeText(activity, R.string.location_setting_granted, Toast.LENGTH_SHORT).show()
+            }
+        }
+
         applyFocusZoom(btnSettingsBack)
         btnSettingsBack.setOnClickListener {
             switchToPage(Page.MAIN)
@@ -750,6 +783,7 @@ class SettingsPanelController(private val activity: MainActivity) {
             cbAutoUpdateRef = null
             btnUpdateOnRef = null
             btnUpdateOffRef = null
+            updateLocationStatusRef = null
             activity.appUpdateHelper.onSettingsDialogDismissed()
             activity.btnSettings.clearFocus()
             activity.webView.requestFocus()
