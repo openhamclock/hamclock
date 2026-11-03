@@ -46,7 +46,7 @@ export function QrCode({matrix, size}: {matrix: boolean[][]; size: number}) {
   const mod = modPx / scale;
   return (
     <View
-      accessibilityLabel="QR code"
+      aria-label="QR code"
       style={[styles.light, {padding: QUIET * mod, width: modules * mod, height: modules * mod}]}>
       {runs.map((row, y) => (
         <View key={y} style={[styles.row, {height: mod}]}>

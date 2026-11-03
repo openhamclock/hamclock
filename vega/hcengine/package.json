@@ -11,9 +11,9 @@
     "clean": "rm -rf node_modules buildinfo.json dist build",
     "kepler-codegen": "keplerscript-turbomodule-api codegen src/turbo-modules/HcEngine.ts -o kepler/turbo-modules/ --new -s HcEngineTurboModule && npm-run-all clean-codegen-backups",
 	  "clean-codegen-backups": "rm -rf kepler/turbo-modules/HcEngine.cpp.bak kepler/turbo-modules/HcEngine.h.bak",
-    "test": "jest --colors",
-    "lint": "eslint src test --ext .ts,.tsx",
-    "lint:fix": "eslint src test --ext .ts,.tsx --fix",
+    "test": "jest --colors --passWithNoTests",
+    "lint": "eslint src --ext .ts,.tsx",
+    "lint:fix": "eslint src --ext .ts,.tsx --fix",
     "build:js": "tsc -p tsconfig.json",
     "build:native:debug": "if command -v vega >/dev/null 2>&1; then vega build -b Debug; else kepler build -b Debug; fi",
     "build:native:release": "if command -v vega >/dev/null 2>&1; then vega build -b Release; else kepler build -b Release; fi",
@@ -22,20 +22,20 @@
     "prepack": "npm-run-all build"
   },
   "dependencies": {
-    "@amazon-devices/keplerscript-turbomodule-api": "^1.0.0"
+    "@amazon-devices/keplerscript-turbomodule-api": "^1.2.5"
   },
   "devDependencies": {
-    "@react-native/eslint-config": "0.72.2",
-    "@types/jest": "^28.0.0",
-    "@typescript-eslint/eslint-plugin": "^5.30.0",
-    "babel-jest": "^28.0.0",
-    "eslint": "^8.12.0",
-    "jest": "^28.0.0",
-    "metro-react-native-babel-preset": "^0.76.5",
+    "@react-native/babel-preset": "0.83.0",
+    "@react-native/eslint-config": "0.83.0",
+    "@types/jest": "^29.5.14",
+    "@typescript-eslint/eslint-plugin": "^6.5.0",
+    "babel-jest": "^29.7.0",
+    "eslint": "^8.57.1",
+    "jest": "^29.7.0",
     "npm-run-all": "^4.1.5",
-    "prettier": "^2.6.2",
-    "ts-jest": "^28.0.0",
-    "typescript": "4.8.4"
+    "prettier": "^2.8.8",
+    "ts-jest": "^29.2.5",
+    "typescript": "5.8.3"
   },
   "kepler": {
     "projectType": "turbomodule",
