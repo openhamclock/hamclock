@@ -148,7 +148,10 @@ static bool findPOTAShape (const char *comment, char *ref, size_t ref_len)
             while (isdigit ((unsigned char)comment[k]) && k - d0 < 6)
                 k++;
             size_t n_dig = k - d0;
-            if (n_dash >= 1 && n_dig >= 3 && n_dig <= 5 && !isalnum ((unsigned char)comment[k])) {
+            // the dash is optional when the label is right here (eg "POTA es1885"), but then
+            // insist on 4+ digits so things like "POTA FT8" or "POTA k59" can't match
+            if (((n_dash >= 1 && n_dig >= 3) || (n_dash == 0 && n_dig >= 4)) && n_dig <= 5
+                                && !isalnum ((unsigned char)comment[k])) {
                 snprintf (dash_form, sizeof(dash_form), "%.*s-%.*s", (int)n_pfx, comment+j, (int)n_dig, comment+d0);
                 got = true;
             }
@@ -195,6 +198,89 @@ static bool findPOTAShape (const char *comment, char *ref, size_t ref_len)
     return (false);
 }
 
+/* WWFF references are self-identifying: a 2-5 letter program prefix ending in "FF", a dash, and 4
+ * digits, eg "KFF-1234", "ONFF-0707", "EAFF-0071", "FF-0001" -- so like WWBOTA they are trusted
+ * without needing a "WWFF" label nearby. Must stand alone (not glued to other alnum chars).
+ */
+static bool findWWFFShape (const char *comment, char *ref, size_t ref_len)
+{
+    size_t len = strlen (comment);
+    for (size_t i = 0; i < len; i++) {
+        if (!isalpha ((unsigned char)comment[i]))
+            continue;
+        if (i > 0 && (isalnum ((unsigned char)comment[i-1]) || comment[i-1] == '/' || comment[i-1] == '-'))
+            continue;
+
+        size_t j = i;
+        while (isalpha ((unsigned char)comment[j]) && j - i < 6)
+            j++;
+        size_t n_pfx = j - i;
+        if (n_pfx < 2 || n_pfx > 5 || comment[j] != '-')
+            continue;
+        if (toupper((unsigned char)comment[j-1]) != 'F' || toupper((unsigned char)comment[j-2]) != 'F')
+            continue;
+        j++;                                                // past the dash
+        size_t d0 = j;
+        while (isdigit ((unsigned char)comment[j]) && j - d0 < 6)
+            j++;
+        size_t n_dig = j - d0;
+        if (n_dig != 4 || isalnum ((unsigned char)comment[j]) || comment[j] == '-' || comment[j] == '/')
+            continue;
+
+        size_t n = j - i;
+        if (n >= ref_len)
+            continue;
+        for (size_t k = 0; k < n; k++)
+            ref[k] = toupper ((unsigned char)comment[i+k]);
+        ref[n] = '\0';
+        return (true);
+    }
+    return (false);
+}
+
+/* last-resort POTA detection for comments that give a bare park reference with no "POTA" label,
+ * eg "US-6954 8313", "K-1234", "DL-01063". Shape: 1-3 letters, ONE dash, 4-5 digits, standing alone
+ * (not glued to other alnum chars or a '/'). Only called after every label-anchored scan has failed,
+ * so a labeled WCA/ARLHS/etc reference in the same comment always wins over this guess. WWFF
+ * references ("KFF-1234", "FF-0001") have the same shape, so any prefix ending in "FF" is rejected.
+ * IOTA ("EU-005") is only 3 digits so is not confused, and findIOTARef() runs first anyway.
+ */
+static bool findBarePOTAShape (const char *comment, char *ref, size_t ref_len)
+{
+    size_t len = strlen (comment);
+    for (size_t i = 0; i < len; i++) {
+        if (!isalpha ((unsigned char)comment[i]))
+            continue;
+        if (i > 0 && (isalnum ((unsigned char)comment[i-1]) || comment[i-1] == '/' || comment[i-1] == '-'))
+            continue;
+
+        size_t j = i;
+        while (isalpha ((unsigned char)comment[j]) && j - i < 4)
+            j++;
+        size_t n_pfx = j - i;
+        if (n_pfx > 3 || comment[j] != '-')
+            continue;
+        if (n_pfx >= 2 && toupper((unsigned char)comment[j-1]) == 'F' && toupper((unsigned char)comment[j-2]) == 'F')
+            continue;                                       // WWFF, not POTA
+        j++;                                                // past the dash
+        size_t d0 = j;
+        while (isdigit ((unsigned char)comment[j]) && j - d0 < 6)
+            j++;
+        size_t n_dig = j - d0;
+        if (n_dig < 4 || n_dig > 5 || isalnum ((unsigned char)comment[j]) || comment[j] == '-' || comment[j] == '/')
+            continue;
+
+        size_t n = j - i;
+        if (n >= ref_len)
+            continue;
+        for (size_t k = 0; k < n; k++)
+            ref[k] = toupper ((unsigned char)comment[i+k]);
+        ref[n] = '\0';
+        return (true);
+    }
+    return (false);
+}
+
 /* see xota.h
  */
 bool findXOTARef (const char *comment, char *org, size_t org_len, char *ref, size_t ref_len)
@@ -211,6 +297,13 @@ bool findXOTARef (const char *comment, char *org, size_t org_len, char *ref, siz
     // free text in the comment, so it gets a dedicated (stricter-than-generic) scan here
     if (findPOTAShape (comment, ref, ref_len)) {
         quietStrncpy (org, "POTA", org_len);
+        return (true);
+    }
+
+    // WWFF: self-identifying shape, checked after an explicitly labeled POTA so a comment naming
+    // both programs still reports POTA
+    if (findWWFFShape (comment, ref, ref_len)) {
+        quietStrncpy (org, "WWFF", org_len);
         return (true);
     }
 
@@ -268,6 +361,12 @@ bool findXOTARef (const char *comment, char *org, size_t org_len, char *ref, siz
             // usable reference following it -- move just past this hit
             search_from = hit + label_len;
         }
+    }
+
+    // no labeled match anywhere: a bare "US-6954"-shaped token is most likely a POTA park
+    if (findBarePOTAShape (comment, ref, ref_len)) {
+        quietStrncpy (org, "POTA", org_len);
+        return (true);
     }
 
     return (false);
