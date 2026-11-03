@@ -107,6 +107,7 @@ static uint32_t dxc_activity_ms;                // millis() of last socket activ
 static SBox dxcclr_b;                           // Clear spots control box
 static bool dxc_flt_active;                     // whether a mode/band filter is currently
                                                  // restricting the spot list
+#define DXC_RESERVE_ROWS 1                       // bottom rows left empty, see initDXGUI. 0 = use all rows
 static uint16_t dxc_hdr_extra;                  // 0 or DXC_HDR_EXTRA, set in initDXGUI to
                                                  // match dxc_flt_active -- everything below
                                                  // the title bar (subtitle, spot list, touch
@@ -236,6 +237,130 @@ static void rebuildDXWatchList(void)
     dxc_ss.scrollToNewest();
 }
 
+/* most recent WCY geomagnetic bulletin broadcast by the cluster, eg
+ *   WCY de DK0WCY-2 <17> : K=2 expK=2 A=7 R=46 SFI=97 SA=eru GMF=qui Au=no
+ * it is not a spot so crackClusterSpot() ignores it; we keep the latest one and show a one-line
+ * summary in the reserved row at the bottom of the pane (see DXC_RESERVE_ROWS).
+ */
+static struct {
+    bool valid;                         // whether any bulletin received yet
+    time_t rcvd;                        // when received
+    int k, expk, a, r, sfi;             // K index, expected K, A index, sunspot number, solar flux
+    char sa[8], gmf[8], au[8];          // solar activity, geomagnetic field, aurora words as sent
+} dxc_wcy;
+
+#define WCY_MAX_AGE     (3*3600)        // bulletins come about hourly; stop showing one older than this
+
+/* find " key=value" in line and copy the value token to val. return whether found.
+ * N.B. the leading space in key matters, eg " K=" must not match the end of " expK=".
+ */
+static bool wcyField (const char *line, const char *key, char *val, size_t val_len)
+{
+    const char *kp = strstr (line, key);
+    if (!kp)
+        return (false);
+    kp += strlen (key);
+    size_t n = 0;
+    while (kp[n] && kp[n] != ' ' && n + 1 < val_len) {
+        val[n] = kp[n];
+        n++;
+    }
+    val[n] = '\0';
+    return (n > 0);
+}
+
+/* if line is a WCY bulletin, record it in dxc_wcy and return true, else return false.
+ */
+static bool crackWCY (const char *line)
+{
+    if (strncasecmp (line, "WCY de ", 7) != 0)
+        return (false);
+
+    char k[8], expk[8], a[8], r[8], sfi[8], sa[8], gmf[8], au[8];
+    if (!wcyField (line, " K=", k, sizeof(k)) || !wcyField (line, " A=", a, sizeof(a))
+                || !wcyField (line, " SFI=", sfi, sizeof(sfi))) {
+        dxcLog ("WCY: unrecognized format\n");
+        return (true);                          // still a WCY line, just not one we can use
+    }
+    if (!wcyField (line, " expK=", expk, sizeof(expk)))
+        strcpy (expk, "-1");
+    if (!wcyField (line, " R=", r, sizeof(r)))
+        strcpy (r, "-1");
+    if (!wcyField (line, " SA=", sa, sizeof(sa)))
+        sa[0] = '\0';
+    if (!wcyField (line, " GMF=", gmf, sizeof(gmf)))
+        gmf[0] = '\0';
+    if (!wcyField (line, " Au=", au, sizeof(au)))
+        au[0] = '\0';
+
+    dxc_wcy.k = atoi (k);
+    dxc_wcy.expk = atoi (expk);
+    dxc_wcy.a = atoi (a);
+    dxc_wcy.r = atoi (r);
+    dxc_wcy.sfi = atoi (sfi);
+    quietStrncpy (dxc_wcy.sa, sa, sizeof(dxc_wcy.sa));
+    quietStrncpy (dxc_wcy.gmf, gmf, sizeof(dxc_wcy.gmf));
+    quietStrncpy (dxc_wcy.au, au, sizeof(dxc_wcy.au));
+    dxc_wcy.rcvd = myNow();
+    dxc_wcy.valid = true;
+    dxcLog ("WCY: K=%d expK=%d A=%d R=%d SFI=%d SA=%s GMF=%s Au=%s\n", dxc_wcy.k, dxc_wcy.expk,
+                        dxc_wcy.a, dxc_wcy.r, dxc_wcy.sfi, dxc_wcy.sa, dxc_wcy.gmf, dxc_wcy.au);
+    return (true);
+}
+
+/* whether a fresh WCY bulletin is available to show
+ */
+static bool wcyFresh (void)
+{
+    return (dxc_wcy.valid && myNow() - dxc_wcy.rcvd <= WCY_MAX_AGE);
+}
+
+/* draw the one-line WCY summary in the row just below the last spot row, if that row exists.
+ * K is colored by severity: green quiet (0-3), yellow unsettled (4), red storm (5+). "AU" is
+ * appended if the bulletin says aurora is likely. a gray "WCY" source label leads the line when
+ * it fits the pane width; otherwise it is dropped (aurora flag matters more than the label).
+ */
+static void drawWCYRow (const SBox &box)
+{
+    if (DXC_RESERVE_ROWS < 1)
+        return;
+
+    // same geometry as a spot row, immediately below the last one
+    const uint16_t y = box.y + dxc_hdr_extra + LISTING_Y0 + dxc_ss.max_vis*LISTING_DY;
+    if (y + LISTING_DY > box.y + box.h)
+        return;
+
+    tft.fillRect (box.x+1, y - LISTING_OS, box.w-2, LISTING_DY - 2, RA8875_BLACK);
+    if (!wcyFresh())
+        return;
+
+    selectFontStyle (LIGHT_FONT, FAST_FONT);
+
+    char kbuf[8], rest[32];
+    snprintf (kbuf, sizeof(kbuf), "K%d", dxc_wcy.k);
+    snprintf (rest, sizeof(rest), " A%d SFI%d R%d", dxc_wcy.a, dxc_wcy.sfi, dxc_wcy.r);
+    const bool au = dxc_wcy.au[0] && strcasecmp (dxc_wcy.au, "no") != 0;
+
+    // does the label fit along with everything else?
+    char all[64];
+    snprintf (all, sizeof(all), "WCY %s%s%s", kbuf, rest, au ? " AU" : "");
+    const bool show_label = getTextWidth (all) <= box.w - 4;
+
+    tft.setCursor (box.x+2, y);
+    if (show_label) {
+        tft.setTextColor (RGB565(150,150,150));
+        tft.print ("WCY ");
+    }
+    tft.setTextColor (dxc_wcy.k >= 5 ? RA8875_RED : (dxc_wcy.k == 4 ? RGB565(255,215,0) : RA8875_GREEN));
+    tft.print (kbuf);
+    tft.setTextColor (RA8875_WHITE);
+    tft.print (rest);
+    if (au) {
+        tft.setTextColor (RA8875_RED);
+        tft.print (" AU");
+    }
+}
+
 /* draw all currently visible spots in the pane then update scroll markers if more
  */
 static void drawAllVisDXCSpots (const SBox &box)
@@ -249,6 +374,7 @@ static void drawAllVisDXCSpots (const SBox &box)
     list_b.y += dxc_hdr_extra;
 
     drawVisibleSpots (WLID_DX, dxwl_spots, dxc_ss, list_b, DXC_COLOR, &box);
+    drawWCYRow (box);
     drawClearListBtn (dxc_ss.n_data > 0);
 }
 
@@ -692,7 +818,10 @@ static void initDXGUI (const SBox &box)
     tft.print (title);
 
     // init scroller for this box size but leave n_data
-    dxc_ss.max_vis = (box.h - LISTING_Y0 - dxc_hdr_extra)/LISTING_DY;
+    // N.B. DXC_RESERVE_ROWS rows at the bottom are left unused so the last row never crowds the pane
+    // border; the user scrolls to see those spots instead. always keep at least one row.
+    int n_rows = (box.h - LISTING_Y0 - dxc_hdr_extra)/LISTING_DY - DXC_RESERVE_ROWS;
+    dxc_ss.max_vis = n_rows > 0 ? n_rows : 1;
     dxc_ss.initNewSpotsSymbol (box, DXC_COLOR);
     dxc_ss.dir = dxc_ss.DIR_FROMSETUP;
     dxc_ss.scrollToNewest();
@@ -1076,6 +1205,10 @@ static void incomingDXC()
         updateClocks(false);
 
         // crack and add
+        // WCY bulletins are not spots, they just refresh the summary row
+        if (crackWCY (line))
+            continue;
+
         DXSpot new_spot;
         if (crackClusterSpot (line, new_spot))
             addDXClusterSpot (new_spot, false);        // already logged above
@@ -1560,6 +1693,17 @@ bool checkDXClusterTouch (const SCoord &s, const SBox &box)
 
     // everything else below may be a tapped spot
     int vis_row = (s.y - (box.y + LISTING_Y0 + dxc_hdr_extra)) / LISTING_DY;
+
+    // tapped the WCY summary row just below the last spot row? show the full bulletin
+    if (DXC_RESERVE_ROWS >= 1 && vis_row == dxc_ss.max_vis && wcyFresh()) {
+        char tip[100];
+        snprintf (tip, sizeof(tip), "WCY (DK0WCY) Kiel K %d exp %d, A %d, SFI %d, SSN %d. Forecast sun %s mag %s. Aurora %s",
+                        dxc_wcy.k, dxc_wcy.expk, dxc_wcy.a, dxc_wcy.sfi, dxc_wcy.r,
+                        dxc_wcy.sa[0] ? dxc_wcy.sa : "?", dxc_wcy.gmf[0] ? dxc_wcy.gmf : "?",
+                        dxc_wcy.au[0] ? dxc_wcy.au : "?");
+        tooltip (s, tip);
+        return (true);
+    }
     int spot_row;
     if (dxc_ss.findDataIndex (vis_row, spot_row)
                         && dxwl_spots[spot_row].tx_call[0] != '\0' && isDXClusterConnected()) {
