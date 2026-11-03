@@ -308,9 +308,17 @@ static bool crackWCY (const char *line)
     return (true);
 }
 
+/* whether a fresh WCY bulletin is available to show
+ */
+static bool wcyFresh (void)
+{
+    return (dxc_wcy.valid && myNow() - dxc_wcy.rcvd <= WCY_MAX_AGE);
+}
+
 /* draw the one-line WCY summary in the row just below the last spot row, if that row exists.
  * K is colored by severity: green quiet (0-3), yellow unsettled (4), red storm (5+). "AU" is
- * appended if the bulletin says aurora is likely.
+ * appended if the bulletin says aurora is likely. a gray "WCY" source label leads the line when
+ * it fits the pane width; otherwise it is dropped (aurora flag matters more than the label).
  */
 static void drawWCYRow (const SBox &box)
 {
@@ -323,20 +331,31 @@ static void drawWCYRow (const SBox &box)
         return;
 
     tft.fillRect (box.x+1, y - LISTING_OS, box.w-2, LISTING_DY - 2, RA8875_BLACK);
-    if (!dxc_wcy.valid || myNow() - dxc_wcy.rcvd > WCY_MAX_AGE)
+    if (!wcyFresh())
         return;
 
     selectFontStyle (LIGHT_FONT, FAST_FONT);
-    char buf[32];
+
+    char kbuf[8], rest[32];
+    snprintf (kbuf, sizeof(kbuf), "K%d", dxc_wcy.k);
+    snprintf (rest, sizeof(rest), " A%d SFI%d R%d", dxc_wcy.a, dxc_wcy.sfi, dxc_wcy.r);
+    const bool au = dxc_wcy.au[0] && strcasecmp (dxc_wcy.au, "no") != 0;
+
+    // does the label fit along with everything else?
+    char all[64];
+    snprintf (all, sizeof(all), "WCY %s%s%s", kbuf, rest, au ? " AU" : "");
+    const bool show_label = getTextWidth (all) <= box.w - 4;
+
     tft.setCursor (box.x+2, y);
-    uint16_t kcol = dxc_wcy.k >= 5 ? RA8875_RED : (dxc_wcy.k == 4 ? RGB565(255,215,0) : RA8875_GREEN);
-    tft.setTextColor (kcol);
-    snprintf (buf, sizeof(buf), "K%d", dxc_wcy.k);
-    tft.print (buf);
+    if (show_label) {
+        tft.setTextColor (RGB565(150,150,150));
+        tft.print ("WCY ");
+    }
+    tft.setTextColor (dxc_wcy.k >= 5 ? RA8875_RED : (dxc_wcy.k == 4 ? RGB565(255,215,0) : RA8875_GREEN));
+    tft.print (kbuf);
     tft.setTextColor (RA8875_WHITE);
-    snprintf (buf, sizeof(buf), " A%d SFI%d R%d", dxc_wcy.a, dxc_wcy.sfi, dxc_wcy.r);
-    tft.print (buf);
-    if (strcasecmp (dxc_wcy.au, "no") != 0 && dxc_wcy.au[0]) {
+    tft.print (rest);
+    if (au) {
         tft.setTextColor (RA8875_RED);
         tft.print (" AU");
     }
@@ -1674,6 +1693,17 @@ bool checkDXClusterTouch (const SCoord &s, const SBox &box)
 
     // everything else below may be a tapped spot
     int vis_row = (s.y - (box.y + LISTING_Y0 + dxc_hdr_extra)) / LISTING_DY;
+
+    // tapped the WCY summary row just below the last spot row? show the full bulletin
+    if (DXC_RESERVE_ROWS >= 1 && vis_row == dxc_ss.max_vis && wcyFresh()) {
+        char tip[100];
+        snprintf (tip, sizeof(tip), "WCY (DK0WCY) Kiel K %d exp %d, A %d, SFI %d, SSN %d. Forecast sun %s mag %s. Aurora %s",
+                        dxc_wcy.k, dxc_wcy.expk, dxc_wcy.a, dxc_wcy.sfi, dxc_wcy.r,
+                        dxc_wcy.sa[0] ? dxc_wcy.sa : "?", dxc_wcy.gmf[0] ? dxc_wcy.gmf : "?",
+                        dxc_wcy.au[0] ? dxc_wcy.au : "?");
+        tooltip (s, tip);
+        return (true);
+    }
     int spot_row;
     if (dxc_ss.findDataIndex (vis_row, spot_row)
                         && dxwl_spots[spot_row].tx_call[0] != '\0' && isDXClusterConnected()) {
