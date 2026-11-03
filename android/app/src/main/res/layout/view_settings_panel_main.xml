@@ -80,6 +80,7 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="8dp"
         android:text="@string/resume_hamclock"
+        android:nextFocusUp="@+id/btn_copy_local_url"
         android:nextFocusDown="@+id/btn_toggle_lan" />
 
     <Button
@@ -259,7 +260,8 @@
                 android:layout_gravity="center_horizontal"
                 android:layout_marginTop="10dp"
                 android:text="@string/copy_url"
-                android:nextFocusUp="@+id/btn_tab_live" />
+                android:nextFocusUp="@+id/btn_tab_live"
+                android:nextFocusDown="@+id/btn_resume" />
 
             <TextView
                 android:id="@+id/tv_lan_status_notice"

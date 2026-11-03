@@ -208,24 +208,26 @@ flowchart TD
 
 ---
 
-### Phase 4: Remote Focus & Keyboard Navigation
+### Phase 4: Remote Focus & Keyboard Navigation [COMPLETED]
 **Goal:** Deliver 10-foot TV D-pad navigation and remote control shortcuts identical to Vega.
 
-- [ ] **D-Pad Directional Flow:**
+- [x] **D-Pad Directional Flow:**
   - Explicit `nextFocusUp`, `nextFocusDown`, `nextFocusLeft`, `nextFocusRight` between Left Menu buttons and the Right LAN Card.
   - On Page 1 opening: Default focus lands on `Resume HamClock` (one click returns to clock).
-  - On Page 2 opening: Default focus lands on the first setting field; `Back` button at the bottom easily reachable.
+  - On Page 2 opening: Default focus lands on the first setting field; `Back` button at the bottom easily reachable (with wrap support).
   - Tab switcher (Live vs Antennas): Activate on D-pad focus or click (like Vega's `LanTarget` switcher).
-- [ ] **Remote Key Interception (`dispatchKeyEvent`):**
+  - Tactile 1.04x scale zoom animation on focus for 10-foot TV feedback.
+- [x] **Remote Key Interception (`dispatchKeyEvent` & dialog key listener):**
   - **Menu Key (`KEYCODE_MENU`) & Play/Pause (`KEYCODE_MEDIA_PLAY_PAUSE`):** Toggles settings open/close from anywhere.
   - **Back Key (`KEYCODE_BACK`):**
     - If on Page 2 (`SETTINGS`) -> switch back to Page 1 (`MAIN`).
     - If on Page 1 (`MAIN`) -> close settings panel and resume HamClock.
     - If settings panel is closed -> existing TV double-back or backgrounding behavior.
   - **Center / Enter Long Press:** Keep quick-access long-press center shortcut on TV.
-- [ ] **Virtual Keyboard / Text Input:**
+- [x] **Virtual Keyboard / Text Input:**
   - Handle TV on-screen keyboard (IME Action Done) cleanly without trapping D-pad focus.
-- [ ] **Verification:** Full remote/D-pad navigation simulation ensuring no focus traps or lost focus.
+  - D-pad UP/DOWN key interception on inputs advances between settings fields smoothly without caret trapping.
+- [x] **Verification:** Verified directional focus graphs, key event interceptions, and dynamic layout adjustments across landscape and portrait configurations.
 
 ---
 

@@ -944,7 +944,11 @@ class MainActivity : AppCompatActivity() {
         // Quick access remote shortcuts to settings dialog (Menu or Play/Pause)
         if (event.keyCode == KeyEvent.KEYCODE_MENU || event.keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
             if (event.action == KeyEvent.ACTION_DOWN) {
-                showBackendSettingsDialog()
+                if (isSettingsDialogOpen) {
+                    settingsPanelController?.dismiss()
+                } else {
+                    showBackendSettingsDialog()
+                }
             }
             return true
         }

@@ -12,6 +12,8 @@ import android.util.Log
 import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
@@ -263,6 +265,39 @@ class SettingsPanelController(private val activity: MainActivity) {
             }
         }
 
+        fun updateDynamicPage1Focus() {
+            val isLandscape = activity.resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+            val copyVisible = btnCopyLocalUrl.visibility == View.VISIBLE
+
+            if (isLandscape) {
+                if (lanAccessEnabled) {
+                    btnResume.nextFocusRightId = R.id.btn_tab_live
+                    btnToggleLan.nextFocusRightId = R.id.btn_tab_live
+                    btnGoToSettings.nextFocusRightId = R.id.btn_tab_live
+                    btnOpenSetup.nextFocusRightId = if (copyVisible) R.id.btn_copy_local_url else R.id.btn_tab_live
+                    btnExitApp.nextFocusRightId = if (copyVisible) R.id.btn_copy_local_url else R.id.btn_tab_antennas
+
+                    btnTabLive.nextFocusDownId = if (copyVisible) R.id.btn_copy_local_url else R.id.btn_tab_live
+                    btnTabAntennas.nextFocusDownId = if (copyVisible) R.id.btn_copy_local_url else R.id.btn_tab_antennas
+                } else {
+                    btnResume.nextFocusRightId = R.id.btn_resume
+                    btnToggleLan.nextFocusRightId = R.id.btn_toggle_lan
+                    btnGoToSettings.nextFocusRightId = R.id.btn_go_to_settings
+                    btnOpenSetup.nextFocusRightId = R.id.btn_open_setup
+                    btnExitApp.nextFocusRightId = R.id.btn_exit_app
+                }
+            } else {
+                // Portrait
+                if (lanAccessEnabled) {
+                    btnExitApp.nextFocusDownId = R.id.btn_tab_live
+                    btnResume.nextFocusUpId = if (copyVisible) R.id.btn_copy_local_url else R.id.btn_tab_live
+                } else {
+                    btnExitApp.nextFocusDownId = R.id.btn_resume
+                    btnResume.nextFocusUpId = R.id.btn_exit_app
+                }
+            }
+        }
+
         fun updateLanCardAndToggle() {
             btnToggleLan.isSelected = lanAccessEnabled
             btnToggleLan.text = activity.getString(
@@ -277,6 +312,7 @@ class SettingsPanelController(private val activity: MainActivity) {
                 llLanOffContainer.visibility = View.VISIBLE
                 llLanOnContainer.visibility = View.GONE
             }
+            updateDynamicPage1Focus()
             updateEngineStatusAndPorts()
             updateMdnsHelpText()
         }
@@ -309,6 +345,55 @@ class SettingsPanelController(private val activity: MainActivity) {
             return false
         }
 
+        fun setupPage2FocusNavigation() {
+            val isTv = activity.isFireTvOrTv()
+            val startOnBootSupported = AutoStartHelper.isStartOnBootSupported(isTv)
+
+            etMdnsName.nextFocusUpId = R.id.btn_settings_back
+            btnSettingsBack.nextFocusDownId = R.id.et_mdns_name
+
+            if (isTv) {
+                etBackendHost.nextFocusDownId = R.id.btn_overscan_0
+                btnOverscan0.nextFocusUpId = R.id.et_backend_host
+                btnOverscan3.nextFocusUpId = R.id.et_backend_host
+                btnOverscan5.nextFocusUpId = R.id.et_backend_host
+
+                if (startOnBootSupported) {
+                    btnOverscan0.nextFocusDownId = R.id.cb_start_on_boot
+                    btnOverscan3.nextFocusDownId = R.id.cb_start_on_boot
+                    btnOverscan5.nextFocusDownId = R.id.cb_start_on_boot
+                    cbStartOnBoot.nextFocusUpId = R.id.btn_overscan_0
+                } else {
+                    btnOverscan0.nextFocusDownId = R.id.cb_run_in_background
+                    btnOverscan3.nextFocusDownId = R.id.cb_run_in_background
+                    btnOverscan5.nextFocusDownId = R.id.cb_run_in_background
+                    cbRunInBackground.nextFocusUpId = R.id.btn_overscan_0
+                }
+            } else {
+                if (startOnBootSupported) {
+                    etBackendHost.nextFocusDownId = R.id.cb_start_on_boot
+                    cbStartOnBoot.nextFocusUpId = R.id.et_backend_host
+                } else {
+                    etBackendHost.nextFocusDownId = R.id.cb_run_in_background
+                    cbRunInBackground.nextFocusUpId = R.id.et_backend_host
+                }
+            }
+
+            if (startOnBootSupported) {
+                if (llAutostartHelper.visibility == View.VISIBLE) {
+                    cbStartOnBoot.nextFocusDownId = R.id.btn_open_autostart
+                    btnOpenAutostart.nextFocusUpId = R.id.cb_start_on_boot
+                    btnOpenAutostart.nextFocusDownId = R.id.cb_run_in_background
+                    cbRunInBackground.nextFocusUpId = R.id.btn_open_autostart
+                } else {
+                    cbStartOnBoot.nextFocusDownId = R.id.cb_run_in_background
+                    if (isTv) {
+                        cbRunInBackground.nextFocusUpId = R.id.cb_start_on_boot
+                    }
+                }
+            }
+        }
+
         fun switchToPage(targetPage: Page) {
             if (currentPage == targetPage) return
 
@@ -325,6 +410,7 @@ class SettingsPanelController(private val activity: MainActivity) {
                 btnGoToSettings.post { btnGoToSettings.requestFocus() }
             } else {
                 updateMdnsHelpText()
+                setupPage2FocusNavigation()
                 etMdnsName.post { etMdnsName.requestFocus() }
             }
         }
@@ -334,12 +420,26 @@ class SettingsPanelController(private val activity: MainActivity) {
         updateLanCardAndToggle()
         updateOverscanButtons(selectedOverscan)
         updateUpdateButtons(currentAutoUpdate)
+        setupPage2FocusNavigation()
 
-        // Setup Page 1 (MAIN) Action Listeners
+        fun applyFocusZoom(view: View, scale: Float = 1.04f, onFocus: ((Boolean) -> Unit)? = null) {
+            view.setOnFocusChangeListener { v, hasFocus ->
+                if (hasFocus) {
+                    v.animate().scaleX(scale).scaleY(scale).setDuration(120).start()
+                } else {
+                    v.animate().scaleX(1.0f).scaleY(1.0f).setDuration(120).start()
+                }
+                onFocus?.invoke(hasFocus)
+            }
+        }
+
+        // Setup Page 1 (MAIN) Action Listeners & Focus
+        applyFocusZoom(btnResume)
         btnResume.setOnClickListener {
             dialog?.dismiss()
         }
 
+        applyFocusZoom(btnToggleLan)
         btnToggleLan.setOnClickListener {
             lanAccessEnabled = !lanAccessEnabled
             prefs.edit().putBoolean(PREF_ALLOW_EXTERNAL, lanAccessEnabled).commit()
@@ -353,10 +453,12 @@ class SettingsPanelController(private val activity: MainActivity) {
             updateLanCardAndToggle()
         }
 
+        applyFocusZoom(btnGoToSettings)
         btnGoToSettings.setOnClickListener {
             switchToPage(Page.SETTINGS)
         }
 
+        applyFocusZoom(btnOpenSetup)
         btnOpenSetup.setOnClickListener {
             Log.i(TAG, "User requested HamClock Setup screen")
             prefs.edit().putBoolean(PREF_FORCE_SETUP, true).commit()
@@ -364,6 +466,7 @@ class SettingsPanelController(private val activity: MainActivity) {
             activity.restartApp()
         }
 
+        applyFocusZoom(btnExitApp)
         btnExitApp.setOnClickListener {
             Log.i(TAG, "User requested Exit HamClock from settings overlay")
             activity.isExplicitExit = true
@@ -375,16 +478,29 @@ class SettingsPanelController(private val activity: MainActivity) {
             }, 150)
         }
 
+        applyFocusZoom(btnTabLive, 1.04f) { hasFocus ->
+            if (hasFocus) {
+                currentTab = EndpointTab.LIVE
+                updateEndpointsAndQr()
+            }
+        }
         btnTabLive.setOnClickListener {
             currentTab = EndpointTab.LIVE
             updateEndpointsAndQr()
         }
 
+        applyFocusZoom(btnTabAntennas, 1.04f) { hasFocus ->
+            if (hasFocus) {
+                currentTab = EndpointTab.ANTENNAS
+                updateEndpointsAndQr()
+            }
+        }
         btnTabAntennas.setOnClickListener {
             currentTab = EndpointTab.ANTENNAS
             updateEndpointsAndQr()
         }
 
+        applyFocusZoom(btnCopyLocalUrl)
         btnCopyLocalUrl.setOnClickListener {
             val copyUrl = getEndpointTargetUrl(currentTab)
             val clipboard = activity.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
@@ -393,7 +509,15 @@ class SettingsPanelController(private val activity: MainActivity) {
             Toast.makeText(activity, activity.getString(R.string.copied_to_clipboard), Toast.LENGTH_SHORT).show()
         }
 
-        // Setup Page 2 (SETTINGS) Action Listeners
+        // Setup Page 2 (SETTINGS) Action Listeners & Focus
+        fun getNextSettingAfterBackend(): View {
+            return when {
+                llTvOverscan.visibility == View.VISIBLE -> btnOverscan0
+                llStartOnBootSection.visibility == View.VISIBLE -> cbStartOnBoot
+                else -> cbRunInBackground
+            }
+        }
+
         etMdnsName.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
@@ -408,20 +532,83 @@ class SettingsPanelController(private val activity: MainActivity) {
             override fun afterTextChanged(s: Editable?) {}
         })
 
+        etMdnsName.setOnEditorActionListener { v, actionId, event ->
+            if (actionId == EditorInfo.IME_ACTION_DONE ||
+                (event != null && event.keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_DOWN)
+            ) {
+                val imm = activity.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+                imm?.hideSoftInputFromWindow(v.windowToken, 0)
+                v.clearFocus()
+                etBackendHost.requestFocus()
+                true
+            } else {
+                false
+            }
+        }
+
+        etMdnsName.setOnKeyListener { _, keyCode, event ->
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                when (keyCode) {
+                    KeyEvent.KEYCODE_DPAD_DOWN -> {
+                        etBackendHost.requestFocus()
+                        return@setOnKeyListener true
+                    }
+                    KeyEvent.KEYCODE_DPAD_UP -> {
+                        btnSettingsBack.requestFocus()
+                        return@setOnKeyListener true
+                    }
+                }
+            }
+            false
+        }
+
+        etBackendHost.setOnEditorActionListener { v, actionId, event ->
+            if (actionId == EditorInfo.IME_ACTION_DONE ||
+                (event != null && event.keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_DOWN)
+            ) {
+                val imm = activity.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+                imm?.hideSoftInputFromWindow(v.windowToken, 0)
+                v.clearFocus()
+                getNextSettingAfterBackend().requestFocus()
+                true
+            } else {
+                false
+            }
+        }
+
+        etBackendHost.setOnKeyListener { _, keyCode, event ->
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                when (keyCode) {
+                    KeyEvent.KEYCODE_DPAD_UP -> {
+                        etMdnsName.requestFocus()
+                        return@setOnKeyListener true
+                    }
+                    KeyEvent.KEYCODE_DPAD_DOWN -> {
+                        getNextSettingAfterBackend().requestFocus()
+                        return@setOnKeyListener true
+                    }
+                }
+            }
+            false
+        }
+
         // Overscan
         llTvOverscan.visibility = if (activity.isFireTvOrTv()) View.VISIBLE else View.GONE
+        applyFocusZoom(btnOverscan0)
         btnOverscan0.setOnClickListener {
             selectedOverscan = 0
             updateOverscanButtons(0)
             prefs.edit().putInt(PREF_TV_OVERSCAN, 0).commit()
             activity.applyOverscanMargin(0)
         }
+        applyFocusZoom(btnOverscan3)
         btnOverscan3.setOnClickListener {
             selectedOverscan = 3
             updateOverscanButtons(3)
             prefs.edit().putInt(PREF_TV_OVERSCAN, 3).commit()
             activity.applyOverscanMargin(3)
         }
+        applyFocusZoom(btnOverscan5)
         btnOverscan5.setOnClickListener {
             selectedOverscan = 5
             updateOverscanButtons(5)
@@ -436,6 +623,8 @@ class SettingsPanelController(private val activity: MainActivity) {
         } else {
             llStartOnBootSection.visibility = View.VISIBLE
             cbStartOnBoot.isChecked = currentStartOnBoot
+            applyFocusZoom(cbStartOnBoot, 1.02f)
+            applyFocusZoom(btnOpenAutostart)
 
             val specialSetting = AutoStartHelper.getSpecialSetting(activity)
             fun updateAutostartHelperVisibility(checked: Boolean) {
@@ -452,6 +641,7 @@ class SettingsPanelController(private val activity: MainActivity) {
                 } else {
                     llAutostartHelper.visibility = View.GONE
                 }
+                setupPage2FocusNavigation()
             }
 
             updateAutostartHelperVisibility(currentStartOnBoot)
@@ -462,11 +652,13 @@ class SettingsPanelController(private val activity: MainActivity) {
         }
 
         // Run in Background
+        applyFocusZoom(cbRunInBackground, 1.02f)
         cbRunInBackground.setOnCheckedChangeListener { _, isChecked ->
             prefs.edit().putBoolean(PREF_RUN_IN_BACKGROUND, isChecked).commit()
         }
 
         // Check for Updates
+        applyFocusZoom(btnUpdateOn)
         btnUpdateOn.setOnClickListener {
             val wasEnabled = prefs.getBoolean(PREF_AUTO_UPDATE, true)
             prefs.edit().putBoolean(PREF_AUTO_UPDATE, true).commit()
@@ -476,6 +668,7 @@ class SettingsPanelController(private val activity: MainActivity) {
             }
         }
 
+        applyFocusZoom(btnUpdateOff)
         btnUpdateOff.setOnClickListener {
             prefs.edit().putBoolean(PREF_AUTO_UPDATE, false).commit()
             updateUpdateButtons(false)
@@ -486,6 +679,7 @@ class SettingsPanelController(private val activity: MainActivity) {
             updateUpdateButtons(isChecked)
         }
 
+        applyFocusZoom(btnSettingsBack)
         btnSettingsBack.setOnClickListener {
             switchToPage(Page.MAIN)
         }
@@ -498,9 +692,24 @@ class SettingsPanelController(private val activity: MainActivity) {
         dialog = dlg
 
         dlg.setOnKeyListener { _, keyCode, event ->
-            if (keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP) {
-                if (currentPage == Page.SETTINGS) {
-                    switchToPage(Page.MAIN)
+            if (keyCode == KeyEvent.KEYCODE_BACK) {
+                if (event.action == KeyEvent.ACTION_UP) {
+                    if (currentPage == Page.SETTINGS) {
+                        switchToPage(Page.MAIN)
+                        return@setOnKeyListener true
+                    } else if (currentPage == Page.MAIN) {
+                        dlg.dismiss()
+                        return@setOnKeyListener true
+                    }
+                } else if (event.action == KeyEvent.ACTION_DOWN) {
+                    return@setOnKeyListener true
+                }
+            }
+            if (keyCode == KeyEvent.KEYCODE_MENU || keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
+                if (event.action == KeyEvent.ACTION_UP) {
+                    dlg.dismiss()
+                    return@setOnKeyListener true
+                } else if (event.action == KeyEvent.ACTION_DOWN) {
                     return@setOnKeyListener true
                 }
             }

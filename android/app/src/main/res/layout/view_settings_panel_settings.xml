@@ -49,6 +49,7 @@
             android:importantForAutofill="no"
             android:inputType="textNoSuggestions"
             android:singleLine="true"
+            android:nextFocusUp="@+id/btn_settings_back"
             android:nextFocusDown="@+id/et_backend_host" />
 
         <TextView
@@ -328,7 +329,8 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:text="@string/btn_back"
-        android:nextFocusUp="@+id/btn_update_on" />
+        android:nextFocusUp="@+id/btn_update_on"
+        android:nextFocusDown="@+id/et_mdns_name" />
 
 </LinearLayout>
 

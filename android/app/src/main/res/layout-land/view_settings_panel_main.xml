@@ -88,6 +88,7 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="8dp"
             android:text="@string/resume_hamclock"
+            android:nextFocusUp="@+id/btn_exit_app"
             android:nextFocusDown="@+id/btn_toggle_lan"
             android:nextFocusRight="@+id/btn_tab_live" />
 
@@ -111,7 +112,7 @@
             android:text="@string/settings_ellipsis"
             android:nextFocusUp="@+id/btn_toggle_lan"
             android:nextFocusDown="@+id/btn_open_setup"
-            android:nextFocusRight="@+id/btn_copy_local_url" />
+            android:nextFocusRight="@+id/btn_tab_live" />
 
         <Button
             android:id="@+id/btn_open_setup"
@@ -131,6 +132,7 @@
             android:layout_height="wrap_content"
             android:text="@string/exit_hamclock"
             android:nextFocusUp="@+id/btn_open_setup"
+            android:nextFocusDown="@+id/btn_resume"
             android:nextFocusRight="@+id/btn_copy_local_url" />
 
         <TextView
@@ -202,9 +204,10 @@
                     android:layout_marginEnd="4dp"
                     android:layout_weight="1"
                     android:text="@string/endpoint_live_clock"
+                    android:nextFocusUp="@+id/btn_copy_local_url"
+                    android:nextFocusDown="@+id/btn_copy_local_url"
                     android:nextFocusLeft="@+id/btn_resume"
-                    android:nextFocusRight="@+id/btn_tab_antennas"
-                    android:nextFocusDown="@+id/btn_copy_local_url" />
+                    android:nextFocusRight="@+id/btn_tab_antennas" />
 
                 <Button
                     android:id="@+id/btn_tab_antennas"
@@ -214,8 +217,10 @@
                     android:layout_marginStart="4dp"
                     android:layout_weight="1"
                     android:text="@string/endpoint_antennas"
+                    android:nextFocusUp="@+id/btn_copy_local_url"
+                    android:nextFocusDown="@+id/btn_copy_local_url"
                     android:nextFocusLeft="@+id/btn_tab_live"
-                    android:nextFocusDown="@+id/btn_copy_local_url" />
+                    android:nextFocusRight="@+id/btn_tab_antennas" />
             </LinearLayout>
 
             <TextView
@@ -271,7 +276,9 @@
                 android:layout_marginTop="10dp"
                 android:text="@string/copy_url"
                 android:nextFocusUp="@+id/btn_tab_live"
-                android:nextFocusLeft="@+id/btn_go_to_settings" />
+                android:nextFocusDown="@+id/btn_tab_live"
+                android:nextFocusLeft="@+id/btn_open_setup"
+                android:nextFocusRight="@+id/btn_copy_local_url" />
 
             <TextView
                 android:id="@+id/tv_lan_status_notice"
