@@ -11,8 +11,10 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:fillViewport="true"
-        android:scrollbars="none"
-        android:overScrollMode="never">
+        android:scrollbars="vertical"
+        android:scrollbarThumbVertical="@drawable/vega_scrollbar_thumb"
+        android:fadeScrollbars="true"
+        android:overScrollMode="ifContentScrolls">
 
         <FrameLayout
             android:id="@+id/settings_panel_card"

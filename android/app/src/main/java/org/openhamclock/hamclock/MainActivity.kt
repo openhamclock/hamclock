@@ -272,15 +272,23 @@ class MainActivity : AppCompatActivity() {
 
     internal fun isFireTvOrTv(): Boolean {
         val pm = packageManager
-        val isAmazonFireTv = pm.hasSystemFeature("amazon.hardware.fire_tv") ||
-                Build.MANUFACTURER.equals("Amazon", ignoreCase = true) ||
-                Build.BRAND.equals("Amazon", ignoreCase = true) ||
-                Build.MODEL.contains("AFT", ignoreCase = true) ||
-                Build.MODEL.contains("Fire", ignoreCase = true)
+        val hasFireTvFeature = pm.hasSystemFeature("amazon.hardware.fire_tv")
         val isLeanback = pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
         val uiModeManager = getSystemService(Context.UI_MODE_SERVICE) as? android.app.UiModeManager
         val isUiTv = uiModeManager?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
-        return isAmazonFireTv || isLeanback || isUiTv
+        return isTvDevice(hasFireTvFeature, Build.MODEL, isLeanback, isUiTv)
+    }
+
+    companion object {
+        fun isTvDevice(
+            hasFireTvFeature: Boolean,
+            model: String?,
+            isLeanback: Boolean,
+            isUiTv: Boolean
+        ): Boolean {
+            val isAmazonFireTv = hasFireTvFeature || (model?.startsWith("AFT", ignoreCase = true) == true)
+            return isAmazonFireTv || isLeanback || isUiTv
+        }
     }
 
     private fun performAppExitOrBackground() {

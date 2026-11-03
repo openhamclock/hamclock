@@ -1,5 +1,6 @@
 Changes with latest release:
 - Amazon Fire TV Vega OS
+- new Android settings pages
 - new Next Up pane
 - new ADIF upload
 - new mode on tune

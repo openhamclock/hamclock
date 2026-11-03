@@ -113,6 +113,7 @@ class SettingsPanelController(private val activity: MainActivity) {
         val tvLocalUrlValue = dialogView.findViewById<TextView>(R.id.tv_local_url_value)
         val tvIpUrlValue = dialogView.findViewById<TextView>(R.id.tv_ip_url_value)
         val btnCopyLocalUrl = dialogView.findViewById<Button>(R.id.btn_copy_local_url)
+        val tvLanStatusNotice = dialogView.findViewById<TextView>(R.id.tv_lan_status_notice)
 
         // Page 2 (SETTINGS) views
         val etMdnsName = dialogView.findViewById<EditText>(R.id.et_mdns_name)
@@ -217,9 +218,17 @@ class SettingsPanelController(private val activity: MainActivity) {
             btnTabLive.isSelected = (currentTab == EndpointTab.LIVE)
             btnTabAntennas.isSelected = (currentTab == EndpointTab.ANTENNAS)
 
+            val isTv = activity.isFireTvOrTv()
             val entered = etMdnsName.text.toString().trim()
             val hostName = if (entered.isNotEmpty()) "$entered.local" else (activity.registeredMdnsName ?: "hamclock") + ".local"
             val ip = activity.getDeviceIpAddress()
+
+            if (ip.isNullOrEmpty()) {
+                tvLanStatusNotice?.visibility = View.VISIBLE
+                tvLanStatusNotice?.text = activity.getString(R.string.no_network_found)
+            } else {
+                tvLanStatusNotice?.visibility = View.GONE
+            }
 
             if (currentTab == EndpointTab.LIVE) {
                 tvLanTargetHint.text = activity.getString(R.string.lan_scan_guidance)
@@ -237,7 +246,7 @@ class SettingsPanelController(private val activity: MainActivity) {
 
                 val qrBmp = HamClockNative.generateQRCodeBitmap(targetUrl, scale = 5, border = 2)
                 ivLocalAccessQr.setImageBitmap(qrBmp)
-                btnCopyLocalUrl.visibility = View.VISIBLE
+                btnCopyLocalUrl.visibility = if (!isTv) View.VISIBLE else View.GONE
             } else {
                 tvLanTargetHint.text = activity.getString(R.string.antenna_page_guidance)
                 if (activity.actualRestPort <= 0) {
@@ -260,7 +269,7 @@ class SettingsPanelController(private val activity: MainActivity) {
 
                     val qrBmp = HamClockNative.generateQRCodeBitmap(targetUrl, scale = 5, border = 2)
                     ivLocalAccessQr.setImageBitmap(qrBmp)
-                    btnCopyLocalUrl.visibility = View.VISIBLE
+                    btnCopyLocalUrl.visibility = if (!isTv) View.VISIBLE else View.GONE
                 }
             }
         }
@@ -782,6 +791,7 @@ class SettingsPanelController(private val activity: MainActivity) {
             )
             val dm = activity.resources.displayMetrics
             val widthDp = dm.widthPixels / dm.density
+            val heightDp = dm.heightPixels / dm.density
             val isLandscape = activity.resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
 
             val targetWidthPx = if (isLandscape) {
@@ -799,9 +809,17 @@ class SettingsPanelController(private val activity: MainActivity) {
                 }
             }
 
+            // On devices with constrained vertical height (e.g. phones in landscape or small screens),
+            // constrain dialog height to 94% of screen so the internal ScrollView can scroll smoothly.
+            val targetHeightPx = if (heightDp < 560) {
+                (dm.heightPixels * 0.94).toInt()
+            } else {
+                WindowManager.LayoutParams.WRAP_CONTENT
+            }
+
             window.setLayout(
                 targetWidthPx,
-                WindowManager.LayoutParams.WRAP_CONTENT
+                targetHeightPx
             )
         }
     }

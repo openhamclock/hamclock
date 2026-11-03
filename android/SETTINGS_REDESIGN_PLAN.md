@@ -231,22 +231,23 @@ flowchart TD
 
 ---
 
-### Phase 5: Multi-Form Factor Polish & Store Verification
+### Phase 5: Multi-Form Factor Polish & Store Verification [COMPLETED]
 **Goal:** Ensure seamless experience across all target environments (TV, phone, tablet, Google Play, Amazon Appstore, direct APK).
 
-- [ ] **Form Factor Customizations:**
-  - **TV (Fire TV, Android TV):** Overscan choices visible; 10-ft typography scaling; D-pad optimized.
-  - **Phones (Portrait/Landscape):** Hide overscan setting; enable touch scrolling if screen height is constrained; show "Copy URL" button with toast notification.
-  - **Tablets (7" & 10"):** Optimal two-column display with touch-friendly button targets (minimum 48dp).
-- [ ] **Distribution Channel Verification:**
-  - **Google Play:** Verify `AppUpdateHelper` flexible in-app update checks work alongside settings toggle.
-  - **Amazon Appstore:** Verify version check and Amazon deep link prompt when an update is available.
-  - **Sideloaded / GitHub:** Verify fallback version check and GitHub release prompt.
-- [ ] **Edge Cases & Error Handling:**
-  - REST port conflict warning (when port 8080 is blocked by another app).
-  - Network disconnected state (clean message when no IP address is available).
-  - First-run auto-dismiss: If first-run setup is open and user configures callsign from remote browser, auto-dismiss and transition to live clock.
-- [ ] **Verification:** Complete end-to-end testing across build variants and device profiles.
+- [x] **Form Factor Customizations:**
+  - **TV (Fire TV, Android TV):** Overscan choices visible; 10-ft typography scaling; D-pad optimized; "Copy URL" button omitted/hidden on TV to mirror Vega.
+  - **Phones (Portrait/Landscape):** Hide overscan setting on non-TV; constrain dialog height to 94% on short displays so `ScrollView` can scroll; visible "Copy URL" button with toast notification (`R.string.copied_to_clipboard`); vertical fade scrollbar with custom thumb (`@drawable/vega_scrollbar_thumb`).
+  - **Tablets (7" & 10"):** Optimal responsive two-column display with weight ratios in `layout-land` preventing card clipping on 600-800dp displays; touch-friendly button targets (minimum 48dp on main buttons, 40dp on tabs/chips).
+  - **Hardware Discrimination:** Refined `isFireTvOrTv()` and `isTvDevice()` to distinguish Amazon Fire TV from Amazon Fire Tablets, ensuring Fire Tablets are properly treated as touchscreens without spurious overscan controls.
+- [x] **Distribution Channel Verification:**
+  - **Google Play:** Verified `AppUpdateHelper` flexible in-app update checks (`InstallSource.GOOGLE_PLAY`) work alongside settings toggle and defer prompts while settings panel is open.
+  - **Amazon Appstore:** Verified `InstallSource.AMAZON_APPSTORE` (detected via installer package or Amazon hardware) queries backend `version.pl` and prompts deep link to Amazon Appstore (`amzn://apps/android?p=...`).
+  - **Sideloaded / GitHub:** Verified fallback `InstallSource.OTHER` queries backend `version.pl` and prompts link to GitHub releases.
+- [x] **Edge Cases & Error Handling:**
+  - REST port conflict warning: Clearly displayed on Page 1 (`tv_rest_port_conflict`) and under Antennas tab when port 8080 is blocked.
+  - Network disconnected state: Bound `tv_lan_status_notice` in red warning text (`@color/vega_danger`) with `R.string.no_network_found` when device IP is unavailable.
+  - First-run auto-dismiss: Verified remote callsign configuration polling automatically applies settings and dismisses the first-run TV guidance dialog when configured.
+- [x] **Verification:** Comprehensive unit test suite (`FormFactorAndStoreTest`, `AutoStartHelperTest`, `VersionComparatorTest`) and clean APK build (`./gradlew test assembleDebug`).
 
 ---
 

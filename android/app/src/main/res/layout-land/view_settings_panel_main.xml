@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/panel_main_root"
-    android:layout_width="wrap_content"
+    android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_gravity="center_horizontal"
     android:orientation="horizontal"
     android:baselineAligned="false">
 
     <!-- Left Column: Title, Engine Status, and Action Controls -->
     <LinearLayout
-        android:layout_width="340dp"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginEnd="28dp"
+        android:layout_weight="1"
+        android:layout_marginEnd="24dp"
         android:orientation="vertical">
 
         <TextView
@@ -148,8 +148,9 @@
     <!-- Right Column: LAN Access Card & QR Code Hub -->
     <FrameLayout
         android:id="@+id/card_lan_info"
-        android:layout_width="420dp"
-        android:layout_height="wrap_content">
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1.2">
 
         <!-- LAN Off State Container -->
         <LinearLayout
@@ -287,6 +288,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:gravity="center"
+                android:textColor="@color/vega_danger"
                 android:visibility="gone" />
         </LinearLayout>
     </FrameLayout>
