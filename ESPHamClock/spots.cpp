@@ -17,6 +17,7 @@ typedef struct {
 } XOTAMarker;
 static const XOTAMarker xota_markers[] = {
     { "POTA",   'P', RGB565(60,200,90)   },     // green -- same as POTA in ontheair.cpp's onta_org_info
+    { "SOTA",   'S', RGB565(255,150,30)  },     // orange -- same as SOTA in ontheair.cpp's onta_org_info
     { "WWFF",   'F', RGB565(0,190,160)   },     // teal -- same as WWFF in ontheair.cpp's onta_org_info
     { "WCA",    'C', RGB565(255,215,0)   },     // gold
     { "ARLHS",  'L', RGB565(100,170,255) },     // sky blue -- lighthouses

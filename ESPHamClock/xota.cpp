@@ -198,6 +198,69 @@ static bool findPOTAShape (const char *comment, char *ref, size_t ref_len)
     return (false);
 }
 
+/* parse a SOTA summit reference starting exactly at p: association (1-3 alnum, eg "LA", "W7A", "9A"),
+ * then '/' or a single space, then 2-letter region, optional dash, 3 digits, eg "LA/HM-226",
+ * "LA HM226", "W7A/CE-001". must not be glued to more alnum after. on success write the normalized
+ * "ASSOC/RG-NNN" form to ref and return true.
+ */
+static bool parseSOTARef (const char *p, bool need_slash, char *ref, size_t ref_len)
+{
+    size_t a = 0;
+    while (isalnum ((unsigned char)p[a]) && a < 4)
+        a++;
+    if (a < 1 || a > 3)
+        return (false);
+    size_t j = a;
+    if (p[j] == '/')
+        j++;
+    else if (!need_slash && p[j] == ' ')
+        j++;
+    else
+        return (false);
+    if (!isalpha ((unsigned char)p[j]) || !isalpha ((unsigned char)p[j+1]))
+        return (false);
+    const char *rg = p + j;
+    j += 2;
+    if (p[j] == '-')
+        j++;
+    if (!isdigit ((unsigned char)p[j]) || !isdigit ((unsigned char)p[j+1]) || !isdigit ((unsigned char)p[j+2])
+                    || isalnum ((unsigned char)p[j+3]))
+        return (false);
+    char tmp[16];
+    snprintf (tmp, sizeof(tmp), "%.*s/%.2s-%.3s", (int)a, p, rg, p+j);
+    if (strlen (tmp) >= ref_len)
+        return (false);
+    for (size_t k = 0; (ref[k] = toupper ((unsigned char)tmp[k])) != '\0'; k++)
+        continue;
+    return (true);
+}
+
+/* SOTA: "SOTA <assoc> <region><nnn>" etc after the word SOTA, or a self-identifying
+ * "ASSOC/RG-NNN" anywhere (eg "LA/HM-226"; the slash form is distinctive enough to trust unlabeled).
+ */
+static bool findSOTAShape (const char *comment, char *ref, size_t ref_len)
+{
+    const char *search_from = comment;
+    const char *hit;
+    while ((hit = strcistr (search_from, "SOTA")) != NULL) {
+        search_from = hit + 4;
+        size_t i = hit - comment;
+        if ((i > 0 && isalnum ((unsigned char)comment[i-1])) || isalnum ((unsigned char)hit[4]))
+            continue;
+        size_t j = skipLabelSeparator (comment, i + 4);
+        if (parseSOTARef (comment + j, false, ref, ref_len))
+            return (true);
+    }
+    for (size_t i = 0; comment[i]; i++) {
+        if (!isalnum ((unsigned char)comment[i]) || (i > 0 && (isalnum ((unsigned char)comment[i-1])
+                                || comment[i-1] == '/' || comment[i-1] == '-')))
+            continue;
+        if (parseSOTARef (comment + i, true, ref, ref_len))
+            return (true);
+    }
+    return (false);
+}
+
 /* WWFF references are self-identifying: a 2-5 letter program prefix ending in "FF", a dash, and 4
  * digits, eg "KFF-1234", "ONFF-0707", "EAFF-0071", "FF-0001" -- so like WWBOTA they are trusted
  * without needing a "WWFF" label nearby. Must stand alone (not glued to other alnum chars).
@@ -297,6 +360,11 @@ bool findXOTARef (const char *comment, char *org, size_t org_len, char *ref, siz
     // free text in the comment, so it gets a dedicated (stricter-than-generic) scan here
     if (findPOTAShape (comment, ref, ref_len)) {
         quietStrncpy (org, "POTA", org_len);
+        return (true);
+    }
+
+    if (findSOTAShape (comment, ref, ref_len)) {
+        quietStrncpy (org, "SOTA", org_len);
         return (true);
     }
 
