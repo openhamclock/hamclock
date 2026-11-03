@@ -5,7 +5,12 @@ Changes with latest release:
 - new ADIF upload
 - new mode on tune
 - new new-park flag
+- add more OTA matches
+- add geomag to DX cluster pane
+- normalize POTA names in spots
+- support all bands in ONTA
 - fix band/age interaction in pskr
 - fix erased spots on maps
+- allow long calls thru in ONTA
 - no start on boot when not supported
 - occasionally stuck android save
