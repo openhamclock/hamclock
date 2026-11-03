@@ -81,7 +81,10 @@ bool findIOTARef (const char *comment, char *out, size_t out_len)
                     && isdigit ((unsigned char)p[5])
                     // must not be glued to more alnum chars on either side, else
                     // eg the middle of a longer token could false-match
-                    && (i == 0 || !isalnum ((unsigned char)comment[i-1]))
+                    // nor be the tail of a "/"- or "-"-joined reference, eg the "MB-002" in the SOTA
+                    // ref "W1/MB-002", which would otherwise be mistaken for an IOTA group
+                    && (i == 0 || (!isalnum ((unsigned char)comment[i-1]) && comment[i-1] != '/'
+                                                                          && comment[i-1] != '-'))
                     && (i+6 == len || !isalnum ((unsigned char)p[6]))) {
             out[0] = toupper ((unsigned char)p[0]);
             out[1] = toupper ((unsigned char)p[1]);
@@ -90,6 +93,36 @@ bool findIOTARef (const char *comment, char *out, size_t out_len)
             return (true);
         }
     }
+
+    // second chance: people sometimes drop the dash ("[IOTA] EU004-MENORCA ISL."). That is far too
+    // loose to trust on its own, so only accept it when the word IOTA is standing alone in the
+    // comment, and only for the 7 real IOTA continent codes. normalized to the dashed form.
+    bool has_iota = false;
+    const char *hit;
+    for (const char *from = comment; (hit = strcistr (from, "IOTA")) != NULL; from = hit + 4)
+        if ((hit == comment || !isalnum ((unsigned char)hit[-1])) && !isalnum ((unsigned char)hit[4])) {
+            has_iota = true;
+            break;
+        }
+    if (has_iota) {
+        static const char *continents[] = { "AF", "AN", "AS", "EU", "NA", "OC", "SA" };
+        for (size_t i = 0; i + 5 <= len; i++) {
+            const char *p = comment + i;
+            if (!isalpha ((unsigned char)p[0]) || !isalpha ((unsigned char)p[1])
+                        || !isdigit ((unsigned char)p[2]) || !isdigit ((unsigned char)p[3])
+                        || !isdigit ((unsigned char)p[4]) || (p[5] && isdigit ((unsigned char)p[5])))
+                continue;
+            if (i > 0 && (isalnum ((unsigned char)comment[i-1]) || comment[i-1] == '/' || comment[i-1] == '-'))
+                continue;
+            char cc[3] = { (char)toupper ((unsigned char)p[0]), (char)toupper ((unsigned char)p[1]), '\0' };
+            for (const char *c : continents)
+                if (!strcmp (c, cc)) {
+                    snprintf (out, out_len, "%s-%.3s", cc, p+2);
+                    return (true);
+                }
+        }
+    }
+
     return (false);
 }
 
