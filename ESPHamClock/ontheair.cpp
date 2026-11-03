@@ -1606,11 +1606,8 @@ static bool retrieveONTASource (const ONTASource &src)
                 mode[0] = '\0';
             }
 
-            // ignore long calls
-            if (strlen (dxcall) >= MAX_SPOTCALL_LEN) {
-                Serial.printf ("ONTA: ignoring long call: %s\n", line);
-                continue;
-            }
+            // N.B. long calls are not ignored: DXCC lookup below uses the full call, then
+            // quietStrncpy truncates it to fit tx_call[MAX_SPOTCALL_LEN].
 
             // N.B. a freq outside every supported ham band (eg 70cm) is deliberately kept, not
             // dropped: ontaModeBandOk() buckets it under the "Other" band checkbox, and
