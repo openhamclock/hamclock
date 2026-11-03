@@ -11,6 +11,11 @@
  * database here -- there's nowhere to download one from. A match only ever
  * carries the raw code, never a resolved name.
  *
+ * POTA is the one exception to "no feed": it does have a live feed in the ONTA pane, but a
+ * DX Cluster spot only carries it as comment text (eg "US POTA 4778", "POTA - US--2996"), so
+ * it is scanned for here too, with its own tolerant-but-strict parser (findPOTAShape() in
+ * xota.cpp) that normalizes to "US-4778" form and rejects things like "POTA 599".
+ *
  * Because several of these programs' reference codes are shape-ambiguous
  * with each other and with POTA/WWFF (eg WCA's "F-07849" is indistinguishable
  * from a park reference by shape alone), matching requires the program's own
@@ -23,7 +28,7 @@
 #define _XOTA_H
 
 // scan comment for a recognized "extra" xOTA program label (WCA, ARLHS, ILLW,
-// SIOTA, WAB, WWBOTA) followed by a reference-shaped token; if found, copy
+// SIOTA, WAB, WWBOTA) -- or POTA, see below -- followed by a reference-shaped token; if found, copy
 // the label into org (>= 8 bytes) and the reference into ref (>= 12 bytes),
 // both upper-cased, and return true. Tries each label in a fixed priority
 // order and stops at the first match -- a comment naming two of these at

@@ -55,7 +55,7 @@ bool crackClusterSpot (char line[], DXSpot &spot)
 
     // comment is whatever text sits between the callsign and the time field at
     // line[70]; scan it for a recognizable IOTA group reference, and separately for
-    // any of the "extra" xOTA programs (WCA/ARLHS/ILLW/SIOTA/WAB/WWBOTA) -- see xota.h
+    // any of the "extra" xOTA programs (POTA/WCA/ARLHS/ILLW/SIOTA/WAB/WWBOTA) -- see xota.h
     // for why that one needs its own, stricter, label-anchored scan
     findIOTARef (line, spot.iota, sizeof(spot.iota));
     findXOTARef (line, spot.xota_org, sizeof(spot.xota_org), spot.xota_ref, sizeof(spot.xota_ref));

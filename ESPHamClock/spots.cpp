@@ -8,13 +8,15 @@
 
 // letter + color for each "extra" xOTA program's marker -- see xota.h. Chosen to be visually
 // distinct from IOTA_MARK_COLOR above and from each other; avoids RA8875_RED (reserved for
-// watchlist hits elsewhere) and DXC_COLOR's pure green (dxcluster.cpp's own accent).
+// watchlist hits elsewhere) and DXC_COLOR's pure green (dxcluster.cpp's own accent). POTA
+// deliberately reuses the ONTA pane's POTA green so the same program looks the same everywhere.
 typedef struct {
     const char *org;
     char letter;
     uint16_t color;
 } XOTAMarker;
 static const XOTAMarker xota_markers[] = {
+    { "POTA",   'P', RGB565(60,200,90)   },     // green -- same as POTA in ontheair.cpp's onta_org_info
     { "WCA",    'C', RGB565(255,215,0)   },     // gold
     { "ARLHS",  'L', RGB565(100,170,255) },     // sky blue -- lighthouses
     { "ILLW",   'L', RGB565(100,170,255) },     // "
