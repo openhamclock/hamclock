@@ -436,6 +436,13 @@ Java_org_openhamclock_hamclock_HamClockNative_isDaemonRunning(
     return daemon_running ? JNI_TRUE : JNI_FALSE;
 }
 
+extern "C" JNIEXPORT jstring JNICALL
+Java_org_openhamclock_hamclock_HamClockNative_getVersion(
+        JNIEnv *env,
+        jobject /* this */) {
+    return env->NewStringUTF(hc_version);
+}
+
 extern "C" JNIEXPORT void JNICALL
 Java_org_openhamclock_hamclock_HamClockNative_setAllowExternalAccess(
         JNIEnv * /* env */,

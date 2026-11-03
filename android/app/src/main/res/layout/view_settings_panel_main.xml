@@ -1,0 +1,302 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/panel_main_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:orientation="vertical">
+
+    <!-- Title and Engine Status -->
+    <TextView
+        android:id="@+id/tv_main_title"
+        style="@style/Vega.Text.Title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/app_name" />
+
+    <TextView
+        android:id="@+id/tv_engine_status"
+        style="@style/Vega.Text.Meta"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="Engine running  ·  v3.10" />
+
+    <TextView
+        android:id="@+id/tv_ports_info"
+        style="@style/Vega.Text.Meta"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="3dp"
+        android:text="Live :8081  ·  REST :8080  ·  LAN on" />
+
+    <TextView
+        android:id="@+id/tv_rest_port_conflict"
+        style="@style/Vega.Text.Meta"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:textColor="@color/vega_accent"
+        android:visibility="gone" />
+
+    <!-- First-Run TV Setup Guidance Banner (collapsible) -->
+    <LinearLayout
+        android:id="@+id/ll_tv_setup_guide"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/vega_card_lan_active"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:orientation="vertical"
+        android:padding="10dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/tv_guide_title"
+            style="@style/Vega.Text.Section"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/tv_first_run_title"
+            android:textColor="@color/vega_accent" />
+
+        <TextView
+            android:id="@+id/tv_guide_body"
+            style="@style/Vega.Text.Meta"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:lineSpacingExtra="2dp"
+            android:text="@string/tv_first_run_guidance"
+            android:textColor="@color/vega_text" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="14dp" />
+
+    <!-- Action Buttons -->
+    <Button
+        android:id="@+id/btn_resume"
+        style="@style/Vega.Button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginBottom="8dp"
+        android:text="@string/resume_hamclock"
+        android:nextFocusUp="@+id/btn_copy_local_url"
+        android:nextFocusDown="@+id/btn_toggle_lan" />
+
+    <Button
+        android:id="@+id/btn_toggle_lan"
+        style="@style/Vega.Button.Toggle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginBottom="8dp"
+        android:text="@string/lan_access_off"
+        android:nextFocusUp="@+id/btn_resume"
+        android:nextFocusDown="@+id/btn_go_to_settings" />
+
+    <Button
+        android:id="@+id/btn_go_to_settings"
+        style="@style/Vega.Button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginBottom="8dp"
+        android:text="@string/settings_ellipsis"
+        android:nextFocusUp="@+id/btn_toggle_lan"
+        android:nextFocusDown="@+id/btn_open_setup" />
+
+    <Button
+        android:id="@+id/btn_open_setup"
+        style="@style/Vega.Button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginBottom="8dp"
+        android:text="@string/open_setup"
+        android:nextFocusUp="@+id/btn_go_to_settings"
+        android:nextFocusDown="@+id/btn_exit_app" />
+
+    <Button
+        android:id="@+id/btn_exit_app"
+        style="@style/Vega.Button.Danger"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:text="@string/exit_hamclock"
+        android:nextFocusUp="@+id/btn_open_setup"
+        android:nextFocusDown="@+id/btn_tab_live" />
+
+    <TextView
+        android:id="@+id/tv_main_error"
+        style="@style/Vega.Text.Meta"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:textColor="@color/vega_danger"
+        android:visibility="gone" />
+
+    <!-- LAN Access Card & QR Code Hub -->
+    <FrameLayout
+        android:id="@+id/card_lan_info"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:layout_marginTop="16dp">
+
+        <!-- LAN Off State Container -->
+        <LinearLayout
+            android:id="@+id/ll_lan_off_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/vega_card_lan_off"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:orientation="vertical"
+            android:padding="20dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/tv_lan_off_title"
+                style="@style/Vega.Text.Section"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/lan_access_off_title"
+                android:textSize="18sp" />
+
+            <TextView
+                android:id="@+id/tv_lan_off_desc"
+                style="@style/Vega.Text.Meta"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:lineSpacingExtra="3dp"
+                android:text="@string/lan_access_off_desc"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <!-- LAN On State Container -->
+        <LinearLayout
+            android:id="@+id/ll_lan_on_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/vega_card_lan_active"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:visibility="visible">
+
+            <!-- Endpoint Tabs -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btn_tab_live"
+                    style="@style/Vega.Button.Tab"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:layout_marginEnd="4dp"
+                    android:layout_weight="1"
+                    android:text="@string/endpoint_live_clock"
+                    android:nextFocusUp="@+id/btn_exit_app"
+                    android:nextFocusRight="@+id/btn_tab_antennas"
+                    android:nextFocusDown="@+id/btn_copy_local_url" />
+
+                <Button
+                    android:id="@+id/btn_tab_antennas"
+                    style="@style/Vega.Button.Tab"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:layout_marginEnd="4dp"
+                    android:layout_weight="1"
+                    android:text="@string/endpoint_antennas"
+                    android:nextFocusUp="@+id/btn_exit_app"
+                    android:nextFocusLeft="@+id/btn_tab_live"
+                    android:nextFocusDown="@+id/btn_copy_local_url" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tv_lan_target_hint"
+                style="@style/Vega.Text.Meta"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:layout_marginBottom="8dp"
+                android:gravity="center"
+                android:text="@string/lan_scan_guidance" />
+
+            <FrameLayout
+                android:id="@+id/fl_qr_code_frame"
+                android:layout_width="140dp"
+                android:layout_height="140dp"
+                android:layout_gravity="center_horizontal"
+                android:background="@drawable/vega_qr_frame"
+                android:padding="6dp">
+
+                <ImageView
+                    android:id="@+id/iv_local_access_qr"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="@string/scan_qr_to_open"
+                    android:scaleType="fitCenter" />
+            </FrameLayout>
+
+            <TextView
+                android:id="@+id/tv_local_url_value"
+                style="@style/Vega.Text.Url"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:gravity="center"
+                android:text="http://hamclock.local:8081/live.html" />
+
+            <TextView
+                android:id="@+id/tv_ip_url_value"
+                style="@style/Vega.Text.UrlAlt"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:gravity="center"
+                android:text="or http://192.168.1.150:8081/live.html" />
+
+            <Button
+                android:id="@+id/btn_copy_local_url"
+                style="@style/Vega.Button.Tab"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="10dp"
+                android:text="@string/copy_url"
+                android:nextFocusUp="@+id/btn_tab_live"
+                android:nextFocusDown="@+id/btn_resume" />
+
+            <TextView
+                android:id="@+id/tv_lan_status_notice"
+                style="@style/Vega.Text.Meta"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center"
+                android:textColor="@color/vega_danger"
+                android:visibility="gone" />
+        </LinearLayout>
+    </FrameLayout>
+</LinearLayout>
+

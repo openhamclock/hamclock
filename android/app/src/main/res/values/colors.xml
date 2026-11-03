@@ -1,7 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Base HamClock Colors -->
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
     <color name="hamclock_accent">#FF4CAF50</color>
     <color name="hamclock_text">#FFE0E0E0</color>
+
+    <!-- Vega Design System Colors (Fire TV Port Styling) -->
+    <color name="vega_bg">#FF05070C</color>
+    <color name="vega_backdrop">#99020408</color> <!-- rgba(2, 4, 8, 0.60) -->
+    <color name="vega_panel">#F00E1420</color>   <!-- rgba(14, 20, 32, 0.94) -->
+    <color name="vega_panel_opaque">#FF0E1420</color>
+    <color name="vega_border">#2E78AAFF</color>  <!-- rgba(120, 170, 255, 0.18) -->
+    <color name="vega_border_solid">#FF2A364F</color>
+    <color name="vega_text">#FFE8EEFC</color>
+    <color name="vega_muted">#FF8EA0C2</color>
+    <color name="vega_accent">#FFFFB547</color> <!-- Vega Amber -->
+    <color name="vega_accent_bg">#14FFB547</color> <!-- rgba(255, 181, 71, 0.08) -->
+    <color name="vega_accent_border">#59FFB547</color> <!-- rgba(255, 181, 71, 0.35) -->
+    <color name="vega_accent_dim">#26FFB547</color>
+    <color name="vega_danger">#FFFF5D6C</color> <!-- Vega Danger Red -->
+    <color name="vega_danger_dim">#26FF5D6C</color>
+    <color name="vega_card_bg_off">#0AFFFFFF</color> <!-- rgba(255, 255, 255, 0.04) -->
+    <color name="vega_btn_bg">#0FFFFFFF</color> <!-- rgba(255, 255, 255, 0.06) -->
+    <color name="vega_btn_text_focused">#FF10131A</color>
 </resources>
