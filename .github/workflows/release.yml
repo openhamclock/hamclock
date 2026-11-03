@@ -220,6 +220,13 @@ jobs:
           # Opt out of the SDK's default telemetry on CI runners.
           sed -i 's/"optIn": *true/"optIn": false/' ~/vega/telemetry/config.json
           source ~/vega/env
+
+          # Re-apply version in HC source (Android gradle restores version.cpp at end of its build)
+          HC_TAG="${TAG%.*}"
+          HC_TAG="${HC_TAG#v}"
+          HC_TAG="${HC_TAG#V}"
+          sed -i 's/\(hc_version = "\)[^"]\+\(".*\)/\1'$HC_TAG'\2/' ESPHamClock/version.cpp
+
           cd vega
           npm ci
           (cd hcengine && npm ci)
