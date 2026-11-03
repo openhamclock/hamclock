@@ -10,6 +10,9 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# Automatically restore ESPHamClock/version.cpp at the end of the build so no git artifacts remain
+trap 'node scripts/version.js --restore 2>/dev/null || true' EXIT
+
 BTYPE=${1:-Release}
 shift || true
 ARCHS=${*:-armv7}
