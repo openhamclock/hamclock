@@ -446,6 +446,10 @@ tasks.matching {
     finalizedBy(verify16KbAlignmentTask)
 }
 
+tasks.named<Delete>("clean") {
+    delete(file(".cxx"))
+}
+
 
 
 
