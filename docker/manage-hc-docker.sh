@@ -1,6 +1,6 @@
 #!/bin/bash
 
-HC_MANAGER_VERSION=edge
+HC_MANAGER_VERSION=v4.34b00.0
 GITHUB_REPO="openhamclock/hamclock"
 
 IMAGE_BASE=komacke/hamclock
@@ -18,9 +18,9 @@ DEFAULT_TAG=$HC_MANAGER_VERSION
 GIT_TAG=$(git describe --exact-match --tags 2>/dev/null)
 GIT_VERSION=$(git rev-parse --short HEAD 2>/dev/null)
 CONTAINER=${IMAGE_BASE##*/}
-DEFAULT_API_PORT=:8080
-DEFAULT_LIVE_PORT=:8081
-DEFAULT_RO_PORT=:8082
+DEFAULT_API_PORT=8080
+DEFAULT_LIVE_PORT=8081
+DEFAULT_RO_PORT=8082
 DEFAULT_BACKEND_HOST=-
 DEFAULT_HC_SIZE=-
 DEFAULT_MAC_ADDRESS=-
@@ -497,14 +497,11 @@ is_docker_installed() {
 }
 
 docker_compose_up() {
-    if is_container_running && [ ${FUNCNAME[1]} != upgrade_hamclock ]; then
+    if is_container_running && [ "${FUNCNAME[1]}" != "upgrade_hamclock" ]; then
         echo "Hamclock is already running."
         RETVAL=1
     else
-        docker_compose_yml && docker compose -f <(echo "$DOCKER_COMPOSE_YML") create
-        RETVAL=$?
-        [ $RETVAL -ne 0 ] && return $RETVAL
-        docker compose -f <(echo "$DOCKER_COMPOSE_YML") up -d
+        docker_compose_yml && echo "$DOCKER_COMPOSE_YML" | docker compose -f - up -d
         RETVAL=$?
     fi
 
@@ -512,13 +509,13 @@ docker_compose_up() {
 }
 
 docker_compose_down() {
-    docker_compose_yml && docker compose -f <(echo "$DOCKER_COMPOSE_YML") down -v
+    docker_compose_yml && echo "$DOCKER_COMPOSE_YML" | docker compose -f - down -v
     RETVAL=$?
 
     if is_container_exists; then
-        RUNNING_PROJECT=$(docker inspect $CONTAINER | jq -r '.[0].Config.Labels."com.docker.compose.project"')
+        RUNNING_PROJECT=$(docker inspect $CONTAINER 2>/dev/null | jq -r '.[0].Config.Labels."com.docker.compose.project" // .[0].Config.Labels."io.podman.compose.project" // empty')
         if [ "$RUNNING_PROJECT" != "$DOCKER_PROJECT" ]; then
-            echo "ERROR: this Hamclock was created with a different docker-compsose file. Please run" >&2
+            echo "ERROR: this Hamclock was created with a different docker-compose file. Please run" >&2
             echo "    'docker stop $CONTAINER'" >&2
             echo "    'docker rm $CONTAINER'" >&2
             echo "before running this utility." >&2
@@ -577,12 +574,12 @@ recreate_hamclock() {
 }
 
 is_container_running() {
-    docker ps --format '{{.Names}}' | grep -xqs $CONTAINER
+    docker ps --format '{{.Names}}' | grep -xqs "$CONTAINER"
     return $?
 }
 
 is_container_exists() {
-    docker ps -a --format '{{.Names}}' | grep -xqs $CONTAINER
+    docker ps -a --format '{{.Names}}' | grep -xqs "$CONTAINER"
     return $?
 }
 
@@ -598,10 +595,15 @@ get_current_live_port() {
     CURRENT_LIVE_PORT=
     let i=0
     while [ $i -lt ${#PORTS[@]} ]; do
+        local host_ip="${IPS[$i]}"
+        local port_spec="${PORTS[$i]}"
+        if [ -n "$host_ip" ]; then
+            port_spec="${host_ip}:${port_spec}"
+        fi
         if [ -z "$CURRENT_LIVE_PORT" ]; then
-            CURRENT_LIVE_PORT="${IPS[$i]}:${PORTS[$i]}"
+            CURRENT_LIVE_PORT="$port_spec"
         else
-            CURRENT_LIVE_PORT="${CURRENT_LIVE_PORT}|${IPS[$i]}:${PORTS[$i]}"
+            CURRENT_LIVE_PORT="${CURRENT_LIVE_PORT}|${port_spec}"
         fi
         i=$(($i+1))
     done
@@ -613,10 +615,15 @@ get_current_api_port() {
     CURRENT_API_PORT=
     let i=0
     while [ $i -lt ${#PORTS[@]} ]; do
+        local host_ip="${IPS[$i]}"
+        local port_spec="${PORTS[$i]}"
+        if [ -n "$host_ip" ]; then
+            port_spec="${host_ip}:${port_spec}"
+        fi
         if [ -z "$CURRENT_API_PORT" ]; then
-            CURRENT_API_PORT="${IPS[$i]}:${PORTS[$i]}"
+            CURRENT_API_PORT="$port_spec"
         else
-            CURRENT_API_PORT="${CURRENT_API_PORT}|${IPS[$i]}:${PORTS[$i]}"
+            CURRENT_API_PORT="${CURRENT_API_PORT}|${port_spec}"
         fi
         i=$(($i+1))
     done
@@ -628,10 +635,15 @@ get_current_ro_port() {
     CURRENT_RO_PORT=
     let i=0
     while [ $i -lt ${#PORTS[@]} ]; do
+        local host_ip="${IPS[$i]}"
+        local port_spec="${PORTS[$i]}"
+        if [ -n "$host_ip" ]; then
+            port_spec="${host_ip}:${port_spec}"
+        fi
         if [ -z "$CURRENT_RO_PORT" ]; then
-            CURRENT_RO_PORT="${IPS[$i]}:${PORTS[$i]}"
+            CURRENT_RO_PORT="$port_spec"
         else
-            CURRENT_RO_PORT="${CURRENT_RO_PORT}|${IPS[$i]}:${PORTS[$i]}"
+            CURRENT_RO_PORT="${CURRENT_RO_PORT}|${port_spec}"
         fi
         i=$(($i+1))
     done
@@ -639,7 +651,7 @@ get_current_ro_port() {
 
 get_current_image_tag() {
     CURRENT_DOCKER_IMAGE=$(docker inspect $CONTAINER 2>/dev/null | jq -r '.[0].Config.Image')
-    if [ "$CURRENT_DOCKER_IMAGE" != 'null' ]; then
+    if [ -n "$CURRENT_DOCKER_IMAGE" -a "$CURRENT_DOCKER_IMAGE" != 'null' ]; then
         CURRENT_TAG=${CURRENT_DOCKER_IMAGE#*:}
         CURRENT_IMAGE_BASE=${CURRENT_DOCKER_IMAGE%:*}
     fi
@@ -724,8 +736,8 @@ determine_live_port() {
 
         LIVE_PORT_MAPPING=""
         for p in "${LIVE_PORT_ARRAY[@]}"; do
-            # if there was a :, it was probably IP:PORT; otherwise make sure there's a colon for port only
-            [[ $p =~ : ]] || p=":$p"
+            # Strip leading colon if present for Podman and Docker compatibility
+            p="${p#:}"
             LIVE_PORT_MAPPING+="      - \"${p}:8081\""$'\n'
         done
     fi
@@ -758,8 +770,8 @@ determine_api_port() {
 
         API_PORT_MAPPING=""
         for p in "${API_PORT_ARRAY[@]}"; do
-            # if there was a :, it was probably IP:PORT; otherwise make sure there's a colon for port only
-            [[ $p =~ : ]] || p=":$p"
+            # Strip leading colon if present for Podman and Docker compatibility
+            p="${p#:}"
             API_PORT_MAPPING+="      - \"${p}:8080\""$'\n'
         done
     fi
@@ -792,8 +804,8 @@ determine_ro_port() {
 
         RO_PORT_MAPPING=""
         for p in "${RO_PORT_ARRAY[@]}"; do
-            # if there was a :, it was probably IP:PORT; otherwise make sure there's a colon for port only
-            [[ $p =~ : ]] || p=":$p"
+            # Strip leading colon if present for Podman and Docker compatibility
+            p="${p#:}"
             RO_PORT_MAPPING+="      - \"${p}:8082\""$'\n'
         done
     fi
@@ -819,7 +831,7 @@ determine_eeprom_file() {
     HC_EEPROM="$(cd "$(dirname "$HC_EEPROM")" && pwd)/$(basename "$HC_EEPROM")"
     # if the eeprom file doesn't exist, create it for proper mounting and use defaults if
     # they exist.
-    if [ ! -e "$HC_EEPROM" ]; then
+    if [ ! -e "$HC_EEPROM" ] || [ ! -s "$HC_EEPROM" ]; then
         touch "$HC_EEPROM"
         if [ -r "$HERE/config.env" ]; then
             INITIAL_CONFIG_FILE="env_file:
@@ -861,17 +873,18 @@ hc_settings_perms() {
         chmod o+rw "$HC_EEPROM" >/dev/null 2>&1
         PERM_RETVAL=$?
 
-        # if we couldn't set it, we can copy it, delete the original and
-        # set the perms
-        if [ $PERM_RETVAL -ne 0 ]; then
-
+        if [ $PERM_RETVAL -eq 0 ]; then
+            CAN_ACCESS=true
+        else
+            # if we couldn't set it, we can copy it, delete the original and
+            # set the perms
             # we can do it if the container isn't holding the fh
             get_current_image_tag
-            if [ "$CURRENT_DOCKER_IMAGE" == null ]; then
+            if [ -z "$CURRENT_DOCKER_IMAGE" -o "$CURRENT_DOCKER_IMAGE" == "null" ]; then
                 cp "$HC_EEPROM" "$HC_EEPROM.tmp"
                 rm -f "$HC_EEPROM"
                 mv "$HC_EEPROM.tmp" "$HC_EEPROM"
-                chmod o+rw $HC_EEPROM >/dev/null 2>&1
+                chmod o+rw "$HC_EEPROM" >/dev/null 2>&1
                 PERM_RETVAL=$?
                 if [ $PERM_RETVAL -eq 0 ]; then
                     CAN_ACCESS=true
@@ -888,9 +901,9 @@ hc_settings_perms() {
 
     # take harsher measures - down the container and don't cause an infinite loop
     if [ $CAN_ACCESS == false ]; then
-        if [ ${FUNCNAME[3]} != docker_compose_down ]; then
+        if [ "${FUNCNAME[3]}" != "docker_compose_down" ]; then
             docker_compose_down
-            [ ${FUNCNAME[1]} != hc_settings_perms ] && hc_settings_perms
+            [ "${FUNCNAME[1]}" != "hc_settings_perms" ] && hc_settings_perms
         fi
     fi
 }
@@ -958,12 +971,12 @@ determine_tag() {
 
     # second precedence
     # FUNCNAME is a stack of nested function calls
-    if [ -n "$CURRENT_TAG" -a ${FUNCNAME[3]} != upgrade_hamclock ]; then
+    if [ -n "$CURRENT_TAG" -a "${FUNCNAME[3]}" != "upgrade_hamclock" ]; then
         TAG=$CURRENT_TAG
 
     # third precedence
     elif [ -n "$GIT_TAG" ]; then 
-        if [ ${FUNCNAME[3]} == upgrade_hamclock -a "$GIT_TAG" != "$HC_MANAGER_VERSION" ]; then
+        if [ "${FUNCNAME[3]}" == "upgrade_hamclock" -a "$GIT_TAG" != "$HC_MANAGER_VERSION" ]; then
             echo
             echo "WARNING:"
             echo "         You are in a git repository on tag: '$GIT_TAG'"
