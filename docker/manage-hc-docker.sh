@@ -1,6 +1,6 @@
 #!/bin/bash
 
-HC_MANAGER_VERSION=v4.34b00.0
+HC_MANAGER_VERSION=edge
 GITHUB_REPO="openhamclock/hamclock"
 
 IMAGE_BASE=komacke/hamclock
