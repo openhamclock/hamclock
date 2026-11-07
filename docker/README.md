@@ -4,7 +4,7 @@ This is a containerized deployment of the web version of HamClock. It supports b
 
 ## How to use it
 
-Grab the `manage-hc-docker-<version>.sh` file from the latest release. That file has a version in the name. You can rename it to `manage-hc-docker.sh`, or download the latest release directly:
+Grab the `manage-hc-docker-<version>.sh` file from the [latest release](https://github.com/openhamclock/hamclock/releases/latest). That file has a version in the name. You can rename it to `manage-hc-docker.sh`, or download the latest release directly:
 
 ```bash
 TAG=$(curl -s https://api.github.com/repos/openhamclock/hamclock/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
