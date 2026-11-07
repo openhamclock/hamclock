@@ -971,7 +971,7 @@ determine_tag() {
 
     # second precedence
     # FUNCNAME is a stack of nested function calls
-    if [ -n "$CURRENT_TAG" -a "${FUNCNAME[3]}" != "upgrade_hamclock" ]; then
+    if [ -n "$CURRENT_TAG" -a ${FUNCNAME[3]} != upgrade_hamclock ]; then
         TAG=$CURRENT_TAG
 
     # third precedence
