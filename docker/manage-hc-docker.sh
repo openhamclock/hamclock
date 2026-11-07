@@ -574,7 +574,7 @@ recreate_hamclock() {
 }
 
 is_container_running() {
-    docker ps --format '{{.Names}}' | grep -xqs "$CONTAINER"
+    docker ps --format '{{.Names}}' | grep -xqs $CONTAINER
     return $?
 }
 
