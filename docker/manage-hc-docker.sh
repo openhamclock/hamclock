@@ -976,7 +976,7 @@ determine_tag() {
 
     # third precedence
     elif [ -n "$GIT_TAG" ]; then 
-        if [ "${FUNCNAME[3]}" == "upgrade_hamclock" -a "$GIT_TAG" != "$HC_MANAGER_VERSION" ]; then
+        if [ ${FUNCNAME[3]} == upgrade_hamclock -a "$GIT_TAG" != "$HC_MANAGER_VERSION" ]; then
             echo
             echo "WARNING:"
             echo "         You are in a git repository on tag: '$GIT_TAG'"
