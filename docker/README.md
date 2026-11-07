@@ -20,7 +20,7 @@ See the commands available with `./manage-hc-docker.sh help` and do an install w
 
 ## Preconfigure it on a first run
 
-The first time you run it, you can preconfigure some of your personal settings. Look for the `config.env.example` file. Name it `config.env` and put it in the same folder with your `manage-hc-docker.sh`. Edit it as you like and it will pre-configure your HamClock. If you don't use the `config.env`, you'll get the usual setup screen for a fresh install.
+The first time you run it, you can preconfigure some of your personal settings. Look for the [config.env.example](https://github.com/openhamclock/hamclock/blob/main/docker/config.env.example) file. Name it `config.env` and put it in the same folder with your `manage-hc-docker.sh`. Edit it as you like and it will pre-configure your HamClock. If you don't use the `config.env`, you'll get the usual setup screen for a fresh install.
 
 * **NOTE:** `config.env` is only read when `hc.settings` does **not** yet exist in the directory. If an initial install attempt fails midway (for example, due to a port conflict) and creates an empty `hc.settings` file, remove `hc.settings` before re-running `install` so your `config.env` is applied.
 
