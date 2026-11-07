@@ -579,7 +579,7 @@ is_container_running() {
 }
 
 is_container_exists() {
-    docker ps -a --format '{{.Names}}' | grep -xqs "$CONTAINER"
+    docker ps -a --format '{{.Names}}' | grep -xqs $CONTAINER
     return $?
 }
 
