@@ -496,20 +496,36 @@ is_docker_installed() {
     return $RETVAL
 }
 
+is_podman() {
+    docker --version 2>/dev/null | grep -iq podman || docker compose version 2>/dev/null | grep -iq podman
+}
+
 docker_compose_up() {
-    if is_container_running && [ "${FUNCNAME[1]}" != "upgrade_hamclock" ]; then
+    if is_container_running && [ ${FUNCNAME[1]} != upgrade_hamclock ]; then
         echo "Hamclock is already running."
         RETVAL=1
     else
-        docker_compose_yml && echo "$DOCKER_COMPOSE_YML" | docker compose -f - up -d
-        RETVAL=$?
+        if is_podman; then
+            docker_compose_yml && echo "$DOCKER_COMPOSE_YML" | docker compose -f - up -d
+            RETVAL=$?
+        else
+            docker_compose_yml && docker compose -f <(echo "$DOCKER_COMPOSE_YML") create
+            RETVAL=$?
+            [ $RETVAL -ne 0 ] && return $RETVAL
+            docker compose -f <(echo "$DOCKER_COMPOSE_YML") up -d
+            RETVAL=$?
+        fi
     fi
 
     return $RETVAL
 }
 
 docker_compose_down() {
-    docker_compose_yml && echo "$DOCKER_COMPOSE_YML" | docker compose -f - down -v
+    if is_podman; then
+        docker_compose_yml && echo "$DOCKER_COMPOSE_YML" | docker compose -f - down -v
+    else
+        docker_compose_yml && docker compose -f <(echo "$DOCKER_COMPOSE_YML") down -v
+    fi
     RETVAL=$?
 
     if is_container_exists; then
@@ -901,9 +917,9 @@ hc_settings_perms() {
 
     # take harsher measures - down the container and don't cause an infinite loop
     if [ $CAN_ACCESS == false ]; then
-        if [ "${FUNCNAME[3]}" != "docker_compose_down" ]; then
+        if [ ${FUNCNAME[3]} != docker_compose_down ]; then
             docker_compose_down
-            [ "${FUNCNAME[1]}" != "hc_settings_perms" ] && hc_settings_perms
+            [ ${FUNCNAME[1]} != hc_settings_perms ] && hc_settings_perms
         fi
     fi
 }

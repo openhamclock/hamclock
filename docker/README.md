@@ -38,39 +38,7 @@ When using `podman` and `podman-compose` as a drop-in replacement for Docker, `p
 2. Passing inline YAML via bash process substitution (`-f <(...)`) closes the file descriptor before `podman-compose` finishes reading it; piping via standard input (`-f -`) is required.
 3. Podman requires explicit host IPs or bare port numbers (`8080:8080`) rather than empty host IP colons (`:8080:8080`).
 
-### Option A: Patch `manage-hc-docker.sh` for Podman
-Run the following commands in the directory containing `manage-hc-docker.sh` before running `./manage-hc-docker.sh install`:
-
-```bash
-# 1. Pipe compose YAML via stdin (-f -) and skip the unsupported 'create' subcommand
-sed -i '/docker_compose_yml && docker compose -f <(echo "\$DOCKER_COMPOSE_YML") create/,+2d' manage-hc-docker.sh
-sed -i 's/docker_compose_yml && docker compose -f <(echo "\$DOCKER_COMPOSE_YML") up -d/docker_compose_yml \&\& echo "\$DOCKER_COMPOSE_YML" | docker compose -f - up -d/' manage-hc-docker.sh
-sed -i 's/docker_compose_yml && docker compose -f <(echo "\$DOCKER_COMPOSE_YML") down -v/docker_compose_yml \&\& echo "\$DOCKER_COMPOSE_YML" | docker compose -f - down -v/' manage-hc-docker.sh
-
-# 2. Strip leading colons from default port definitions for Podman compatibility
-sed -i 's/DEFAULT_API_PORT=:8080/DEFAULT_API_PORT=8080/; s/DEFAULT_LIVE_PORT=:8081/DEFAULT_LIVE_PORT=8081/; s/DEFAULT_RO_PORT=:8082/DEFAULT_RO_PORT=8082/' manage-hc-docker.sh
-sed -i 's/\[\[ \$p =~ : \]\] || p=":\$p"/# &/' manage-hc-docker.sh
-
-# 3. Handle empty podman inspect output and hc.settings permission checks
-sed -i 's/if \[ "\$CURRENT_DOCKER_IMAGE" != '\''null'\'' \]; then/if [ -n "\$CURRENT_DOCKER_IMAGE" -a "\$CURRENT_DOCKER_IMAGE" != '\''null'\'' ]; then/' manage-hc-docker.sh
-sed -i '/chmod o+rw "\$HC_EEPROM" >\/dev\/null 2>&1/{n;s/PERM_RETVAL=\$?/PERM_RETVAL=$?\n        [ $PERM_RETVAL -eq 0 ] \&\& CAN_ACCESS=true/}' manage-hc-docker.sh
-```
-
-Once patched, run the installer normally:
-
-```bash
-rm -f hc.settings
-./manage-hc-docker.sh install -b ohb.hamclock.app
-```
-
-### Option B: Generate a static `docker-compose.yml` file
-Alternatively, you can generate a standard `docker-compose.yml` file, strip the leading colons from the port mappings, and run `podman-compose` directly:
-
-```bash
-rm -f hc.settings
-./manage-hc-docker.sh generate-docker-compose -b ohb.hamclock.app | sed 's/":/"/g' > docker-compose.yml
-podman-compose up -d
-```
+`manage-hc-docker.sh` automatically detects Podman / `podman-compose` and handles its CLI differences transparently.
 
 ### Rootless vs. Rootful (`sudo`) Podman Note
 Podman maintains separate container storage and networks for rootless users (`podman ps`) and root (`sudo podman ps`).
