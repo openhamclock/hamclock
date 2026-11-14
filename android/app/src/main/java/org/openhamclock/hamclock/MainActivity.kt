@@ -91,6 +91,9 @@ class MainActivity : AppCompatActivity() {
     private var nsdRegistrationListener: NsdManager.RegistrationListener? = null
     private var mdnsResponder: MdnsResponder? = null
     internal var registeredMdnsName: String? = null
+    internal var mdnsState: MdnsResponder.MdnsState = MdnsResponder.MdnsState.OFF
+    internal var mdnsHost: String = ""
+    internal var onMdnsStatusChanged: ((MdnsResponder.MdnsState, String) -> Unit)? = null
 
     internal lateinit var webView: WebView
     private lateinit var progressBar: ProgressBar
@@ -896,11 +899,21 @@ class MainActivity : AppCompatActivity() {
         unregisterMdnsService()
         if (!enable) return
 
-        val rawName = customName?.trim()
-        val serviceName = if (!rawName.isNullOrEmpty()) rawName else "hamclock"
+        val serviceName = MdnsResponder.normalizeBaseName(customName)
+
+        mdnsState = MdnsResponder.MdnsState.PROBING
+        mdnsHost = "$serviceName.local"
+        onMdnsStatusChanged?.invoke(mdnsState, mdnsHost)
 
         // 1. Start dedicated mDNS A-record responder for direct hostname queries (e.g. <name>.local)
         mdnsResponder = MdnsResponder(this).apply {
+            onStatusChanged = { state, host ->
+                runOnUiThread {
+                    mdnsState = state
+                    mdnsHost = host
+                    this@MainActivity.onMdnsStatusChanged?.invoke(state, host)
+                }
+            }
             start(serviceName)
         }
 
@@ -943,8 +956,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun unregisterMdnsService() {
+        mdnsResponder?.onStatusChanged = null
         mdnsResponder?.stop()
         mdnsResponder = null
+        mdnsState = MdnsResponder.MdnsState.OFF
+        mdnsHost = ""
+        onMdnsStatusChanged?.invoke(mdnsState, mdnsHost)
 
         nsdRegistrationListener?.let { listener ->
             try {

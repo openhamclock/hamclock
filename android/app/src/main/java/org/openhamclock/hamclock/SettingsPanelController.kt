@@ -173,12 +173,17 @@ class SettingsPanelController(private val activity: MainActivity) {
         }
 
         // Functions for updating UI state
+        fun resolvedMdnsHost(): String {
+            if (activity.mdnsState == MdnsResponder.MdnsState.ANNOUNCED && activity.mdnsHost.isNotEmpty()) {
+                return activity.mdnsHost
+            }
+            val baseName = MdnsResponder.normalizeBaseName(etMdnsName.text.toString())
+            return "$baseName.local"
+        }
+
         fun getEndpointTargetUrl(tab: EndpointTab): String {
             val ip = activity.getDeviceIpAddress()
-            val entered = etMdnsName.text.toString().trim()
-            val host = if (!ip.isNullOrEmpty()) ip else {
-                if (entered.isNotEmpty()) "$entered.local" else (activity.registeredMdnsName ?: "hamclock") + ".local"
-            }
+            val host = if (!ip.isNullOrEmpty()) ip else resolvedMdnsHost()
             return if (tab == EndpointTab.LIVE) {
                 "http://$host:${activity.actualRwPort}/live.html"
             } else {
@@ -188,12 +193,17 @@ class SettingsPanelController(private val activity: MainActivity) {
         }
 
         fun updateMdnsHelpText() {
-            val name = etMdnsName.text.toString().trim()
-            val displayName = if (name.isNotEmpty()) name else "hamclock"
-            if (!lanAccessEnabled) {
-                tvMdnsNameHelp.text = activity.getString(R.string.network_name_help_lan_off)
-            } else {
-                tvMdnsNameHelp.text = activity.getString(R.string.network_name_help_format, displayName, activity.actualRwPort)
+            val baseName = MdnsResponder.normalizeBaseName(etMdnsName.text.toString())
+            val expectedHost = "$baseName.local"
+            val announced = if (activity.mdnsState == MdnsResponder.MdnsState.ANNOUNCED) activity.mdnsHost else ""
+            tvMdnsNameHelp.text = when {
+                !lanAccessEnabled -> activity.getString(R.string.network_name_help_lan_off)
+                announced.isNotEmpty() && !announced.equals(expectedHost, ignoreCase = true) ->
+                    activity.getString(R.string.network_name_taken_format, announced)
+                activity.mdnsState == MdnsResponder.MdnsState.PROBING ->
+                    activity.getString(R.string.network_name_probing_format, baseName)
+                else ->
+                    activity.getString(R.string.network_name_help_format, baseName, activity.actualRwPort)
             }
         }
 
@@ -225,8 +235,7 @@ class SettingsPanelController(private val activity: MainActivity) {
             btnTabAntennas.isSelected = (currentTab == EndpointTab.ANTENNAS)
 
             val isTv = activity.isFireTvOrTv()
-            val entered = etMdnsName.text.toString().trim()
-            val hostName = if (entered.isNotEmpty()) "$entered.local" else (activity.registeredMdnsName ?: "hamclock") + ".local"
+            val hostName = resolvedMdnsHost()
             val ip = activity.getDeviceIpAddress()
 
             if (ip.isNullOrEmpty()) {
@@ -776,6 +785,11 @@ class SettingsPanelController(private val activity: MainActivity) {
             }
         }
 
+        activity.onMdnsStatusChanged = { _, _ ->
+            updateMdnsHelpText()
+            updateEndpointsAndQr()
+        }
+
         dlg.setOnDismissListener {
             isShowing = false
             autoDismissRunnable?.let { mainHandler.removeCallbacks(it) }
@@ -784,6 +798,7 @@ class SettingsPanelController(private val activity: MainActivity) {
             btnUpdateOnRef = null
             btnUpdateOffRef = null
             updateLocationStatusRef = null
+            activity.onMdnsStatusChanged = null
             activity.appUpdateHelper.onSettingsDialogDismissed()
             activity.btnSettings.clearFocus()
             activity.webView.requestFocus()
