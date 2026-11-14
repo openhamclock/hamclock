@@ -8,6 +8,10 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <fcntl.h>
+#include <netdb.h>
+#include <poll.h>
+#include <sys/time.h>
 #include <strings.h>
 #include <sys/system_properties.h>
 #include <android/log.h>
@@ -248,6 +252,135 @@ static void *setup_injector_worker(void * /* arg */) {
     return nullptr;
 }
 
+static int connectWithTimeout(const struct addrinfo *ai, int timeoutMs) {
+    int fd = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+    if (fd < 0) return -1;
+
+    int flags = fcntl(fd, F_GETFL, 0);
+    fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+
+    int rc = connect(fd, ai->ai_addr, ai->ai_addrlen);
+    if (rc < 0 && errno == EINPROGRESS) {
+        struct pollfd pfd { fd, POLLOUT, 0 };
+        int err = 0;
+        socklen_t len = sizeof(err);
+        if (poll(&pfd, 1, timeoutMs) == 1 &&
+            getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &len) == 0 &&
+            err == 0) {
+            rc = 0;
+        }
+    }
+    if (rc != 0) {
+        close(fd);
+        return -1;
+    }
+
+    fcntl(fd, F_SETFL, flags);
+    struct timeval tv { timeoutMs / 1000, (timeoutMs % 1000) * 1000 };
+    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+    return fd;
+}
+
+static std::string parseField(const std::string &body, const char *key) {
+    std::string prefix = std::string(key) + "=";
+    for (size_t pos = 0; pos < body.size();) {
+        size_t nl = body.find('\n', pos);
+        std::string line = body.substr(pos, nl == std::string::npos ? std::string::npos : nl - pos);
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        if (line.compare(0, prefix.size(), prefix) == 0) {
+            return line.substr(prefix.size());
+        }
+        if (nl == std::string::npos) break;
+        pos = nl + 1;
+    }
+    return "";
+}
+
+static void presetLocationFromGeoIP(const std::string &backendHost) {
+    constexpr int kTimeoutMs = 5000;
+    constexpr size_t kMaxReply = 8192;
+
+    std::string backend = backendHost.empty() ? "ohb.hamclock.app:80" : backendHost;
+    std::string host = backend;
+    std::string port = "80";
+    size_t colon = backend.rfind(':');
+    if (colon != std::string::npos) {
+        host = backend.substr(0, colon);
+        port = backend.substr(colon + 1);
+    }
+
+    struct addrinfo hints {};
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    struct addrinfo *res = nullptr;
+    int gaiErr = getaddrinfo(host.c_str(), port.c_str(), &hints, &res);
+    if (gaiErr != 0) {
+        LOGI("GeoIP preset failed (DNS lookup %s: %s); using default location",
+             host.c_str(), gai_strerror(gaiErr));
+        return;
+    }
+
+    int fd = -1;
+    for (struct addrinfo *ai = res; ai != nullptr && fd < 0; ai = ai->ai_next) {
+        fd = connectWithTimeout(ai, kTimeoutMs);
+    }
+    freeaddrinfo(res);
+    if (fd < 0) {
+        LOGI("GeoIP preset failed (connect to %s); using default location", backend.c_str());
+        return;
+    }
+
+    std::string req = std::string("GET /ham/HamClock/fetchIPGeoloc.pl HTTP/1.0\r\nHost: ") + host +
+                      "\r\nUser-Agent: " + platform + "/" + hc_version +
+                      "\r\nConnection: close\r\n\r\n";
+    std::string reply;
+    if (send(fd, req.data(), req.size(), 0) == static_cast<ssize_t>(req.size())) {
+        char buf[1024];
+        ssize_t n;
+        while (reply.size() < kMaxReply && (n = recv(fd, buf, sizeof(buf), 0)) > 0) {
+            reply.append(buf, static_cast<size_t>(n));
+        }
+    }
+    close(fd);
+
+    size_t bodyPos = reply.find("\r\n\r\n");
+    if (reply.compare(0, 5, "HTTP/") != 0 || bodyPos == std::string::npos) {
+        LOGI("GeoIP preset failed (invalid HTTP reply from %s); using default location", backend.c_str());
+        return;
+    }
+    size_t sp = reply.find(' ');
+    int status = (sp != std::string::npos) ? atoi(reply.c_str() + sp + 1) : 0;
+    if (status != 200) {
+        LOGI("GeoIP preset failed (HTTP %d from %s); using default location", status, backend.c_str());
+        return;
+    }
+
+    std::string body = reply.substr(bodyPos + 4);
+    std::string latStr = parseField(body, "LAT");
+    std::string lngStr = parseField(body, "LNG");
+    if (latStr.empty() || lngStr.empty()) {
+        LOGI("GeoIP preset failed (missing LAT/LNG from %s); using default location", backend.c_str());
+        return;
+    }
+
+    LatLong ll;
+    ll.lat_d = static_cast<float>(atof(latStr.c_str()));
+    ll.lng_d = static_cast<float>(atof(lngStr.c_str()));
+    ll.normalize();
+
+    NVWriteFloat(NV_DE_LAT, ll.lat_d);
+    NVWriteFloat(NV_DE_LNG, ll.lng_d);
+    setNVMaidenhead(NV_DE_GRID, ll);
+    setTZAuto(de_tz);
+    NVWriteTZ(NV_DE_TZ, de_tz);
+
+    char grid[MAID_CHARLEN] = {0};
+    getNVMaidenhead(NV_DE_GRID, grid);
+    LOGI("Preset DE from GeoIP: %.4f, %.4f (Grid: %s, TZ: %d min, Credit: %s)",
+         ll.lat_d, ll.lng_d, grid, de_tz.tz_secs / 60, parseField(body, "CREDIT").c_str());
+}
+
 static void *daemon_worker(void *arg) {
     DaemonArgs *dargs = static_cast<DaemonArgs *>(arg);
     cached_data_dir = dargs->dataDir;
@@ -292,6 +425,18 @@ static void *daemon_worker(void *arg) {
     } else {
         LOGI("Detected Android device (mfg: '%s', brand: '%s'): using platform '%s'", mfg, brand, platform);
     }
+
+    // On first install without host GPS, preset DE location from GeoIP before Setup runs
+    // so the initial Setup screen displays the detected location and allows user edits.
+    if (!dargs->hasLocation) {
+        float deLat = 0.0f;
+        if (!NVReadFloat(NV_DE_LAT, &deLat)) {
+            presetLocationFromGeoIP(dargs->backendHost);
+        } else {
+            LOGI("Host GPS location not available (already configured): preserving saved DE location");
+        }
+    }
+
     std::string dirFlag = "-d";
     std::string dirVal = dargs->dataDir;
     std::string rwFlag = "-w";
@@ -303,10 +448,8 @@ static void *daemon_worker(void *arg) {
     std::string throtFlag = "-t";
     std::string throtVal = "80";
     std::string skipFlag = "-k";
-    std::string geoFlag = "-g";
     std::string bFlag = "-b";
     std::string bVal = dargs->backendHost;
-    bool hasLoc = dargs->hasLocation;
     bool forceSetup = dargs->forceSetup;
     bool countdownSetup = dargs->countdownSetup;
 
@@ -334,20 +477,9 @@ static void *daemon_worker(void *arg) {
     argv.push_back(const_cast<char *>(restVal.c_str()));
     argv.push_back(const_cast<char *>(throtFlag.c_str()));
     argv.push_back(const_cast<char *>(throtVal.c_str()));
-    // Check if initial setup has been performed (callsign configured)
-    char callsign[NV_CALLSIGN_LEN] = {0};
-    bool isFirstSetup = !NVReadString(NV_CALLSIGN, callsign) || callsign[0] == '\0';
 
     if (!forceSetup && !countdownSetup) {
         argv.push_back(const_cast<char *>(skipFlag.c_str()));
-        if (!hasLoc) {
-            if (isFirstSetup) {
-                argv.push_back(const_cast<char *>(geoFlag.c_str()));
-                LOGI("Host GPS location not available on first setup: initializing location with GeoIP (-g)");
-            } else {
-                LOGI("Host GPS location not available (already configured): preserving saved DE location");
-            }
-        }
     }
     if (!bVal.empty()) {
         argv.push_back(const_cast<char *>(bFlag.c_str()));
