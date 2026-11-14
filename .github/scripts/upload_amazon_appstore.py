@@ -255,11 +255,15 @@ def upload_binary(
     if status not in (200, 201, 204):
         err = resp_data.decode("utf-8", errors="replace") if resp_data else ""
         if continue_on_error:
-            print(
-                f"Warning: Failed to upload {binary_label} '{file_name}' to Amazon Appstore (HTTP {status}): {err}\n"
-                f"You can upload '{file_name}' manually in the Amazon Developer Console under the Upcoming Version.",
-                file=sys.stderr,
+            msg = (
+                f"Failed to upload {binary_label} '{file_name}' to Amazon Appstore (HTTP {status}): {err}\n"
+                f"You can upload '{file_name}' manually in the Amazon Developer Console under the Upcoming Version."
             )
+            sys.stdout.flush()
+            if os.environ.get("GITHUB_ACTIONS") == "true":
+                safe_msg = msg.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+                print(f"::warning title=Amazon Appstore {binary_label} upload failed::{safe_msg}", flush=True)
+            print(f"Warning: {msg}", file=sys.stderr, flush=True)
             return False
         else:
             print(f"Error: Failed to upload {binary_label} '{file_name}' (HTTP {status}): {err}", file=sys.stderr)

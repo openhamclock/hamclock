@@ -320,7 +320,7 @@ jobs:
             fi
           done
 
-          python3 .github/scripts/upload_amazon_appstore.py \
+          python3 -u .github/scripts/upload_amazon_appstore.py \
             --client-id "${{ secrets.AMAZON_APPSTORE_CLIENT_ID }}" \
             --client-secret "${{ secrets.AMAZON_APPSTORE_CLIENT_SECRET }}" \
             --app-id "${{ secrets.AMAZON_APPSTORE_APP_ID }}" \
