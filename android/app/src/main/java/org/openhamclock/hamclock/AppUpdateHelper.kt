@@ -303,26 +303,21 @@ class AppUpdateHelper(private val activity: AppCompatActivity) {
             }
             activeDialog?.dismiss()
 
-            val msg = if (source == InstallSource.AMAZON_APPSTORE) {
-                activity.getString(R.string.update_available_amazon_msg, remoteVersion)
-            } else {
-                activity.getString(R.string.update_available_github_msg, remoteVersion)
+            val (msgRes, positiveTextRes) = when (source) {
+                InstallSource.GOOGLE_PLAY -> R.string.update_available_play_msg to R.string.update_in_play_store
+                InstallSource.AMAZON_APPSTORE -> R.string.update_available_amazon_msg to R.string.update_in_appstore
+                InstallSource.OTHER -> R.string.update_available_github_msg to R.string.update_view_release
             }
-
-            val positiveTextRes = if (source == InstallSource.AMAZON_APPSTORE) {
-                R.string.update_in_appstore
-            } else {
-                R.string.update_view_release
-            }
+            val msg = activity.getString(msgRes, remoteVersion)
 
             activeDialog = AlertDialog.Builder(activity, androidx.appcompat.R.style.Theme_AppCompat_Dialog_Alert)
                 .setTitle(R.string.update_available_title)
                 .setMessage(msg)
                 .setPositiveButton(positiveTextRes) { _, _ ->
-                    if (source == InstallSource.AMAZON_APPSTORE) {
-                        openAmazonAppstore()
-                    } else {
-                        openGitHubReleases()
+                    when (source) {
+                        InstallSource.GOOGLE_PLAY -> openGooglePlayStore()
+                        InstallSource.AMAZON_APPSTORE -> openAmazonAppstore()
+                        InstallSource.OTHER -> openGitHubReleases()
                     }
                 }
                 .setNegativeButton(R.string.update_later) { _, _ ->
@@ -347,23 +342,34 @@ class AppUpdateHelper(private val activity: AppCompatActivity) {
         }
     }
 
+    private fun openGooglePlayStore() {
+        val packageName = activity.packageName
+        val marketUri = Uri.parse("market://details?id=$packageName")
+        val webUri = Uri.parse("https://play.google.com/store/apps/details?id=$packageName")
+        openStoreOrWeb(marketUri, webUri, "Google Play Store")
+    }
+
     private fun openAmazonAppstore() {
         val packageName = activity.packageName
         val amznUri = Uri.parse("amzn://apps/android?p=$packageName&intent=app_update")
         val webUri = Uri.parse("https://www.amazon.com/gp/mas/dl/android?p=$packageName")
+        openStoreOrWeb(amznUri, webUri, "Amazon Appstore")
+    }
+
+    private fun openStoreOrWeb(primaryUri: Uri, fallbackUri: Uri, storeName: String) {
         try {
-            val intent = Intent(Intent.ACTION_VIEW, amznUri).apply {
+            val intent = Intent(Intent.ACTION_VIEW, primaryUri).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             activity.startActivity(intent)
         } catch (e: ActivityNotFoundException) {
             try {
-                val webIntent = Intent(Intent.ACTION_VIEW, webUri).apply {
+                val webIntent = Intent(Intent.ACTION_VIEW, fallbackUri).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
                 activity.startActivity(webIntent)
             } catch (we: Exception) {
-                Log.e(TAG, "Cannot launch web browser for Amazon Appstore", we)
+                Log.e(TAG, "Cannot launch web browser for $storeName", we)
             }
         }
     }

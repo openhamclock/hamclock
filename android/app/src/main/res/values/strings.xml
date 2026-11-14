@@ -56,8 +56,10 @@
     <string name="rw_port_conflict_toast">Notice: Port 8081 is in use. Live clock switched to port %1$d.</string>
 
     <string name="update_available_title">Update Available</string>
+    <string name="update_available_play_msg">A new version of HamClock (%1$s) has been released. Check the Google Play Store to update.</string>
     <string name="update_available_amazon_msg">A new version of HamClock (%1$s) has been released. Check the Amazon Appstore to update.</string>
     <string name="update_available_github_msg">A new version of HamClock (%1$s) is available on GitHub.</string>
+    <string name="update_in_play_store">Update in Play Store</string>
     <string name="update_in_appstore">Update in Appstore</string>
     <string name="update_view_release">View Release</string>
     <string name="update_downloaded_title">Update Ready</string>
