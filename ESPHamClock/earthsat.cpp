@@ -2861,6 +2861,7 @@ static void showSatDoppler (SatState &s, const SatFreq &tx)
         tft.setTextColor (RA8875_WHITE);
         tft.setCursor (LR, ROWY(3));
         float t = showTempC() ? wxi.temperature_c : CEN2FAH(wxi.temperature_c);
+        t = noNegZero (t, 0);
         tft.printf ("Wx %.0f %c", t, showTempC() ? 'C' : 'F');
         uint16_t gx = tft.getCursorX() + LR;            // glyph just right of the temperature
         uint16_t gs = P*3/4;

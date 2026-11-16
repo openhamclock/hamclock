@@ -272,6 +272,7 @@ void plotWX (const SBox &box, uint16_t color, const WXInfo &wi)
     tft.setTextColor(color);
     selectFontStyle (BOLD_FONT, LARGE_FONT);
     f = showTempC() ? wi.temperature_c : CEN2FAH(wi.temperature_c);
+    f = noNegZero (f, 0);
     snprintf (buf, sizeof(buf), "%.0f %c", f, showTempC() ? 'C' : 'F');
     w = maxStringW (buf, box.w-attr_w);
     tft.setCursor (box.x+(box.w-attr_w-w)/2, box.y+dy);

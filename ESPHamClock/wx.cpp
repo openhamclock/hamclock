@@ -392,6 +392,7 @@ static void drawNCDXFBoxWx (BRB_MODE m, const WXInfo &wxi, bool ok)
                     snprintf (titles[n_fields], NCDXF_B_MAXLEN, "%s", wxch_names[i]);
                 if (ok) {
                     float v = showTempC() ? wxi.temperature_c : CEN2FAH(wxi.temperature_c);
+                    v = noNegZero (v, 1);
                     snprintf (values[n_fields], NCDXF_B_MAXLEN, "%.1f", v);
                     colors[n_fields] = color;
                 } else {
@@ -424,6 +425,7 @@ static void drawNCDXFBoxWx (BRB_MODE m, const WXInfo &wxi, bool ok)
                 if (ok) {
                     float t = showTempC() ? wxi.temperature_c : CEN2FAH(wxi.temperature_c);
                     float d = dewPoint (t, wxi.humidity_percent);        // wants and returns user units
+                    d = noNegZero (d, 1);
                     snprintf (values[n_fields], sizeof(values[1]), "%.1f", d);
                     colors[n_fields] = color;
                 } else {
