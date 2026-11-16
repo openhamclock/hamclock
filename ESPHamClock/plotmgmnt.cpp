@@ -332,8 +332,9 @@ static const char acc_cancel_label[] = "Cancel";
  * first.
  */
 static void fitAccordionLayout (int n_cats, int n_children, int budget_h,
-                                 bool &hide_siblings, int &n_ccols, int &shown_children, int &cur_h)
+                                 bool &hide_siblings, int &n_sibs, int &n_ccols, int &shown_children, int &cur_h)
 {
+    n_sibs = 0;
     auto calc_h = [](int visible_rows) {
         return ACC_TBM + (visible_rows + 2)*ACC_RH + ACC_TBM + ACC_BG;    // +2: footer + ok/cancel
     };
@@ -352,15 +353,29 @@ static void fitAccordionLayout (int n_cats, int n_children, int budget_h,
         return;
     }
 
+    // not every header fits with the open one. rather than leave the picker short with dead space
+    // beneath it (which also hides the neighboring headers), keep as many sibling headers as the
+    // remaining room allows -- n_sibs of them, nearest the open one first (see redrawFrame()).
+    auto fit_sibs = [&](int h) {
+        int extra = (budget_h - h)/ACC_RH;
+        if (extra > n_cats - 1)
+            extra = n_cats - 1;
+        return extra < 0 ? 0 : extra;
+    };
+
     int h_hide_1col = calc_h (1 + n_children);
     if (h_hide_1col <= budget_h) {
-        hide_siblings = true; n_ccols = 1; shown_children = n_children; cur_h = h_hide_1col;
+        hide_siblings = true; n_ccols = 1; shown_children = n_children;
+        n_sibs = fit_sibs (h_hide_1col);
+        cur_h = h_hide_1col + n_sibs*ACC_RH;
         return;
     }
 
     int h_hide_2col = calc_h (1 + rows_2col_children);
     if (h_hide_2col <= budget_h) {
-        hide_siblings = true; n_ccols = 2; shown_children = n_children; cur_h = h_hide_2col;
+        hide_siblings = true; n_ccols = 2; shown_children = n_children;
+        n_sibs = fit_sibs (h_hide_2col);
+        cur_h = h_hide_2col + n_sibs*ACC_RH;
         return;
     }
 
@@ -603,13 +618,14 @@ static bool askPaneCategoryAccordion (PlotPane pp, SBox box, MenuItem *mitems, i
         }
 
         bool hide_siblings = false;
+        int n_sibs = 0;                    // when hide_siblings: how many other headers still fit
         int n_ccols = 1;
         int shown_children = n_exp;
         int cur_h;
         if (expanded_cat < 0)
             cur_h = ACC_TBM + (n_cats + 2)*ACC_RH + ACC_TBM + ACC_BG;
         else
-            fitAccordionLayout (n_cats, n_exp, budget_h, hide_siblings, n_ccols, shown_children, cur_h);
+            fitAccordionLayout (n_cats, n_exp, budget_h, hide_siblings, n_sibs, n_ccols, shown_children, cur_h);
         SBox cur_box = {box.x, box.y, box.w, (uint16_t)cur_h};        // full pane width -- what
                                                                        // we fill/manage/restore
                                                                        // every frame
@@ -664,10 +680,34 @@ static bool askPaneCategoryAccordion (PlotPane pp, SBox box, MenuItem *mitems, i
             for (int i = 0; i < n_mitems; i++)
                 if (mitems[i].set)
                     total_selected++;
+
+            // when siblings are hidden, still show the n_sibs headers nearest the open one,
+            // alternating above then below, so the neighbors aren't all obscured
+            bool hdr_visible[N_PANE_CATEGORIES];
+            for (int r = 0; r < n_cats; r++)
+                hdr_visible[r] = !hide_siblings || cat_of_row[r] == expanded_cat;
+            if (hide_siblings) {
+                int er = 0;
+                for (int r = 0; r < n_cats; r++)
+                    if (cat_of_row[r] == expanded_cat)
+                        er = r;
+                int left = n_sibs;
+                for (int d = 1; left > 0 && d < n_cats; d++) {
+                    if (left > 0 && er - d >= 0) {
+                        hdr_visible[er - d] = true;
+                        left--;
+                    }
+                    if (left > 0 && er + d < n_cats) {
+                        hdr_visible[er + d] = true;
+                        left--;
+                    }
+                }
+            }
+
             for (int r = 0; r < n_cats; r++) {
                 int c = cat_of_row[r];
 
-                if (hide_siblings && c != expanded_cat)
+                if (!hdr_visible[r])
                     continue;               // hidden this frame -- didn't all fit
 
                 int selected = 0;

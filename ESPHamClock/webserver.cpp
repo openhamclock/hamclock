@@ -694,6 +694,7 @@ static bool getWiFiDEDXInfo_helper (WiFiClient &client, char line[], size_t line
         float x;
 
         x = showTempC() ? wip->temperature_c : CEN2FAH(wip->temperature_c);
+        x = noNegZero (x, 1);
         snprintf (buf, sizeof(buf), "%sWxTemp     %.1f %c\n", prefix, x, showTempC() ? 'C' : 'F');
         client.print(buf);
 

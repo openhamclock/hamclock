@@ -90,6 +90,7 @@ static void drawIB_WX (const LatLong &ll, uint16_t tx, int dy, int max_ty, uint1
 
         // temperature in desired units
         float tmp = showTempC() ? wi.temperature_c : CEN2FAH(wi.temperature_c);
+        tmp = noNegZero (tmp, 0);
         tft.setCursor (tx, ty += dy);
         tft.printf ("Temp%4.0f%c", tmp, showTempC() ? 'C' : 'F');
 

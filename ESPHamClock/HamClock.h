@@ -337,6 +337,14 @@ class Message
 // handy unit conversions
 #define FAH2CEN(f)      ((5.0F/9.0F)*((f) - 32.0F))
 #define CEN2FAH(c)      ((9.0F/5.0F)*(c) + 32.0F)
+
+// return v, except 0 if it would print as negative zero ("-0", "-0.0") with ndp decimals.
+// printf rounds exact halves to even, so a tie (eg -0.5 with ndp 0) also prints as "-0".
+static inline float noNegZero (float v, int ndp)
+{
+    double lim = ndp == 0 ? 0.5 : (ndp == 1 ? 0.05 : 0.005);
+    return (fabs((double)v) <= lim ? 0.0F : v);
+}
 #define HPA2INHG(h)     ((h)/33.8639F)
 #define INHG2HPA(i)     ((i)*33.8639F)
 
