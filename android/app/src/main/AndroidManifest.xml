@@ -60,6 +60,10 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
+            <!-- Use arrow pointer instead of Fire OS default circle when a mouse/pointer is used -->
+            <meta-data
+                android:name="com.amazon.input.cursor"
+                android:value="pointer" />
         </activity>
 
         <activity
