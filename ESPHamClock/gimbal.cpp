@@ -181,6 +181,10 @@ static bool askHamlib (const char *cmd, char rsp[], size_t rsp_len)
         if (sscanf (rsp+rsp_n, "RPRT %d", &RPRT) == 1)
             found_RPRT = true;
         rsp_n += ll;
+
+        // keep reply lines separated so callers can tell where one value ends, room permitting
+        if (!found_RPRT && rsp_n + 1 < rsp_len)
+            rsp[rsp_n++] = '\n';
     }
 
     // ok?
@@ -331,12 +335,18 @@ static bool connectHamlib (const SBox &box)
     }
 
     // get model if possible
-    if (!askHamlib ("+\\get_info\n", buf, sizeof(buf)))
-        strcpy (buf, "Unknown");
-    char *name;
-    if (!findHamlibRspKey (buf, "Info", &name)) 
-        name = (char*) "Unknown";
-    snprintf (title, sizeof(title), "%.*s", (int)(sizeof(title)-1), name);
+    // many rotators have no info and report "None": show nothing in that case.
+    title[0] = '\0';
+    if (askHamlib ("+\\get_info\n", buf, sizeof(buf))) {
+        char *name;
+        if (findHamlibRspKey (buf, "Info", &name)) {
+            char *eol = strchr (name, '\n');           // value is only the rest of this line
+            if (eol)
+                *eol = '\0';
+            if (strcasecmp (name, "None") != 0 && strncmp (name, "RPRT", 4) != 0)
+                snprintf (title, sizeof(title), "%.*s", (int)(sizeof(title)-1), name);
+        }
+    }
 
     // init target to current position
     if (!getAzEl(box)) {
