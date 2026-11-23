@@ -148,27 +148,38 @@ static bool getGPSDSomething(bool (*lookf)(const char *buf, void *arg), void *ar
             gpsd_client.print ("?WATCH={\"enable\":true,\"json\":true};?POLL;\n");
 
             // read lines, give to lookf, done when it's happy or no more or time out
-            for (size_t ll = 0;
-                        !timesUp(&t0,GPSD_TO) && ll < MAXGLL && !look_ok && getTCPChar(gpsd_client,&line[ll]);
-                        /* none */ ) {
+            #define GPSD_TAIL 100           // bytes retained when a too-long line fills the buffer
+            size_t ll = 0;
+            while (!timesUp(&t0,GPSD_TO) && ll < MAXGLL && !look_ok && getTCPChar(gpsd_client,&line[ll])) {
 
                 // hopeful?
                 got_something = true;
 
                 // add to line, crack when full or see nl
-                if (ll == MAXGLL-1 || line[ll] == '\n') {
+                bool see_nl = (line[ll] == '\n');
+                if (see_nl || ll == MAXGLL-1) {
                     char line_covered = line[ll];
                     line[ll] = '\0';
                     look_ok = (*lookf)(line, arg);
                     if (!look_ok) {
-                        // retain tail of previous in case keyword got split
-                        line[ll] = line_covered;
-                        ll = 100;
-                        memmove (line, line+(MAXGLL-ll), ll);
+                        if (see_nl) {
+                            // complete line consumed, start the next one from scratch
+                            ll = 0;
+                        } else {
+                            // buffer filled without a nl: retain the last GPSD_TAIL bytes of what we
+                            // really read in case a keyword got split, and keep filling after them.
+                            line[ll] = line_covered;
+                            memmove (line, line+(MAXGLL-GPSD_TAIL), GPSD_TAIL);
+                            ll = GPSD_TAIL;
+                        }
                     }
                 } else
                     ll++;
             }
+
+            // ensure line is a valid string for the problem report below, even after a partial read
+            if (ll > 0)
+                line[ll < MAXGLL ? ll : MAXGLL-1] = '\0';
         }
 
         // finished with connection
