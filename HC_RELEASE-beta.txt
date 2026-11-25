@@ -1,21 +1,16 @@
 Changes with latest release:
 - Amazon Fire TV Vega OS
-- new podman support
-- new Android settings pages
-- new Next Up pane
-- new ADIF upload
-- new mode on tune
-- new new-park flag
-- Play Store policy changes
-- add geomag to DX cluster pane
-- improve OTA/POTA spot matching
+- Podman support
+- new Android settings
+- Next Up pane & ADIF upload
+- mode on tune & new-park flag
+- geomag in DX cluster pane
+- better OTA/POTA spot matching
 - ONTA all bands & long calls
-- support RFC 6762 mDNS name change
-- show sibling menus in panes
-- preset Android DE from GeoIP
-- Fire TV arrow mouse pointer
-- fix band/age interaction in pskr
-- fix erased spots on maps
-- fix GPSD time/position parsing
-- fix rotctld pane title
-- fix Android save & update link
+- RFC 6762 mDNS support
+- sibling menus in info panes
+- preset Android DE via GeoIP
+- Fire TV arrow pointer
+- fix PSKR band/age & map holes
+- fix GPSD & rotctld title
+- fix Android save & update
