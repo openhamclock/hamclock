@@ -1896,7 +1896,7 @@ void Adafruit_RA8875::drawPR(void)
         // if you know of a better way with mutexes etc let me know
         pr_draw = true;
         while (pr_draw)
-            usleep (1000);
+            usleep (10000);             // the drawing thread only looks every REFRESH_US
 }
 
 
