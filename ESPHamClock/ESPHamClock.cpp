@@ -2412,8 +2412,8 @@ void wdDelay(int ms)
         checkWebServer(true);
         if (dt < 0)                     // clock ran backwards: never pass a negative to delay(), it is unsigned
             dt = 0;
-        if (dt < WD_DELAY_DT)
-            delay (dt);
+        if (ms - dt < WD_DELAY_DT)
+            delay (ms - dt);            // the time left, not the time passed
         else
             delay (WD_DELAY_DT);
     }
