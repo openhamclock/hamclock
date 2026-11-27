@@ -5,20 +5,26 @@
     android:layout_height="wrap_content"
     android:clipChildren="false"
     android:clipToPadding="false"
-    android:padding="20dp"
+    android:padding="16dp"
     android:background="@android:color/transparent">
 
-    <LinearLayout
-        android:id="@+id/location_panel_card"
+    <ScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:maxWidth="520dp"
-        android:background="@drawable/settings_panel_background"
         android:clipChildren="false"
         android:clipToPadding="false"
-        android:orientation="vertical"
-        android:padding="28dp">
+        android:overScrollMode="ifContentScrolls">
+
+        <LinearLayout
+            android:id="@+id/location_panel_card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/settings_panel_background"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:orientation="vertical"
+            android:padding="24dp">
 
         <!-- Title -->
         <TextView
@@ -86,7 +92,8 @@
                 android:text="@string/location_disclosure_btn_enable"
                 android:nextFocusLeft="@+id/btn_manual_location" />
 
+            </LinearLayout>
         </LinearLayout>
-    </LinearLayout>
+    </ScrollView>
 </FrameLayout>
 

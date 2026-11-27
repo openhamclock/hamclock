@@ -386,9 +386,14 @@ static void *daemon_worker(void *arg) {
     cached_data_dir = dargs->dataDir;
     our_dir = dargs->dataDir + "/";
 
-    // Preset NTP to Computer (OS) time if unconfigured
+    // Preset NTP to Computer (OS) time if unconfigured, without overriding GPSD/NMEA time
+    // (setup.cpp stores NV_NTPSET=0 / NTPSC_NO when GPSD or NMEA time bit 0x1 is enabled).
     uint8_t ntp_val = 0;
-    if (!NVReadUInt8(NV_NTPSET, &ntp_val) || ntp_val == 0) {
+    uint8_t gpsd_use = 0;
+    uint8_t nmea_use = 0;
+    bool using_gps_time = (NVReadUInt8(NV_USEGPSD, &gpsd_use) && (gpsd_use & 0x1))
+                       || (NVReadUInt8(NV_USENMEA, &nmea_use) && (nmea_use & 0x1));
+    if (!NVReadUInt8(NV_NTPSET, &ntp_val) || (ntp_val == 0 && !using_gps_time)) {
         NVWriteUInt8(NV_NTPSET, 2); // NTPSC_OS ("Computer")
         LOGI("Preset NTP to Computer (OS) time");
     }

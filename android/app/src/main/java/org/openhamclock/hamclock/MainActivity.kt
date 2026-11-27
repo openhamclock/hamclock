@@ -401,8 +401,46 @@ class MainActivity : AppCompatActivity() {
         if (isFinishing || isDestroyed) return
 
         val dialogView = layoutInflater.inflate(R.layout.dialog_location_disclosure, null)
+        val llButtons = dialogView.findViewById<LinearLayout>(R.id.ll_location_buttons)
         val btnUseLocation = dialogView.findViewById<Button>(R.id.btn_use_location)
         val btnManual = dialogView.findViewById<Button>(R.id.btn_manual_location)
+
+        val dm = resources.displayMetrics
+        val heightDp = dm.heightPixels / dm.density
+        val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        val targetWidthPx = minOf(
+            (540 * dm.density).toInt(),
+            (dm.widthPixels * if (isLandscape) 0.90 else 0.94).toInt()
+        )
+        val targetWidthDp = targetWidthPx / dm.density
+        val targetHeightPx = if (heightDp < 540) {
+            (dm.heightPixels * 0.94).toInt()
+        } else {
+            WindowManager.LayoutParams.WRAP_CONTENT
+        }
+
+        // Stack buttons vertically when card width is too narrow for both single-line buttons.
+        val cardInnerDp = targetWidthDp - 80f // FrameLayout 16dp*2 + card 24dp*2
+        val minHorizontalButtonsDp = 280f * resources.configuration.fontScale + 76f
+        if (cardInnerDp < minHorizontalButtonsDp) {
+            llButtons.orientation = LinearLayout.VERTICAL
+            llButtons.removeAllViews()
+            val gapPx = (10 * dm.density).toInt()
+            btnUseLocation.layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                bottomMargin = gapPx
+            }
+            btnManual.layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            btnUseLocation.nextFocusDownId = R.id.btn_manual_location
+            btnManual.nextFocusUpId = R.id.btn_use_location
+            llButtons.addView(btnUseLocation)
+            llButtons.addView(btnManual)
+        }
 
         val builder = AlertDialog.Builder(this, R.style.Theme_HamClock_SettingsDialog)
         builder.setView(dialogView)
@@ -453,6 +491,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         dlg.show()
+        dlg.window?.setLayout(targetWidthPx, targetHeightPx)
         btnUseLocation.post {
             btnUseLocation.requestFocus()
         }
