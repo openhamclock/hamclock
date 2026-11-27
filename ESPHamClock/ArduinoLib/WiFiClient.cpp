@@ -28,6 +28,7 @@ WiFiClient::WiFiClient(int fd)
     socket = fd;
     n_peek = 0;
     next_peek = 0;
+    read_pending_ms = get_timeout_ms();
     m_isPipe = false;
     m_pipe = nullptr;
 }
@@ -274,16 +275,19 @@ bool WiFiClient::pending(int ms)
 {
     struct timeval tv;
     fd_set rset;
-    FD_ZERO (&rset);
-    FD_SET (socket, &rset);
-    tv.tv_sec = ms/1000;
-    tv.tv_usec = (ms-1000*tv.tv_sec)*1000;
-    int s = select (socket+1, &rset, NULL, NULL, &tv);
+    int s;
+    do {
+        FD_ZERO (&rset);
+        FD_SET (socket, &rset);
+        tv.tv_sec = ms/1000;
+        tv.tv_usec = (ms-1000*tv.tv_sec)*1000;
+        s = select (socket+1, &rset, NULL, NULL, &tv);
+    } while (s < 0 && errno == EINTR);
     if (s < 0) {
         printf ("WiFiCl: fd %d select(%d ms): %s\n", socket, ms, strerror(errno));
-    stop();
-    return (false);
-}
+        stop();
+        return (false);
+    }
 
     bool more = s > 0;
 

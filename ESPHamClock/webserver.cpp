@@ -4,6 +4,7 @@
 
 #include "HamClock.h"
 #include <map>
+#include <vector>
 
 
 // platform
@@ -5457,23 +5458,69 @@ static void serveRemote(WiFiClient &client, bool ro)
     }
 }
 
+// Accepted REST clients waiting for their first request bytes so idle browser preconnects
+// neither stall the main loop nor receive unsolicited HTTP 400 responses.
+struct PendingRestClient {
+    WiFiClient client;
+    uint32_t accepted_ms;
+};
+static std::vector<PendingRestClient> pending_rest;
+static const size_t MAX_PENDING_REST = 16;
+static const uint32_t PENDING_REST_IDLE_MS = 30000;
+
+static void clearPendingRestClients()
+{
+    for (size_t i = 0; i < pending_rest.size(); i++)
+        pending_rest[i].client.stop();
+    pending_rest.clear();
+}
+
 /* check if someone is trying to tell/ask us something.
  * N.B, all such commands bypass the password system.
  */
 void checkWebServer(bool ro)
 {
-    if (restful_server) {
-        // not crazy fast
-        static uint32_t ws_ms;
-        if (timesUp (&ws_ms, 250)) {
-            WiFiClient client = restful_server->available();
-            if (client) {
-                bypass_pw = true;
-                serveRemote(client, ro);
-                bypass_pw = false;
-                client.stop();
-            }
+    if (!restful_server)
+        return;
+
+    // Poll gently when idle, faster when connections are waiting or preconnected.
+    static uint32_t ws_ms;
+    uint32_t poll_ms = pending_rest.empty() ? 50 : 10;
+    if (!timesUp (&ws_ms, poll_ms))
+        return;
+
+    uint32_t now_ms = millis();
+
+    // Accept any queued connections without blocking on idle preconnects.
+    for (size_t n_acc = 0; n_acc < MAX_PENDING_REST; n_acc++) {
+        WiFiClient c = restful_server->available();
+        if (!c)
+            break;
+        if (pending_rest.size() >= MAX_PENDING_REST) {
+            pending_rest.front().client.stop();
+            pending_rest.erase(pending_rest.begin());
         }
+        pending_rest.push_back({c, now_ms});
+    }
+
+    // Drop closed or stale idle sockets silently; service the first socket with incoming bytes.
+    for (size_t i = 0; i < pending_rest.size(); ) {
+        if (pending_rest[i].client.available(0) > 0) {
+            WiFiClient ready = pending_rest[i].client;
+            pending_rest.erase(pending_rest.begin() + i);
+            bypass_pw = true;
+            serveRemote(ready, ro);
+            bypass_pw = false;
+            ready.stop();
+            break;
+        }
+        if (!pending_rest[i].client.connected()
+                || (uint32_t)(now_ms - pending_rest[i].accepted_ms) >= PENDING_REST_IDLE_MS) {
+            pending_rest[i].client.stop();
+            pending_rest.erase(pending_rest.begin() + i);
+            continue;
+        }
+        i++;
     }
 }
 
@@ -5482,6 +5529,8 @@ void checkWebServer(bool ro)
  */
 void initWebServer()
 {
+    clearPendingRestClients();
+
     if (restful_port < 0) {
         tftMsg (true, 0, "RESTful API service is disabled");
         return;
