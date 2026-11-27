@@ -115,7 +115,7 @@ void drawFiresButton(void)
     tft.drawRect (fires_btn_b.x, fires_btn_b.y, fires_btn_b.w-1, fires_btn_b.h-1, RA8875_WHITE);
 
     uint16_t lbl_w = getTextWidth(label);
-    tft.setCursor (fires_btn_b.x+(fires_btn_b.w-lbl_w)/2, fires_btn_b.y+2);
+    tft.setCursor (fires_btn_b.x+(fires_btn_b.w-lbl_w)/2, MAPBTN_TEXT_Y(fires_btn_b));
     tft.setTextColor (text_clr);
     tft.print (label);
 }

@@ -701,6 +701,8 @@ typedef enum {
     SHOWPLANETS_BPR,
     WEFAX_ENABLE_BPR,
 
+    BIGDIALOGS_BPR,
+
     // page "6" -- color editor
 
     N_BPR,                                      // number of fields
@@ -1030,6 +1032,9 @@ static BoolPrompt bool_pr[N_BPR] = {
 
     {4, {400, R2Y(12), 190, PR_H}, {590, R2Y(12), 85, PR_H}, false, "WEFAX?", "No", "Yes", NOMATE,
                     "Whether to offer the WEFAX chart viewer badge when the Weather map style is active"},
+
+    {4, { 10, R2Y(13), 190, PR_H}, {200, R2Y(13), 170, PR_H}, false, "Big dialogs?", "No", "Yes", NOMATE,
+                    "Whether menus fill the screen with large, touch-friendly rows (menus with text entry stay normal size)"},
 
 
 
@@ -2593,27 +2598,29 @@ static bool s2char (SCoord &s, char &kbchar)
         }
     }
 
-    // check a few more special boxes
-
-    if (inBox (s, space_b)) {
-        kbchar = CHAR_SPACE;
-        return (true);
-    }
-    if (inBox (s, delete_b)) {
-        kbchar = CHAR_DEL;
-        return (true);
-    }
-    if (inBox (s, left_b)) {
-        kbchar = CHAR_LEFT;
-        return (true);
-    }
-    if (inBox (s, right_b)) {
-        kbchar = CHAR_RIGHT;
-        return (true);
-    }
+    // Done is on every page but the editing keys only exist where a keyboard is drawn; elsewhere they would
+    // swallow taps on controls in the same screen area, eg the bottom row of the bools page
     if (inBox (s, done_b)) {
         kbchar = CHAR_NL;
         return (true);
+    }
+    if ((cur_page >= KBPAGE_FIRST && cur_page <= KBPAGE_LAST) || cur_page == HAMALERT_PAGE) {
+        if (inBox (s, space_b)) {
+            kbchar = CHAR_SPACE;
+            return (true);
+        }
+        if (inBox (s, delete_b)) {
+            kbchar = CHAR_DEL;
+            return (true);
+        }
+        if (inBox (s, left_b)) {
+            kbchar = CHAR_LEFT;
+            return (true);
+        }
+        if (inBox (s, right_b)) {
+            kbchar = CHAR_RIGHT;
+            return (true);
+        }
     }
 
     // s is not on the virtual keyboard
@@ -4929,6 +4936,13 @@ static void initSetup()
     }
     bool_pr[SHOWPLANETS_BPR].state = (show_planets != 0);
 
+    uint8_t big_dialogs;
+    if (!NVReadUInt8 (NV_BIGDIALOGS, &big_dialogs)) {
+        big_dialogs = 0;
+        NVWriteUInt8 (NV_BIGDIALOGS, big_dialogs);
+    }
+    bool_pr[BIGDIALOGS_BPR].state = (big_dialogs != 0);
+
     uint8_t wefax_enable;
     if (!NVReadUInt8 (NV_WEFAX_ENABLE, &wefax_enable)) {
         wefax_enable = 1;                          // default On -- NVWriteUInt8 below makes this
@@ -5861,6 +5875,7 @@ static void saveParams2NV()
     NVWriteUInt8 (NV_MAPROTP, getMapRotationPeriod());
     NVWriteUInt8 (NV_SHOWPIP, showPIP());
     NVWriteUInt8 (NV_SHOWPLANETS, showPlanets());
+    NVWriteUInt8 (NV_BIGDIALOGS, bigDialogs());
     NVWriteUInt8 (NV_WEFAX_ENABLE, wefaxEnabled());
     NVWriteUInt8 (NV_AUTOMAP, autoMap());
     NVWriteUInt8 (NV_GRAYDPY, (uint8_t)getGrayDisplay());
@@ -6838,6 +6853,13 @@ bool showPIP()
 bool showPlanets()
 {
     return (bool_pr[SHOWPLANETS_BPR].state);
+}
+
+/* return whether menus should use the large full-screen touch-friendly layout
+ */
+bool bigDialogs()
+{
+    return (bool_pr[BIGDIALOGS_BPR].state);
 }
 
 /* return whether the WEFAX feature is enabled at all (Setup screen master switch)

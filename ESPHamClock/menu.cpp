@@ -33,7 +33,7 @@
 
 // basic parameters
 // allow setting some/all these in Menu?
-#define MENU_TBM        5               // top and bottom margin -- was 2px, which read as
+#define MENU_TBM        (mm.tbm)        // top and bottom margin -- was 2px, which read as
                                         // cramped once longer item lists (eg pane choice, now
                                         // 25 items) made menus tall enough for the tight margin
                                         // to be visually obvious. Deliberately a small, uniform
@@ -42,14 +42,46 @@
                                         // boxes already well over 100px tall, and doesn't touch
                                         // width at all, unlike the column-count approach that
                                         // caused this menu to overlap neighboring panes.
-#define MENU_RM         2               // right margin
-#define MENU_RH         11              // row height, includes room for MENU_TEXT cursor
-#define MENU_IS         6               // indicator size
-#define MENU_BB         5               // ok/cancel button horizontal border
-#define MENU_BDX        2               // ok/cancel button text horizontal offset
-#define MENU_BG         2               // ok/cancel button text vertical gap
-#define MENU_BDROP      2               // text cursor drop below top of box
-#define MENU_FW         6               // MENU_TEXT font width
+/* the remaining layout constants are metrics that are fixed at their normal 800x480 values except while
+ * runMenu() is showing a "big dialog", ie, when bigDialogs() is true and the menu fits that layout.
+ */
+#define MENU_MAXBIGCOLS 8       // most columns in a big dialog
+
+typedef struct {
+    uint16_t rm;                // right margin
+    uint16_t rh;                // row height, includes room for MENU_TEXT cursor
+    uint16_t is;                // indicator size
+    uint16_t bb;                // ok/cancel button horizontal border
+    uint16_t bdx;               // ok/cancel button text horizontal offset
+    uint16_t bg;                // ok/cancel button text vertical gap
+    uint16_t bdrop;             // text drop below top of box: cursor y for FAST_FONT, baseline for SMALL_FONT
+    uint16_t fw;                // MENU_TEXT font width
+    uint16_t tbm;               // top and bottom margin
+    uint16_t indent_k;          // multiplier for MenuItem.indent
+    bool big;                   // true if big dialog font and layout
+    uint16_t tblrows;           // big only: rows in the tallest table column
+    uint16_t ncols;             // big only: number of table columns
+    uint16_t col_first[MENU_MAXBIGCOLS];    // big only: index of first table cell in each column
+} MenuMetrics;
+
+#define MENU_BIG_RH_MIN 38      // smallest row height of a big dialog: SMALL_FONT is 33 pixels high, plus spacing
+#define MENU_BIG_RH_MAX 56      // largest row height of a big dialog, so short menus don't get silly
+#define MENU_BIG_ASC    24      // SMALL_FONT pixels above baseline
+#define MENU_BIG_HGT    33      // SMALL_FONT pixels above plus below baseline
+
+static const MenuMetrics mm_normal = {2, 11, 6, 5, 2, 2, 2, 6, 5, 1, false, 0, 0, {0}};
+static const MenuMetrics mm_big    = {6, MENU_BIG_RH_MIN, 18, 10, 6, 6, 26, 6, 8, 3, true, 0, 0, {0}};
+static MenuMetrics mm = mm_normal;
+
+#define MENU_RM         (mm.rm)
+#define MENU_RH         (mm.rh)
+#define MENU_IS         (mm.is)
+#define MENU_BB         (mm.bb)
+#define MENU_BDX        (mm.bdx)
+#define MENU_BG         (mm.bg)
+#define MENU_BDROP      (mm.bdrop)
+#define MENU_FW         (mm.fw)
+#define MENU_IND(mi)    ((uint16_t)((mi).indent * mm.indent_k))
 #define MENU_CD         2               // cursor rows below text baseline
 #define MENU_TIMEOUT    MENU_TO         // timeout, millis
 #define MENU_FGC        RA8875_WHITE    // normal foreground color
@@ -75,6 +107,78 @@
 // menu whose items are currently being drawn by runMenu(), if any -- lets menuDrawItem() find the
 // optional MenuInfo.label_bgs entry for an item without changing its public signature.
 static const MenuInfo *label_menu;
+
+/* pack n table cells into columns of at most R rows each, preferring to start a new column at a section
+ * label rather than split a section across columns. set first[] to the index of the first cell in each
+ * column and *max_len to the length of the longest. set *split true if any section had to be split because
+ * it was longer than a column. return the number of columns, or 0 if it takes more than max_cols.
+ */
+static int menuPackCols (const bool *is_label, int n, int R, int max_cols, uint16_t *first, int *max_len, bool *split)
+{
+    int nc = 0;
+    *split = false;
+    int start = 0;
+    *max_len = 0;
+    while (start < n) {
+        if (nc >= max_cols)
+            return (0);
+        int end = start + R;
+        if (end >= n) {
+            end = n;
+        } else {
+            // look back from the cell that would start the next column for a section label to start it
+            int j;
+            for (j = end; j > start; j--) {
+                if (is_label[j]) {
+                    end = j;
+                    break;
+                }
+            }
+            if (j == start)
+                *split = true;          // no section label to break at
+        }
+        first[nc++] = start;
+        if (end - start > *max_len)
+            *max_len = end - start;
+        start = end;
+    }
+    return (nc);
+}
+
+/* select the font used by menu items
+ */
+static void menuSelectFont (void)
+{
+    if (mm.big)
+        selectFontStyle (LIGHT_FONT, SMALL_FONT);
+    else
+        selectFontStyle (LIGHT_FONT, FAST_FONT);
+}
+
+/* for the pane accordion picker in plotmgmnt.cpp, which draws its own rows via menuDrawItem():
+ * menuBigEnter() switches menuDrawItem() to big metrics if the Big dialogs setting is on and returns the
+ * row height to use, or 0 if not big. menuBigLeave() restores normal. menuUseFont() selects the item font.
+ */
+#define ACC_BIG_RH 44
+int menuBigEnter (void)
+{
+    if (!bigDialogs())
+        return (0);
+    mm = mm_big;
+    mm.rh = ACC_BIG_RH;
+    mm.bdrop = (ACC_BIG_RH - MENU_BIG_HGT)/2 + MENU_BIG_ASC;
+    return (ACC_BIG_RH);
+}
+
+void menuBigLeave (void)
+{
+    mm = mm_normal;
+}
+
+void menuUseFont (void)
+{
+    menuSelectFont();
+}
 
 /* print txt at x,y, first painting the item's label_bg behind it, if it has one.
  */
@@ -179,7 +283,7 @@ static void drawMenuTextMsg (const MenuItem &mi, const SBox &pb, const char *msg
 void menuDrawItem (const MenuItem &mi, const SBox &pb, bool draw_label, bool kb_focus)
 {
     // N.B. updateClocks can change font!
-    selectFontStyle (LIGHT_FONT, FAST_FONT);
+    menuSelectFont();
     tft.setTextColor (MENU_FGC);
 
     // prepare a copy of the label without underscores if drawing
@@ -199,7 +303,7 @@ void menuDrawItem (const MenuItem &mi, const SBox &pb, bool draw_label, bool kb_
 
     case MENU_LABEL:
         if (draw_label) {
-            tft.setCursor (pb.x + mi.indent, pb.y + MENU_BDROP);
+            tft.setCursor (pb.x + MENU_IND(mi), pb.y + MENU_BDROP);
             tft.print (no__copy);
         }
         drawSBox (pb, kb_focus ? MENU_FOCC : MENU_BGC);
@@ -212,7 +316,7 @@ void menuDrawItem (const MenuItem &mi, const SBox &pb, bool draw_label, bool kb_
             // outline down-pointing triangle (U+25BD look-alike) instead of the round radio
             // dot: this row navigates into another menu rather than making a final choice,
             // so it needs a visibly different indicator than a plain single-pick list item.
-            uint16_t tx0 = pb.x + mi.indent, ty0 = pb.y + (MENU_RH-MENU_IS)/2;
+            uint16_t tx0 = pb.x + MENU_IND(mi), ty0 = pb.y + (MENU_RH-MENU_IS)/2;
             uint16_t tx1 = tx0 + MENU_IS,    ty1 = ty0;
             uint16_t tx2 = tx0 + MENU_IS/2,  ty2 = ty0 + MENU_IS;
             if (mi.set)
@@ -222,13 +326,13 @@ void menuDrawItem (const MenuItem &mi, const SBox &pb, bool draw_label, bool kb_
                 tft.drawTriangle (tx0, ty0, tx1, ty1, tx2, ty2, MENU_FGC);
             }
         } else if (mi.set)
-            tft.fillCircle (pb.x + mi.indent + MENU_IS/2, pb.y + MENU_RH/2, MENU_IS/2, MENU_FGC);
+            tft.fillCircle (pb.x + MENU_IND(mi) + MENU_IS/2, pb.y + MENU_RH/2, MENU_IS/2, MENU_FGC);
         else {
-            tft.fillCircle (pb.x + mi.indent + MENU_IS/2, pb.y + MENU_RH/2, MENU_IS/2, MENU_BGC);
-            tft.drawCircle (pb.x + mi.indent + MENU_IS/2, pb.y + MENU_RH/2, MENU_IS/2, MENU_FGC);
+            tft.fillCircle (pb.x + MENU_IND(mi) + MENU_IS/2, pb.y + MENU_RH/2, MENU_IS/2, MENU_BGC);
+            tft.drawCircle (pb.x + MENU_IND(mi) + MENU_IS/2, pb.y + MENU_RH/2, MENU_IS/2, MENU_FGC);
         }
         if (draw_label) {
-            menuPrintLabel (mi, pb.x + mi.indent + MENU_IS + MENU_IS/2, pb.y + MENU_BDROP, no__copy);
+            menuPrintLabel (mi, pb.x + MENU_IND(mi) + MENU_IS + MENU_IS/2, pb.y + MENU_BDROP, no__copy);
         }
         drawSBox (pb, kb_focus ? MENU_FOCC : MENU_BGC);
         break;
@@ -236,13 +340,13 @@ void menuDrawItem (const MenuItem &mi, const SBox &pb, bool draw_label, bool kb_
     case MENU_AL1OFN:   // fallthru
     case MENU_TOGGLE:
         if (mi.set)
-            tft.fillRect (pb.x + mi.indent, pb.y + (MENU_RH-MENU_IS)/2, MENU_IS, MENU_IS, MENU_FGC);
+            tft.fillRect (pb.x + MENU_IND(mi), pb.y + (MENU_RH-MENU_IS)/2, MENU_IS, MENU_IS, MENU_FGC);
         else {
-            tft.fillRect (pb.x + mi.indent, pb.y + (MENU_RH-MENU_IS)/2, MENU_IS, MENU_IS, MENU_BGC);
-            tft.drawRect (pb.x + mi.indent, pb.y + (MENU_RH-MENU_IS)/2, MENU_IS, MENU_IS, MENU_FGC);
+            tft.fillRect (pb.x + MENU_IND(mi), pb.y + (MENU_RH-MENU_IS)/2, MENU_IS, MENU_IS, MENU_BGC);
+            tft.drawRect (pb.x + MENU_IND(mi), pb.y + (MENU_RH-MENU_IS)/2, MENU_IS, MENU_IS, MENU_FGC);
         }
         if (draw_label) {
-            menuPrintLabel (mi, pb.x + mi.indent + MENU_IS + MENU_IS/2, pb.y + MENU_BDROP, no__copy);
+            menuPrintLabel (mi, pb.x + MENU_IND(mi) + MENU_IS + MENU_IS/2, pb.y + MENU_BDROP, no__copy);
         }
         drawSBox (pb, kb_focus ? MENU_FOCC : MENU_BGC);
         break;
@@ -336,7 +440,7 @@ static void drawMenuFooter (MenuInfo &menu)
         else
             n_table++;
     }
-    int n_tblrows = (n_table + menu.n_cols - 1)/menu.n_cols;
+    int n_tblrows = mm.big ? mm.tblrows : (n_table + menu.n_cols - 1)/menu.n_cols;
 
     char buf[64];
     if (menu.footer_live_count) {
@@ -363,7 +467,7 @@ static void drawMenuFooter (MenuInfo &menu)
     fillSBox (fbox, MENU_BGC);         // erase whatever was there before -- the new count
                                         // may be shorter than the old one, would otherwise
                                         // leave stale trailing characters behind
-    selectFontStyle (LIGHT_FONT, FAST_FONT);
+    menuSelectFont();
     tft.setTextColor (menu.footer_color ? menu.footer_color : MENU_FGC);
     tft.setCursor (fbox.x + MENU_RM, fy + MENU_BDROP);
     tft.print (buf);
@@ -783,15 +887,134 @@ bool runMenu (MenuInfo &menu)
             n_mt++;
         } else {
             // set width in accord with how menuDrawItem() draws the item
-            int w = mi.label ? getTextWidth(mi.label) + mi.indent + 3*MENU_IS/2 : 0;
+            int w = mi.label ? getTextWidth(mi.label) + MENU_IND(mi) + 3*MENU_IS/2 : 0;
             if (w > widest)
                 widest = w;
             n_table++;                                  // MENU_TEXT is not part of table
         }
     }
 
+    // restore the caller's MenuInfo and the normal metrics on every way out of here if we go big
+    struct BigGuard {
+        MenuInfo &m;
+        SBox saved_b;
+        int saved_ncols;
+        bool saved_fit;
+        bool big;
+        BigGuard (MenuInfo &mi) : m(mi), saved_b(mi.menu_b), saved_ncols(mi.n_cols), saved_fit(mi.fit_cols), big(false) {}
+        ~BigGuard() {
+            if (big) {
+                m.menu_b = saved_b;
+                m.n_cols = saved_ncols;
+                m.fit_cols = saved_fit;
+            }
+            mm = mm_normal;
+        }
+    } big_guard (menu);
+
+    // Big dialog: if enabled, use the SMALL_FONT with tall rows across the full width, as many columns
+    // as needed to fit the height. Menus with MENU_TEXT stay normal because their text editing assumes
+    // the fixed width FAST_FONT, and any menu that would not fit, even at the minimum row height,
+    // also stays normal.
+    if (bigDialogs() && n_mt == 0 && n_table > 0) {
+
+        const int W = tft.width();
+        const int H = tft.height();
+        const int n_foot = menu.footer_text ? 1 : 0;
+
+        // measure with the big font
+        mm = mm_big;
+        menuSelectFont();
+        int bw = 0;
+        for (int i = 0; i < menu.n_items; i++) {
+            MenuItem &mi = menu.items[i];
+            if (mi.type == MENU_IGNORE)
+                continue;
+            int w = mi.label ? getTextWidth(mi.label) + MENU_IND(mi) + 3*MENU_IS/2 : 0;
+            if (mi.label && menu.label_bgs)
+                w += 3;
+            if (w > bw)
+                bw = w;
+        }
+
+        // rows available for the table, leaving room for margins, footer and the ok/cancel row, and
+        // 2 pixels of slack so runMenu() never thinks the box spills off the screen.
+        int max_rows = (H - 2 - 2*mm.tbm - mm.bg)/mm.rh - 1 - n_foot;
+
+        // most columns that fit across the screen
+        int max_cols = (W - 3 - mm.rm)/(bw > 0 ? bw : 1);
+        if (max_cols > MENU_MAXBIGCOLS)
+            max_cols = MENU_MAXBIGCOLS;
+
+        // which table cells are section labels
+        StackMalloc lbl_mem (n_table + 1);
+        bool *is_label = (bool *) lbl_mem.getMem();
+        int cell = 0;
+        for (int i = 0; i < menu.n_items; i++) {
+            if (menu.items[i].type != MENU_IGNORE && menu.items[i].type != MENU_TEXT)
+                is_label[cell++] = (menu.items[i].type == MENU_LABEL);
+        }
+        is_label[cell] = false;
+
+        // lay out the columns:
+        //   1. if the caller wants a grid then keep its column count if the rows fit, else
+        //   2. try packing into the fewest rows that fit, breaking at section labels, else
+        //   3. fill evenly.
+        int rows = 0, nc = 0;
+        if (max_rows > 0 && max_cols > 0) {
+            if (menu.n_cols > 1 && menu.n_cols <= max_cols && (n_table + menu.n_cols - 1)/menu.n_cols <= max_rows) {
+                nc = menu.n_cols;
+                rows = (n_table + nc - 1)/nc;
+                for (int c = 0; c < nc; c++)
+                    mm.col_first[c] = c*rows;
+            } else {
+                // fewest rows that does not split a section, else fewest rows that fits at all
+                for (int pass = 0; pass < 2 && nc == 0; pass++) {
+                    for (int R = (n_table + max_cols - 1)/max_cols; R <= max_rows && nc == 0; R++) {
+                        bool split;
+                        nc = menuPackCols (is_label, n_table, R, max_cols, mm.col_first, &rows, &split);
+                        if (nc > 0 && pass == 0 && split)
+                            nc = 0;
+                    }
+                }
+                if (nc == 0 && (n_table + max_cols - 1)/max_cols <= max_rows) {
+                    nc = max_cols;
+                    rows = (n_table + nc - 1)/nc;
+                    for (int c = 0; c < nc; c++)
+                        mm.col_first[c] = c*rows;
+                }
+            }
+        }
+
+        if (nc > 0 && rows <= max_rows) {
+
+            // stretch rows to use the height, within limits, and center the text in each
+            int rh = (H - 2 - 2*mm.tbm - mm.bg)/(rows + n_foot + 1);
+            if (rh > MENU_BIG_RH_MAX)
+                rh = MENU_BIG_RH_MAX;
+            mm.rh = rh;
+            mm.bdrop = (rh - MENU_BIG_HGT)/2 + MENU_BIG_ASC;
+            mm.tblrows = rows;
+            mm.ncols = nc;
+
+            // full width, columns of equal width; y is centered once the height is known
+            menu.menu_b.x = 1;
+            menu.menu_b.w = W - 3;
+            menu.n_cols = nc;
+            menu.fit_cols = false;
+            widest = bw;
+            big_guard.big = true;
+
+        } else {
+
+            // does not fit, go back to normal
+            mm = mm_normal;
+            menuSelectFont();
+        }
+    }
+
     // number of rows in each table column
-    int n_tblrows = (n_table + menu.n_cols - 1)/menu.n_cols;
+    int n_tblrows = mm.big ? mm.tblrows : (n_table + menu.n_cols - 1)/menu.n_cols;
 
     // if fitting columns individually, find each column's own widest item, and where each starts.
     // N.B. must agree with how items are assigned to table cells further below.
@@ -806,7 +1029,7 @@ bool runMenu (MenuInfo &menu)
             MenuItem &mi = menu.items[i];
             if (mi.type == MENU_IGNORE || mi.type == MENU_TEXT)
                 continue;
-            int w = mi.label ? getTextWidth(mi.label) + mi.indent + 3*MENU_IS/2 : 0;
+            int w = mi.label ? getTextWidth(mi.label) + MENU_IND(mi) + 3*MENU_IS/2 : 0;
             if (mi.label && menu.label_bgs)
                 w += 3;                                 // room for the colored background around the text
             int c = tc/n_tblrows;
@@ -825,6 +1048,8 @@ bool runMenu (MenuInfo &menu)
 
     // set menu height, +1 for each MENU_TEXT, +1 for an optional footer, +1 for ok/cancel
     menu.menu_b.h = MENU_TBM + (n_tblrows + n_mt + n_footer + 1)*MENU_RH + MENU_TBM + MENU_BG;
+    if (big_guard.big)
+        menu.menu_b.y = (tft.height() - menu.menu_b.h)/2;
 
     // set ok button size, don't know position yet
     uint16_t min_ok_w = getTextWidth (ok_label) + MENU_BDX*2;
@@ -938,9 +1163,19 @@ bool runMenu (MenuInfo &menu)
             menuDrawItem (mi, pb, true, false);
             mt_i++;
         } else if (mi.type != MENU_IGNORE) {
-            int c = tblcell_i/n_tblrows;
+            int c, r;
+            if (mm.big) {
+                // columns can be uneven
+                c = 0;
+                while (c + 1 < (int)mm.ncols && tblcell_i >= (int)mm.col_first[c+1])
+                    c++;
+                r = tblcell_i - mm.col_first[c];
+            } else {
+                c = tblcell_i/n_tblrows;
+                r = tblcell_i%n_tblrows;
+            }
             pb.x = menu.menu_b.x + 1 + (fit && c < menu.n_cols ? col_xs[c] : c*col_w);
-            pb.y = menu.menu_b.y + MENU_TBM + (tblcell_i%n_tblrows)*MENU_RH;
+            pb.y = menu.menu_b.y + MENU_TBM + r*MENU_RH;
             pb.w = fit && c < menu.n_cols ? col_ws[c] : col_w;
             pb.h = MENU_RH;
             menuDrawItem (mi, pb, true, false);
@@ -973,12 +1208,15 @@ bool runMenu (MenuInfo &menu)
     // N.B. code below will CRASH if focus < 0.
     bool is_active_menu = (focus_idx >= 0);
 
+    // a big dialog covers the clocks so don't let them draw over it, but catch them up when we are done
+    bool catch_up_clocks = big_guard.big && menu.update_clocks == UF_CLOCKSOK;
+
     UserInput ui = {
         menu.menu_b,
         UI_UFuncNone,
         UF_UNUSED,
         MENU_TIMEOUT,
-        menu.update_clocks,
+        catch_up_clocks ? UF_NOCLOCKS : menu.update_clocks,
         {0, 0}, TT_NONE, '\0', false, false
     };
 
@@ -1064,6 +1302,10 @@ bool runMenu (MenuInfo &menu)
     if (boxesOverlap (menu.menu_b, map_b))
         tft.drawPR();
 
+    // restored pixels are as old as the menu was so redraw the clocks now
+    if (catch_up_clocks)
+        updateClocks (true);
+
     // record settings
     Serial.printf ("Menu result after %s:\n", ok ? "Ok" : "Cancel");
     for (int i = 0; i < menu.n_items; i++) {
@@ -1128,7 +1370,7 @@ void menuRedrawOk (SBox &ok_b, MenuOkState oks)
         break;
     }
 
-    selectFontStyle (LIGHT_FONT, FAST_FONT);
+    menuSelectFont();
     uint16_t ok_txt_w = getTextWidth (ok_label);
     uint16_t ok_tx = ok_b.x + (ok_b.w > ok_txt_w ? (ok_b.w - ok_txt_w)/2 : MENU_BDX);
     tft.setCursor (ok_tx, ok_b.y + MENU_BDROP);
