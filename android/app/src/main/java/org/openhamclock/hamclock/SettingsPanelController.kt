@@ -40,9 +40,16 @@ class SettingsPanelController(private val activity: MainActivity) {
         SETTINGS
     }
 
-    enum class EndpointTab {
-        LIVE,
-        ANTENNAS
+    enum class EndpointTab(
+        val path: String,
+        val usesRestPort: Boolean,
+        val guidanceRes: Int,
+        val portConflictRes: Int? = null
+    ) {
+        LIVE("live.html", false, R.string.lan_scan_guidance),
+        ANTENNAS("antennas.html", true, R.string.antenna_page_guidance, R.string.antenna_page_ports_conflict),
+        ADIF("adif.html", true, R.string.adif_page_guidance, R.string.adif_page_ports_conflict),
+        PARKS("parks.html", true, R.string.parks_page_guidance, R.string.parks_page_ports_conflict)
     }
 
     companion object {
@@ -115,6 +122,8 @@ class SettingsPanelController(private val activity: MainActivity) {
         val llLanOnContainer = dialogView.findViewById<LinearLayout>(R.id.ll_lan_on_container)
         val btnTabLive = dialogView.findViewById<Button>(R.id.btn_tab_live)
         val btnTabAntennas = dialogView.findViewById<Button>(R.id.btn_tab_antennas)
+        val btnTabAdif = dialogView.findViewById<Button>(R.id.btn_tab_adif)
+        val btnTabParks = dialogView.findViewById<Button>(R.id.btn_tab_parks)
         val tvLanTargetHint = dialogView.findViewById<TextView>(R.id.tv_lan_target_hint)
         val ivLocalAccessQr = dialogView.findViewById<ImageView>(R.id.iv_local_access_qr)
         val tvLocalUrlValue = dialogView.findViewById<TextView>(R.id.tv_local_url_value)
@@ -181,15 +190,16 @@ class SettingsPanelController(private val activity: MainActivity) {
             return "$baseName.local"
         }
 
+        fun getEndpointPort(tab: EndpointTab): Int {
+            return if (tab.usesRestPort) activity.actualRestPort else activity.actualRwPort
+        }
+
         fun getEndpointTargetUrl(tab: EndpointTab): String {
             val ip = activity.getDeviceIpAddress()
             val host = if (!ip.isNullOrEmpty()) ip else resolvedMdnsHost()
-            return if (tab == EndpointTab.LIVE) {
-                "http://$host:${activity.actualRwPort}/live.html"
-            } else {
-                val port = if (activity.actualRestPort > 0) activity.actualRestPort else 8080
-                "http://$host:$port/antennas.html"
-            }
+            val rawPort = getEndpointPort(tab)
+            val port = if (rawPort > 0) rawPort else 8080
+            return "http://$host:$port/${tab.path}"
         }
 
         fun updateMdnsHelpText() {
@@ -230,9 +240,48 @@ class SettingsPanelController(private val activity: MainActivity) {
             }
         }
 
+        fun updateDynamicPage1Focus() {
+            val isLandscape = activity.resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+            val copyVisible = btnCopyLocalUrl.visibility == View.VISIBLE
+
+            if (isLandscape) {
+                if (lanAccessEnabled) {
+                    btnResume.nextFocusRightId = R.id.btn_tab_live
+                    btnToggleLan.nextFocusRightId = R.id.btn_tab_live
+                    btnGoToSettings.nextFocusRightId = R.id.btn_tab_live
+                    btnOpenSetup.nextFocusRightId = if (copyVisible) R.id.btn_copy_local_url else R.id.btn_tab_adif
+                    btnExitApp.nextFocusRightId = if (copyVisible) R.id.btn_copy_local_url else R.id.btn_tab_parks
+
+                    btnTabAdif.nextFocusDownId = if (copyVisible) R.id.btn_copy_local_url else R.id.btn_tab_adif
+                    btnTabParks.nextFocusDownId = if (copyVisible) R.id.btn_copy_local_url else R.id.btn_tab_parks
+                    btnTabLive.nextFocusUpId = if (copyVisible) R.id.btn_copy_local_url else R.id.btn_tab_live
+                    btnTabAntennas.nextFocusUpId = if (copyVisible) R.id.btn_copy_local_url else R.id.btn_tab_antennas
+                } else {
+                    btnResume.nextFocusRightId = R.id.btn_resume
+                    btnToggleLan.nextFocusRightId = R.id.btn_toggle_lan
+                    btnGoToSettings.nextFocusRightId = R.id.btn_go_to_settings
+                    btnOpenSetup.nextFocusRightId = R.id.btn_open_setup
+                    btnExitApp.nextFocusRightId = R.id.btn_exit_app
+                }
+            } else {
+                // Portrait
+                if (lanAccessEnabled) {
+                    btnExitApp.nextFocusDownId = R.id.btn_tab_live
+                    btnTabAdif.nextFocusDownId = if (copyVisible) R.id.btn_copy_local_url else R.id.btn_resume
+                    btnTabParks.nextFocusDownId = if (copyVisible) R.id.btn_copy_local_url else R.id.btn_resume
+                    btnResume.nextFocusUpId = if (copyVisible) R.id.btn_copy_local_url else R.id.btn_tab_adif
+                } else {
+                    btnExitApp.nextFocusDownId = R.id.btn_resume
+                    btnResume.nextFocusUpId = R.id.btn_exit_app
+                }
+            }
+        }
+
         fun updateEndpointsAndQr() {
             btnTabLive.isSelected = (currentTab == EndpointTab.LIVE)
             btnTabAntennas.isSelected = (currentTab == EndpointTab.ANTENNAS)
+            btnTabAdif.isSelected = (currentTab == EndpointTab.ADIF)
+            btnTabParks.isSelected = (currentTab == EndpointTab.PARKS)
 
             val isTv = activity.isFireTvOrTv()
             val hostName = resolvedMdnsHost()
@@ -245,81 +294,33 @@ class SettingsPanelController(private val activity: MainActivity) {
                 tvLanStatusNotice?.visibility = View.GONE
             }
 
-            if (currentTab == EndpointTab.LIVE) {
-                tvLanTargetHint.text = activity.getString(R.string.lan_scan_guidance)
-                tvLocalUrlValue.text = "http://$hostName:${activity.actualRwPort}/live.html"
+            tvLanTargetHint.text = activity.getString(currentTab.guidanceRes)
+            val port = getEndpointPort(currentTab)
+            if (currentTab.usesRestPort && port <= 0) {
+                tvLocalUrlValue.text = activity.getString(
+                    currentTab.portConflictRes ?: R.string.antenna_page_ports_conflict
+                )
+                tvIpUrlValue.visibility = View.GONE
+                ivLocalAccessQr.setImageBitmap(null)
+                btnCopyLocalUrl.visibility = View.GONE
+            } else {
+                tvLocalUrlValue.text = "http://$hostName:$port/${currentTab.path}"
 
                 val targetUrl: String
                 if (!ip.isNullOrEmpty()) {
-                    tvIpUrlValue.text = "or http://$ip:${activity.actualRwPort}/live.html"
+                    tvIpUrlValue.text = "or http://$ip:$port/${currentTab.path}"
                     tvIpUrlValue.visibility = View.VISIBLE
-                    targetUrl = "http://$ip:${activity.actualRwPort}/live.html"
+                    targetUrl = "http://$ip:$port/${currentTab.path}"
                 } else {
                     tvIpUrlValue.visibility = View.GONE
-                    targetUrl = "http://$hostName:${activity.actualRwPort}/live.html"
+                    targetUrl = "http://$hostName:$port/${currentTab.path}"
                 }
 
                 val qrBmp = HamClockNative.generateQRCodeBitmap(targetUrl, scale = 5, border = 2)
                 ivLocalAccessQr.setImageBitmap(qrBmp)
                 btnCopyLocalUrl.visibility = if (!isTv) View.VISIBLE else View.GONE
-            } else {
-                tvLanTargetHint.text = activity.getString(R.string.antenna_page_guidance)
-                if (activity.actualRestPort <= 0) {
-                    tvLocalUrlValue.text = activity.getString(R.string.antenna_page_ports_conflict)
-                    tvIpUrlValue.visibility = View.GONE
-                    ivLocalAccessQr.setImageBitmap(null)
-                    btnCopyLocalUrl.visibility = View.GONE
-                } else {
-                    tvLocalUrlValue.text = "http://$hostName:${activity.actualRestPort}/antennas.html"
-
-                    val targetUrl: String
-                    if (!ip.isNullOrEmpty()) {
-                        tvIpUrlValue.text = "or http://$ip:${activity.actualRestPort}/antennas.html"
-                        tvIpUrlValue.visibility = View.VISIBLE
-                        targetUrl = "http://$ip:${activity.actualRestPort}/antennas.html"
-                    } else {
-                        tvIpUrlValue.visibility = View.GONE
-                        targetUrl = "http://$hostName:${activity.actualRestPort}/antennas.html"
-                    }
-
-                    val qrBmp = HamClockNative.generateQRCodeBitmap(targetUrl, scale = 5, border = 2)
-                    ivLocalAccessQr.setImageBitmap(qrBmp)
-                    btnCopyLocalUrl.visibility = if (!isTv) View.VISIBLE else View.GONE
-                }
             }
-        }
-
-        fun updateDynamicPage1Focus() {
-            val isLandscape = activity.resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-            val copyVisible = btnCopyLocalUrl.visibility == View.VISIBLE
-
-            if (isLandscape) {
-                if (lanAccessEnabled) {
-                    btnResume.nextFocusRightId = R.id.btn_tab_live
-                    btnToggleLan.nextFocusRightId = R.id.btn_tab_live
-                    btnGoToSettings.nextFocusRightId = R.id.btn_tab_live
-                    btnOpenSetup.nextFocusRightId = if (copyVisible) R.id.btn_copy_local_url else R.id.btn_tab_live
-                    btnExitApp.nextFocusRightId = if (copyVisible) R.id.btn_copy_local_url else R.id.btn_tab_antennas
-
-                    btnTabLive.nextFocusDownId = if (copyVisible) R.id.btn_copy_local_url else R.id.btn_tab_live
-                    btnTabAntennas.nextFocusDownId = if (copyVisible) R.id.btn_copy_local_url else R.id.btn_tab_antennas
-                } else {
-                    btnResume.nextFocusRightId = R.id.btn_resume
-                    btnToggleLan.nextFocusRightId = R.id.btn_toggle_lan
-                    btnGoToSettings.nextFocusRightId = R.id.btn_go_to_settings
-                    btnOpenSetup.nextFocusRightId = R.id.btn_open_setup
-                    btnExitApp.nextFocusRightId = R.id.btn_exit_app
-                }
-            } else {
-                // Portrait
-                if (lanAccessEnabled) {
-                    btnExitApp.nextFocusDownId = R.id.btn_tab_live
-                    btnResume.nextFocusUpId = if (copyVisible) R.id.btn_copy_local_url else R.id.btn_tab_live
-                } else {
-                    btnExitApp.nextFocusDownId = R.id.btn_resume
-                    btnResume.nextFocusUpId = R.id.btn_exit_app
-                }
-            }
+            updateDynamicPage1Focus()
         }
 
         fun updateLanCardAndToggle() {
@@ -504,26 +505,22 @@ class SettingsPanelController(private val activity: MainActivity) {
             }, 150)
         }
 
-        applyFocusZoom(btnTabLive, 1.04f) { hasFocus ->
-            if (hasFocus) {
-                currentTab = EndpointTab.LIVE
+        listOf(
+            btnTabLive to EndpointTab.LIVE,
+            btnTabAntennas to EndpointTab.ANTENNAS,
+            btnTabAdif to EndpointTab.ADIF,
+            btnTabParks to EndpointTab.PARKS
+        ).forEach { (btn, tab) ->
+            applyFocusZoom(btn, 1.04f) { hasFocus ->
+                if (hasFocus) {
+                    currentTab = tab
+                    updateEndpointsAndQr()
+                }
+            }
+            btn.setOnClickListener {
+                currentTab = tab
                 updateEndpointsAndQr()
             }
-        }
-        btnTabLive.setOnClickListener {
-            currentTab = EndpointTab.LIVE
-            updateEndpointsAndQr()
-        }
-
-        applyFocusZoom(btnTabAntennas, 1.04f) { hasFocus ->
-            if (hasFocus) {
-                currentTab = EndpointTab.ANTENNAS
-                updateEndpointsAndQr()
-            }
-        }
-        btnTabAntennas.setOnClickListener {
-            currentTab = EndpointTab.ANTENNAS
-            updateEndpointsAndQr()
         }
 
         applyFocusZoom(btnCopyLocalUrl)

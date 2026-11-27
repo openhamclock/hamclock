@@ -197,39 +197,82 @@
             android:padding="16dp"
             android:visibility="visible">
 
-            <!-- Endpoint Tabs -->
+            <!-- Endpoint Tabs (2x2 Grid) -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:clipChildren="false"
                 android:clipToPadding="false"
-                android:orientation="horizontal">
+                android:orientation="vertical">
 
-                <Button
-                    android:id="@+id/btn_tab_live"
-                    style="@style/Settings.Button.Tab"
-                    android:layout_width="0dp"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    android:layout_marginEnd="4dp"
-                    android:layout_weight="1"
-                    android:text="@string/endpoint_live_clock"
-                    android:nextFocusUp="@+id/btn_exit_app"
-                    android:nextFocusRight="@+id/btn_tab_antennas"
-                    android:nextFocusDown="@+id/btn_copy_local_url" />
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:orientation="horizontal">
 
-                <Button
-                    android:id="@+id/btn_tab_antennas"
-                    style="@style/Settings.Button.Tab"
-                    android:layout_width="0dp"
+                    <Button
+                        android:id="@+id/btn_tab_live"
+                        style="@style/Settings.Button.Tab"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:layout_marginEnd="4dp"
+                        android:layout_weight="1"
+                        android:text="@string/endpoint_live_clock"
+                        android:nextFocusUp="@+id/btn_exit_app"
+                        android:nextFocusRight="@+id/btn_tab_antennas"
+                        android:nextFocusDown="@+id/btn_tab_adif" />
+
+                    <Button
+                        android:id="@+id/btn_tab_antennas"
+                        style="@style/Settings.Button.Tab"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:layout_marginEnd="4dp"
+                        android:layout_weight="1"
+                        android:text="@string/endpoint_antennas"
+                        android:nextFocusUp="@+id/btn_exit_app"
+                        android:nextFocusLeft="@+id/btn_tab_live"
+                        android:nextFocusDown="@+id/btn_tab_parks" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    android:layout_marginEnd="4dp"
-                    android:layout_weight="1"
-                    android:text="@string/endpoint_antennas"
-                    android:nextFocusUp="@+id/btn_exit_app"
-                    android:nextFocusLeft="@+id/btn_tab_live"
-                    android:nextFocusDown="@+id/btn_copy_local_url" />
+                    android:layout_marginTop="6dp"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:orientation="horizontal">
+
+                    <Button
+                        android:id="@+id/btn_tab_adif"
+                        style="@style/Settings.Button.Tab"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:layout_marginEnd="4dp"
+                        android:layout_weight="1"
+                        android:text="@string/endpoint_adif"
+                        android:nextFocusUp="@+id/btn_tab_live"
+                        android:nextFocusRight="@+id/btn_tab_parks"
+                        android:nextFocusDown="@+id/btn_copy_local_url" />
+
+                    <Button
+                        android:id="@+id/btn_tab_parks"
+                        style="@style/Settings.Button.Tab"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:layout_marginEnd="4dp"
+                        android:layout_weight="1"
+                        android:text="@string/endpoint_parks"
+                        android:nextFocusUp="@+id/btn_tab_antennas"
+                        android:nextFocusLeft="@+id/btn_tab_adif"
+                        android:nextFocusDown="@+id/btn_copy_local_url" />
+                </LinearLayout>
             </LinearLayout>
 
             <TextView
@@ -284,7 +327,7 @@
                 android:layout_gravity="center_horizontal"
                 android:layout_marginTop="10dp"
                 android:text="@string/copy_url"
-                android:nextFocusUp="@+id/btn_tab_live"
+                android:nextFocusUp="@+id/btn_tab_adif"
                 android:nextFocusDown="@+id/btn_resume" />
 
             <TextView

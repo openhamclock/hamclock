@@ -40,6 +40,8 @@
     <string name="rest_port_disabled_toast">Notice: Port 8080 is in use by another app. REST API has been disabled.</string>
     <string name="endpoint_live_clock">Live Clock (:8081)</string>
     <string name="endpoint_antennas">Antennas (:8080)</string>
+    <string name="endpoint_adif">ADIF Log (:8080)</string>
+    <string name="endpoint_parks">POTA Parks (:8080)</string>
     <string name="antenna_url_label">Antenna configuration page:</string>
     <string name="run_in_background_label">Keep HamClock running in the background</string>
     <string name="run_in_background_subtext">Keep engine, live web, and antenna servers active when navigating away or pressing Back</string>
@@ -98,6 +100,10 @@
     <string name="antenna_page_guidance">Antenna configuration page:</string>
     <string name="antenna_page_waiting">The antenna page opens once HamClock’s Setup is done.</string>
     <string name="antenna_page_ports_conflict">The antenna page is off: its ports are in use by other apps.</string>
+    <string name="adif_page_guidance">ADIF log upload page:</string>
+    <string name="adif_page_ports_conflict">The ADIF log page is off: its ports are in use by other apps.</string>
+    <string name="parks_page_guidance">POTA hunted parks upload page:</string>
+    <string name="parks_page_ports_conflict">The POTA parks page is off: its ports are in use by other apps.</string>
     <string name="engine_status_format">Engine %1$s  ·  v%2$s</string>
     <string name="engine_status_unknown">Engine unknown</string>
     <string name="engine_ports_format">Live :%1$d  ·  REST %2$s  ·  %3$s</string>

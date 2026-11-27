@@ -301,7 +301,7 @@ const char antennas_html[] =
     "\n"
     "// All fetches use relative paths -- always same-origin as the page itself.\n"
     "async function getText(path) {\n"
-    "    const r = await fetch(path);\n"
+    "    const r = await fetch(path, { cache: 'no-store' });\n"
     "    if (!r.ok) throw new Error('HTTP ' + r.status);\n"
     "    return r.text();\n"
     "}\n"
