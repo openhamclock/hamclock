@@ -51,7 +51,7 @@ import type {
 import {DEFAULT_BACKEND, DEFAULT_ENGINE_OPTIONS, DEFAULT_MDNS_NAME, HcEngine, ensureEngineStarted} from './engine';
 import type {EngineStatus, VegaSettings} from './engine';
 import {QrCode} from './QrCode';
-import {antennasReady, engineBusy, firstRunVisible, initialState, lanUrls, lifecycleReducer, qrUrlFor} from './lifecycle';
+import {engineBusy, firstRunVisible, initialState, lanUrls, lifecycleReducer, qrUrlFor, restReady} from './lifecycle';
 import type {LanTarget} from './lifecycle';
 import type {AppEvent, AppState, Lifecycle} from './lifecycle';
 import {APPSTORE_URL, CHECK_INTERVAL_MS, FIRST_CHECK_DELAY_MS, SNOOZE_MS, fetchLatestVersion, noticeFor} from './updateCheck';
@@ -463,8 +463,12 @@ function FocusButton(props: {
   selected?: boolean;
   /** Called when the button gets focus (e.g. a choice that applies on highlight). */
   onFocus?: () => void;
+  /** Stretch to fill a row cell (used by the 2x2 QR target grid). */
+  fill?: boolean;
+  /** Slightly smaller padding/font for dense tab grids. */
+  compact?: boolean;
 }) {
-  const {label, onPress, metrics: m, preferred, tone = 'default', selected, onFocus} = props;
+  const {label, onPress, metrics: m, preferred, tone = 'default', selected, onFocus, fill, compact} = props;
   const [focused, setFocused] = useState(false);
   return (
     <TouchableOpacity
@@ -478,12 +482,18 @@ function FocusButton(props: {
       activeOpacity={0.85}
       style={[
         styles.button,
-        {paddingVertical: 20 * m.dp, paddingHorizontal: 32 * m.dp, borderRadius: 14 * m.dp, marginTop: 16 * m.dp},
+        {
+          paddingVertical: (compact ? 14 : 20) * m.dp,
+          paddingHorizontal: (compact ? 16 : 32) * m.dp,
+          borderRadius: 14 * m.dp,
+          marginTop: 16 * m.dp,
+        },
+        fill && styles.buttonFill,
         selected && styles.buttonSelected,
         focused && (tone === 'danger' ? styles.buttonFocusedDanger : styles.buttonFocused),
         focused && {transform: [{scale: 1.04}]},
       ]}>
-      <Text style={[styles.buttonText, {fontSize: 30 * m.dp}, focused && styles.buttonTextFocused]}>
+      <Text style={[styles.buttonText, {fontSize: (compact ? 26 : 30) * m.dp}, focused && styles.buttonTextFocused]}>
         {label}
       </Text>
     </TouchableOpacity>
@@ -673,10 +683,28 @@ function EngineNotice({state, metrics: m}: {state: AppState; metrics: TvMetrics}
   );
 }
 
+const LAN_TARGETS: {
+  id: LanTarget;
+  label: string;
+  hint: string;
+  waitingName: string;
+}[] = [
+  {id: 'live', label: 'Live clock', hint: 'Scan, or open on a phone or computer:', waitingName: 'The live clock'},
+  {id: 'antennas', label: 'Antennas', hint: 'Antenna configuration page:', waitingName: 'The antenna page'},
+  {id: 'adif', label: 'ADIF log', hint: 'ADIF log upload page:', waitingName: 'The ADIF log page'},
+  {id: 'parks', label: 'POTA parks', hint: 'POTA hunted parks upload page:', waitingName: 'The POTA parks page'},
+];
+
+const LAN_TARGET_ROWS: [typeof LAN_TARGETS, typeof LAN_TARGETS] = [
+  LAN_TARGETS.slice(0, 2),
+  LAN_TARGETS.slice(2, 4),
+];
+
 /**
  * Where to browse from another device (LAN access on), or what LAN access does (off). With LAN on,
- * two choices switch the address and QR code between the live clock and the antenna configuration
- * page, as the Android app's settings tabs do; moving the highlight onto a choice switches. The choice resets to the clock when the panel opens.
+ * four choices switch the address and QR code between the live clock and the REST web pages
+ * (antennas, ADIF log, POTA parks), as the Android app's settings tabs do; moving the highlight
+ * onto a choice switches. The choice resets to the clock when the panel opens.
  */
 function LanInfo({state, metrics: m}: {state: AppState; metrics: TvMetrics}) {
   const [target, setTarget] = useState<LanTarget>('live');
@@ -696,36 +724,38 @@ function LanInfo({state, metrics: m}: {state: AppState; metrics: TvMetrics}) {
       </View>
     );
   }
-  const antennas = target === 'antennas';
-  const waiting = antennas && !antennasReady(s);
+  const active = LAN_TARGETS.find(t => t.id === target) ?? LAN_TARGETS[0];
+  const waiting = target !== 'live' && !restReady(s);
   const {mdnsUrl, ipUrls} = lanUrls(s, target);
   return (
     <View style={[styles.lanBox, styles.lanBoxCol, {padding: 24 * m.dp, borderRadius: 18 * m.dp}]}>
-      <View style={[styles.stepRow, {columnGap: 16 * m.dp, marginTop: -16 * m.dp}]}>
-        {/* The choice applies on highlight; OK isn't needed. */}
-        <FocusButton
-          metrics={m}
-          label="Live clock"
-          selected={!antennas}
-          onFocus={() => setTarget('live')}
-          onPress={() => setTarget('live')}
-        />
-        <FocusButton
-          metrics={m}
-          label="Antennas"
-          selected={antennas}
-          onFocus={() => setTarget('antennas')}
-          onPress={() => setTarget('antennas')}
-        />
+      <View style={[styles.lanTabGrid, {marginTop: -16 * m.dp}]}>
+        {LAN_TARGET_ROWS.map((row, ri) => (
+          <View key={ri} style={[styles.stepRow, {columnGap: 16 * m.dp}]}>
+            {/* The choice applies on highlight; OK isn't needed. */}
+            {row.map(item => (
+              <FocusButton
+                key={item.id}
+                metrics={m}
+                label={item.label}
+                selected={target === item.id}
+                fill
+                compact
+                onFocus={() => setTarget(item.id)}
+                onPress={() => setTarget(item.id)}
+              />
+            ))}
+          </View>
+        ))}
       </View>
       <Text style={[styles.panelMeta, {fontSize: 24 * m.dp, marginTop: 16 * m.dp}]}>
-        {antennas ? 'Antenna configuration page:' : 'Scan, or open on a phone or computer:'}
+        {active.hint}
       </Text>
       {waiting ? (
         <Text style={[styles.lanNoAddr, styles.textCenter, {fontSize: 24 * m.dp, marginTop: 18 * m.dp}]}>
           {s.restPort > 0
-            ? 'The antenna page opens once HamClock’s Setup is done.'
-            : 'The antenna page is off: its ports are in use by other apps.'}
+            ? `${active.waitingName} opens once HamClock’s Setup is done.`
+            : `${active.waitingName} is off: its ports are in use by other apps.`}
         </Text>
       ) : (
         <View style={{marginTop: 16 * m.dp}}>
@@ -1546,6 +1576,7 @@ const styles = StyleSheet.create({
   panelMeta: {color: C.muted},
   lanBox: {backgroundColor: 'rgba(255, 181, 71, 0.08)', borderWidth: 1, borderColor: 'rgba(255, 181, 71, 0.35)'},
   lanBoxCol: {alignItems: 'center'},
+  lanTabGrid: {alignSelf: 'stretch'},
   lanBoxOff: {backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: C.border},
   lanUrl: {color: C.accent, fontWeight: '700'},
   lanUrlAlt: {color: C.text, fontWeight: '600'},
@@ -1582,6 +1613,7 @@ const styles = StyleSheet.create({
   updateButtons: {flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center'},
 
   button: {backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 2, borderColor: 'transparent'},
+  buttonFill: {flex: 1, alignItems: 'center'},
   buttonSelected: {borderColor: C.accent},
   buttonFocused: {backgroundColor: C.accent, borderColor: '#fff'},
   buttonFocusedDanger: {backgroundColor: C.danger, borderColor: '#fff'},

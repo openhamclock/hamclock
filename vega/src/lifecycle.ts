@@ -135,13 +135,21 @@ export function engineBusy(s: AppState): boolean {
 
 /**
  * Which page the address and QR code point at, as in the Android app's settings tabs: the live
- * clock (live.html on the live R/W port) or the antenna configuration page (antennas.html on the
- * REST port).
+ * clock (live.html on the live R/W port) or one of the REST web pages (antennas.html, adif.html,
+ * parks.html on the REST port).
  */
-export type LanTarget = 'live' | 'antennas';
+export type LanTarget = 'live' | 'antennas' | 'adif' | 'parks';
+
+const TARGET_PATHS: Record<LanTarget, {rest: boolean; path: string}> = {
+  live: {rest: false, path: 'live.html'},
+  antennas: {rest: true, path: 'antennas.html'},
+  adif: {rest: true, path: 'adif.html'},
+  parks: {rest: true, path: 'parks.html'},
+};
 
 function targetPortPath(s: EngineStatus, target: LanTarget): string {
-  return target === 'antennas' ? `${s.restPort}/antennas.html` : `${s.liveRwPort}/live.html`;
+  const {rest, path} = TARGET_PATHS[target];
+  return `${rest ? s.restPort : s.liveRwPort}/${path}`;
 }
 
 /** URLs another device can open: mDNS name first once announced, then the IP addresses. */
@@ -153,16 +161,20 @@ export function lanUrls(s: EngineStatus, target: LanTarget = 'live'): {mdnsUrl: 
 }
 
 /**
- * The antenna page is served by the REST server, which HamClock starts only after Setup; until
- * then its address wouldn't answer. restPort -1: REST is off (its ports were taken).
+ * The REST pages (antennas.html, adif.html, parks.html) are served by the REST server, which
+ * HamClock starts only after Setup; until then their addresses wouldn't answer.
+ * restPort -1: REST is off (its ports were taken).
  */
-export function antennasReady(s: EngineStatus | null): boolean {
+export function restReady(s: EngineStatus | null): boolean {
   return !!s && s.restPort > 0 && (s.listening ?? []).includes(s.restPort);
 }
+
+/** Alias kept for existing callers. */
+export const antennasReady = restReady;
 
 /** The URL QR codes encode: always the first IP URL (decision 4), never .local. */
 export function qrUrlFor(s: EngineStatus | null, target: LanTarget = 'live'): string | null {
   if (!s?.lanAccess) return null;
-  if (target === 'antennas' && !antennasReady(s)) return null;
+  if (TARGET_PATHS[target].rest && !restReady(s)) return null;
   return lanUrls(s, target).ipUrls[0] ?? null;
 }

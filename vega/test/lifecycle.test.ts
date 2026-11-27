@@ -7,6 +7,7 @@ import {
   lifecycleFromStatus,
   lifecycleReducer,
   qrUrlFor,
+  restReady,
 } from '../src/lifecycle';
 import type {AppState} from '../src/lifecycle';
 import type {EngineStatus} from '../src/engine';
@@ -191,25 +192,35 @@ describe('LAN URLs and QR', () => {
     expect(qrUrlFor(status({lanAddresses: []}))).toBeNull();
   });
 
-  it('antenna page: REST port and antennas.html, .local and IP', () => {
+  it('antenna, ADIF, and parks pages: REST port and page path, .local and IP', () => {
     const s = status({lanAddresses: ['192.168.1.237', '10.0.0.5']});
-    expect(lanUrls(s, 'antennas')).toEqual({
-      mdnsUrl: 'http://hamclock.local:8080/antennas.html',
-      ipUrls: ['http://192.168.1.237:8080/antennas.html', 'http://10.0.0.5:8080/antennas.html'],
-    });
-    expect(qrUrlFor(s, 'antennas')).toBe('http://192.168.1.237:8080/antennas.html');
+    for (const [target, file] of [
+      ['antennas', 'antennas.html'],
+      ['adif', 'adif.html'],
+      ['parks', 'parks.html'],
+    ] as const) {
+      expect(lanUrls(s, target)).toEqual({
+        mdnsUrl: `http://hamclock.local:8080/${file}`,
+        ipUrls: [`http://192.168.1.237:8080/${file}`, `http://10.0.0.5:8080/${file}`],
+      });
+      expect(qrUrlFor(s, target)).toBe(`http://192.168.1.237:8080/${file}`);
+    }
   });
 
-  it('antenna QR only once REST listens (after Setup) and with LAN access', () => {
+  it('REST page QRs only once REST listens (after Setup) and with LAN access', () => {
     const noRest = status({listening: [8081, 8082]});
+    expect(restReady(noRest)).toBe(false);
     expect(antennasReady(noRest)).toBe(false);
-    expect(qrUrlFor(noRest, 'antennas')).toBeNull();
     expect(qrUrlFor(noRest)).not.toBeNull(); // the live clock is still reachable
-    expect(antennasReady(status())).toBe(true);
-    expect(antennasReady(null)).toBe(false);
-    expect(qrUrlFor(status({lanAccess: false}), 'antennas')).toBeNull();
-    // REST off (its ports taken by other apps): never ready, no QR.
-    expect(antennasReady(status({restPort: -1}))).toBe(false);
-    expect(qrUrlFor(status({restPort: -1, listening: [8081, 8082, -1]}), 'antennas')).toBeNull();
+    expect(restReady(status())).toBe(true);
+    expect(restReady(null)).toBe(false);
+    expect(restReady(status({restPort: -1}))).toBe(false);
+
+    for (const target of ['antennas', 'adif', 'parks'] as const) {
+      expect(qrUrlFor(noRest, target)).toBeNull();
+      expect(qrUrlFor(status({lanAccess: false}), target)).toBeNull();
+      // REST off (its ports taken by other apps): never ready, no QR.
+      expect(qrUrlFor(status({restPort: -1, listening: [8081, 8082, -1]}), target)).toBeNull();
+    }
   });
 });
