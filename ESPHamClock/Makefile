@@ -163,6 +163,8 @@ OBJS = \
 	moonpane.o \
 	motd.o \
 	ncdxf.o \
+	natzones.o \
+	natzones_data.o \
 	nmea.o \
 	nvram.o \
 	ontheair.o \

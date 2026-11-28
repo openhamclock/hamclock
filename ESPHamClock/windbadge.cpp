@@ -59,7 +59,7 @@ void drawWindButton(void)
 
     const char *label = "Wind";
     uint16_t lbl_w = getTextWidth(label);
-    tft.setCursor (windmap_btn_b.x+(windmap_btn_b.w-lbl_w)/2, windmap_btn_b.y+2);
+    tft.setCursor (windmap_btn_b.x+(windmap_btn_b.w-lbl_w)/2, MAPBTN_TEXT_Y(windmap_btn_b));
     tft.setTextColor (RA8875_WHITE);
     tft.print (label);
 }

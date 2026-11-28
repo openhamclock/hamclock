@@ -787,6 +787,7 @@ typedef enum {
     MAPGRID_AZIM,
     MAPGRID_CQZONES,
     MAPGRID_ITUZONES,
+    MAPGRID_NATZ,                       // North American time zones, see natzones.cpp
     MAPGRID_N
 } MapGridStyle;
 extern uint8_t mapgrid_choice;
@@ -797,6 +798,7 @@ extern SBox satname_b;                  // satellite name pick
 extern SBox de_info_b;                  // de info pane
 extern SBox map_b;                      // main map 
 extern SBox view_btn_b;                 // map view menu button
+#define MAPBTN_TEXT_Y(b) ((b).y + ((b).h - 14)/2 + 2)    // FAST_FONT text y centered in a map button
 
 extern SBox motd_btn_b;                 // MOTD mailbox icon (next to UTC button)
 extern SBox userguide_btn_b;            // User Guide book icon (below MOTD icon)
@@ -2323,6 +2325,9 @@ typedef struct {
 
 extern bool runMenu (MenuInfo &menu);
 extern void menuDrawItem (const MenuItem &mi, const SBox &pb, bool draw_label, bool kb_focus);
+extern int menuBigEnter (void);
+extern void menuBigLeave (void);
+extern void menuUseFont (void);
 extern void menuMsg (const SBox &box, uint16_t color, const char *msg);
 extern void menuRedrawOk (SBox &ok_b, MenuOkState oks);
 
@@ -3308,6 +3313,7 @@ extern bool showNewDXDEWx(void);
 extern int getPaneRotationPeriod (void);
 extern bool showPIP(void);
 extern bool showPlanets(void);
+extern bool bigDialogs(void);
 extern bool wefaxEnabled(void);
 extern bool autoMap(void);
 extern int getMapRotationPeriod(void);
@@ -4046,6 +4052,21 @@ typedef enum {
 extern bool findZoneNumber (ZoneID id, const SCoord &s, int *zone_n);
 extern void updateZoneSCoords(ZoneID id);
 extern void drawZone (ZoneID id, uint16_t color, int n_only);
+
+
+
+
+/*********************************************************************************************
+ *
+ * natzones.cpp
+ *
+ */
+
+extern void drawNATZFill (const SBox *clip);
+extern void drawNATZones (void);
+extern void drawNATZHighlight (int zone);
+extern bool findNATZone (const LatLong &ll, int *zone);
+extern void getNATZTime (int zone, char *abbr, size_t abbr_len, char *tm, size_t tm_len);
 
 
 

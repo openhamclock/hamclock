@@ -453,6 +453,7 @@ static const uint8_t nv_sizes[NV_N] = {
 
     // 271
     1,                          // NV_ONTA_SHOWSTATE
+    1,                          // NV_BIGDIALOGS
 
 };
 

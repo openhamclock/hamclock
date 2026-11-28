@@ -273,7 +273,10 @@ static PlotChoice labelToChoice (const char *label)
 // accordion layout constants -- duplicated from (and must stay in sync with) the private
 // layout constants in menu.cpp, since those aren't exported. This accordion draws its rows
 // with menuDrawItem(), so rows need to land in boxes sized the way menuDrawItem() expects.
-#define ACC_TBM         5               // top and bottom margin, matches menu.cpp MENU_TBM
+// metrics that change when the pane picker is shown as a big dialog, see menuBigEnter()
+struct AccMetrics { int tbm, rh, bb, bdx, bdrop, bg; bool big; };
+static AccMetrics acc_m = {5, 11, 5, 2, 2, 2, false};
+#define ACC_TBM         (acc_m.tbm)               // top and bottom margin, matches menu.cpp MENU_TBM
 #define ACC_RM          2               // right margin, matches menu.cpp MENU_RM
 #define ACC_LM          2               // left margin for row content -- menuDrawItem() ends
                                          // every row with its own drawSBox() outline around
@@ -282,12 +285,12 @@ static PlotChoice labelToChoice (const char *label)
                                          // row's outline was overdrawing a black tick over our
                                          // border there, row by row -- reading as a dotted left
                                          // edge. This keeps every row's pb clear of that column.
-#define ACC_RH          11              // row height, matches menu.cpp MENU_RH
+#define ACC_RH          (acc_m.rh)              // row height, matches menu.cpp MENU_RH
 #define ACC_IS          6               // indicator size, matches menu.cpp MENU_IS
-#define ACC_BB          5               // ok/cancel button horizontal border, matches MENU_BB
-#define ACC_BDX         2               // ok/cancel button text horizontal offset, matches MENU_BDX
-#define ACC_BDROP       2               // text vertical drop, matches menu.cpp MENU_BDROP
-#define ACC_BG          2               // bottom gap, matches menu.cpp MENU_BG
+#define ACC_BB          (acc_m.bb)               // ok/cancel button horizontal border, matches MENU_BB
+#define ACC_BDX         (acc_m.bdx)               // ok/cancel button text horizontal offset, matches MENU_BDX
+#define ACC_BDROP       (acc_m.bdrop)               // text vertical drop, matches menu.cpp MENU_BDROP
+#define ACC_BG          (acc_m.bg)               // bottom gap, matches menu.cpp MENU_BG
 #define ACC_CHILD_INDENT 4              // extra indent for a leaf item nested under its header
                                          // -- was 10; every one of those pixels comes straight
                                          // out of the column's text budget in a 2-col layout,
@@ -414,6 +417,10 @@ static std::function<void()> acc_redraw_fn = nullptr;
  */
 static bool accordionServiceOtherPanes (void)
 {
+    // a big dialog covers the whole screen so nothing else may draw
+    if (acc_m.big)
+        return false;
+
     // tick the clock at its normal fast cadence every time we're called, independent of the
     // once-a-second throttle below -- updateClocks(false) is cheap (no-ops unless the displayed
     // second actually changed), so there's no reason it should have to wait behind however long
@@ -552,6 +559,17 @@ static bool askPaneCategoryAccordion (PlotPane pp, SBox box, MenuItem *mitems, i
     for (int c = 0; c < (int)N_PANE_CATEGORIES; c++)
         if (cat_total[c] > 0)
             cat_of_row[n_cats++] = c;
+
+    // Big dialogs: fill the screen with large rows, else use the pane as always
+    if (menuBigEnter() > 0) {
+        acc_m = {8, 44, 10, 6, (44 - 33)/2 + 24, 6, true};
+        menuUseFont();
+        box.x = 1;
+        box.y = 0;
+        box.w = tft.width() - 3;
+        box.h = tft.height() - 2;
+    }
+    const bool big = acc_m.big;
 
     // box width is fixed for the life of the picker -- the pane's own width, widened only if
     // that's somehow not enough for Ok/Cancel once the side inset (below) is accounted for.
@@ -774,7 +792,10 @@ static bool askPaneCategoryAccordion (PlotPane pp, SBox box, MenuItem *mitems, i
                               (uint16_t)(vis_box.w - ACC_LM - ACC_RM), ACC_RH};
             char footer[64];
             snprintf (footer, sizeof(footer), "Total Selections (%d/%d)", total_selected, n_mitems);
-            selectFontStyle (LIGHT_FONT, FAST_FONT);
+            if (big)
+                menuUseFont();
+            else
+                selectFontStyle (LIGHT_FONT, FAST_FONT);
             tft.setTextColor (ACC_FOOTC);
             tft.setCursor (footer_b.x + 2, footer_b.y + ACC_BDROP);
             tft.print (footer);
@@ -793,6 +814,8 @@ static bool askPaneCategoryAccordion (PlotPane pp, SBox box, MenuItem *mitems, i
             cancel_b.y = ok_b.y;
 
             enable_ok = total_selected > 0;
+            if (big)
+                menuUseFont();
             drawSBox (ok_b, enable_ok ? ACC_FGC : GRAY);
             tft.setTextColor (enable_ok ? ACC_FGC : GRAY);
             uint16_t ok_txt_w = getTextWidth (acc_ok_label);
@@ -820,7 +843,7 @@ static bool askPaneCategoryAccordion (PlotPane pp, SBox box, MenuItem *mitems, i
         // wait for the next tap -- fp services every other pane's rotation/updates while we
         // sit here, so this pane's picker being open doesn't stall the rest of the display
         UserInput ui = {
-            box, accordionServiceOtherPanes, UF_UNUSED, MENU_TO, UF_CLOCKSOK,
+            box, accordionServiceOtherPanes, UF_UNUSED, MENU_TO, big ? UF_NOCLOCKS : UF_CLOCKSOK,
             {0, 0}, TT_NONE, '\0', false, false
         };
         if (!waitForUser (ui)) {
@@ -912,6 +935,12 @@ static bool askPaneCategoryAccordion (PlotPane pp, SBox box, MenuItem *mitems, i
         fatalError ("mem pixel restore failed %d x %d", box.w, box.h);
     if (boxesOverlap (box, map_b))
         tft.drawPR();
+
+    if (big) {
+        acc_m = {5, 11, 5, 2, 2, 2, false};
+        menuBigLeave();
+        updateClocks (true);        // clocks were paused while the dialog covered them
+    }
 
     return (ok);
 }

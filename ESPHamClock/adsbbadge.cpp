@@ -67,7 +67,7 @@ void drawADSBBadge(void)
 
     const char *label = "ADS-B";
     uint16_t lbl_w = getTextWidth(label);
-    tft.setCursor (adsbmap_btn_b.x+(adsbmap_btn_b.w-lbl_w)/2, adsbmap_btn_b.y+2);
+    tft.setCursor (adsbmap_btn_b.x+(adsbmap_btn_b.w-lbl_w)/2, MAPBTN_TEXT_Y(adsbmap_btn_b));
     tft.setTextColor (RA8875_WHITE);
     tft.print (label);
 }

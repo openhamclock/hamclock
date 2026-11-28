@@ -113,6 +113,22 @@ static void drawIB_WX (const LatLong &ll, uint16_t tx, int dy, int max_ty, uint1
     }
 }
 
+/* show the North American time zone and its time now, if that is the grid style and we are over a zone.
+ * update ty by dy for each row used.
+ */
+static void drawIB_NATZ (const LatLong &ll, uint16_t tx, int dy, uint16_t &ty)
+{
+    int zone;
+    if (mapgrid_choice == MAPGRID_NATZ && findNATZone (ll, &zone)) {
+        char abbr[8], tm[8];
+        getNATZTime (zone, abbr, sizeof(abbr), tm, sizeof(tm));
+        tft.setCursor (tx, ty += dy);
+        tft.printf ("TZ  %5s", abbr);
+        tft.setCursor (tx, ty += dy);
+        tft.printf ("Now%6s", tm);
+    }
+}
+
 /* drawMouseLoc() helper to show local mean time.
  * update ty by dy for each row used.
  */
@@ -373,6 +389,9 @@ static void drawIB_DXPed (const SBox &minfo_b, const DXPedEntry *dxp, const SCoo
             tft.setCursor (tx+IB_INDENT, ty += IB_LINEDY);
             tft.printf ("ITU %5d", ituzone_n);
         }
+
+        // time zone
+        drawIB_NATZ (dxp->ll, tx+IB_INDENT, IB_LINEDY, ty);
 
         // show local time
         drawIB_LMT (dxp->ll, tx+IB_INDENT, IB_LINEDY, ty);
@@ -640,6 +659,9 @@ static void drawIB_Loc (const SBox &minfo_b, const LatLong &ll, const SCoord &ms
         tft.printf ("ITU %5d", ituzone_n);
     }
 
+    // time zone
+    drawIB_NATZ (ll, tx+IB_INDENT, IB_LINEDY, ty);
+
     // show local time
     drawIB_LMT (ll, tx+IB_INDENT, IB_LINEDY, ty);
 
@@ -766,6 +788,9 @@ void drawInfoBox()
             drawZone (ZONE_CQ, EARTH_GRIDC00, cqzone_n);
         if (mapgrid_choice == MAPGRID_ITUZONES && findZoneNumber (ZONE_ITU, ms, &ituzone_n))
             drawZone (ZONE_ITU, EARTH_GRIDC00, ituzone_n);
+        int natz_n = 0;
+        if (mapgrid_choice == MAPGRID_NATZ && findNATZone (ll, &natz_n))
+            drawNATZHighlight (natz_n);
     }
 
     // erase menu area if going to show new data or clean up edges when not mercator

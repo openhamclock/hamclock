@@ -591,7 +591,7 @@ void drawWefaxButton (void)
     tft.drawRect (wefax_btn_b.x, wefax_btn_b.y, wefax_btn_b.w-1, wefax_btn_b.h-1, RA8875_WHITE);
 
     uint16_t lbl_w = getTextWidth (label);
-    tft.setCursor (wefax_btn_b.x + (wefax_btn_b.w-lbl_w)/2, wefax_btn_b.y+2);
+    tft.setCursor (wefax_btn_b.x + (wefax_btn_b.w-lbl_w)/2, MAPBTN_TEXT_Y(wefax_btn_b));
     tft.setTextColor (RA8875_WHITE);
     tft.print (label);
 }

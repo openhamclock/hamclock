@@ -11,6 +11,7 @@ SBox auxtime_b = { 0, 113, 204, 32};
 SBox stopwatch_b = {149, 93, 38, 22};
 SBox lkscrn_b = {217, 118, 11, 16};     // best if odd width
 static SBox demo_b = {204, 121, 11, 13};// N.B. must match runner.pl
+static SBox lkscrn_big_b = {204, 115, 29, 31};  // larger touch target around lkscrn_b if Big dialogs
 
 // DE and DX map boxes
 SBox dx_info_b;                         // dx info location
@@ -68,6 +69,7 @@ const char *grid_styles[MAPGRID_N] = {
     "Azimuthal",
     "CQ Zones",
     "ITU Zones",
+    "NA Time Zones",
 };
 
 // map projections
@@ -482,7 +484,7 @@ void setup()
     view_btn_b.x = map_b.x;
     view_btn_b.y = map_b.y;                     // gets adjusted if showing grid label
     view_btn_b.w = 60;
-    view_btn_b.h = 14;
+    view_btn_b.h = bigDialogs() ? 30 : 14;      // taller for touch with Big dialogs; badges below follow
 
     // position Borders on-map badge just to the right of the View button, with a small gap.
     // width is sized to fit "Borders Off", the longer of its two labels, plus padding.
@@ -977,7 +979,7 @@ static void checkTouch()
     }
 
     // check lock
-    if (inBox (s, lkscrn_b) || inBox (s, demo_b))
+    if (inBox (s, lkscrn_b) || inBox (s, demo_b) || (bigDialogs() && inBox (s, lkscrn_big_b)))
         runShutdownMenu();
     if (screenIsLocked())
         return;

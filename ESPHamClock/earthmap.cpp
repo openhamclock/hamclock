@@ -109,6 +109,8 @@ void redrawMapBox (const SBox &box)
     beaconsMapRepainted (&box);
 
     if (core_map != CM_USER) {
+        if (mapgrid_choice == MAPGRID_NATZ)
+            drawNATZFill (&box);                // only the pixels just restored
         drawMapGrid();
         drawSatPathAndFoot();
         if (waiting4DXPath())
@@ -861,6 +863,10 @@ static void drawMapGrid()
         drawZone (ZONE_ITU, EARTH_GRIDC, -1);
         break;
 
+    case MAPGRID_NATZ:
+        drawNATZones();         // borders and clocks; the tint is drawn separately, see drawNATZFill()
+        break;
+
     default:
         fatalError ("drawMapGrid() bad mapgrid_choice: %d", mapgrid_choice);
         break;
@@ -966,7 +972,7 @@ static void drawMapMenuButton()
     const char *str = getCoreMapStyle (core_map, style_mem);
     selectFontStyle (LIGHT_FONT, FAST_FONT);
     uint16_t str_w = getTextWidth(str);
-    tft.setCursor (view_btn_b.x+(view_btn_b.w-str_w)/2, view_btn_b.y+2);
+    tft.setCursor (view_btn_b.x+(view_btn_b.w-str_w)/2, MAPBTN_TEXT_Y(view_btn_b));
     tft.setTextColor (RA8875_WHITE);
     tft.print (str);
 }
@@ -999,7 +1005,7 @@ static void drawBordersButton()
 
     selectFontStyle (LIGHT_FONT, FAST_FONT);
     uint16_t lbl_w = getTextWidth(label);
-    tft.setCursor (borders_btn_b.x+(borders_btn_b.w-lbl_w)/2, borders_btn_b.y+2);
+    tft.setCursor (borders_btn_b.x+(borders_btn_b.w-lbl_w)/2, MAPBTN_TEXT_Y(borders_btn_b));
     tft.setTextColor (text_clr);
     tft.print (label);
 }
@@ -1013,7 +1019,7 @@ static void drawMapMenu()
             MI_STY_CTY, MI_STY_PHY, MI_STY_TER, MI_STY_DRA, MI_STY_MUF, MI_STY_MRT, MI_STY_AUR, MI_STY_WXX,
             MI_STY_CLO, MI_STY_TRP, MI_STY_USR, MI_STY_TOA, MI_STY_REL, 
         MI_GRD_TTL,
-            MI_GRD_NON, MI_GRD_TRO, MI_GRD_LLG, MI_GRD_MAI, MI_GRD_MA4, MI_GRD_AZM, MI_GRD_CQZ, MI_GRD_ITU,
+            MI_GRD_NON, MI_GRD_TRO, MI_GRD_LLG, MI_GRD_MAI, MI_GRD_MA4, MI_GRD_AZM, MI_GRD_CQZ, MI_GRD_ITU, MI_GRD_NTZ,
         MI_PRJ_TTL,
             MI_PRJ_MER, MI_PRJ_AZM, MI_PRJ_AZ1, MI_PRJ_MOL,
         MI_RSS_YES,
@@ -1048,6 +1054,7 @@ static void drawMapMenu()
             {MENU_1OFN, false, 2, SEC_INDENT, grid_styles[MAPGRID_AZIM], 0},
             {MENU_1OFN, false, 2, SEC_INDENT, grid_styles[MAPGRID_CQZONES], 0},
             {MENU_1OFN, false, 2, SEC_INDENT, grid_styles[MAPGRID_ITUZONES], 0},
+            {MENU_1OFN, false, 2, SEC_INDENT, grid_styles[MAPGRID_NATZ], 0},
         {MENU_LABEL, false, 0, PRI_INDENT, "Projection:", 0},
             {MENU_1OFN, false, 3, SEC_INDENT, map_projnames[MAPP_MERCATOR], 0},
             {MENU_1OFN, false, 3, SEC_INDENT, map_projnames[MAPP_AZIMUTHAL], 0},
@@ -1090,6 +1097,7 @@ static void drawMapMenu()
     mitems[MI_GRD_AZM].set = mapgrid_choice == MAPGRID_AZIM;
     mitems[MI_GRD_CQZ].set = mapgrid_choice == MAPGRID_CQZONES;
     mitems[MI_GRD_ITU].set = mapgrid_choice == MAPGRID_ITUZONES;
+    mitems[MI_GRD_NTZ].set = mapgrid_choice == MAPGRID_NATZ;
 
     mitems[MI_PRJ_MER].set = map_proj == MAPP_MERCATOR;
     mitems[MI_PRJ_AZM].set = map_proj == MAPP_AZIMUTHAL;
@@ -1180,6 +1188,9 @@ static void drawMapMenu()
             NVWriteUInt8 (NV_GRIDSTYLE, mapgrid_choice);
         } else if (mitems[MI_GRD_ITU].set && map_proj != MAPGRID_ITUZONES) {
             mapgrid_choice = MAPGRID_ITUZONES;
+            NVWriteUInt8 (NV_GRIDSTYLE, mapgrid_choice);
+        } else if (mitems[MI_GRD_NTZ].set && mapgrid_choice != MAPGRID_NATZ) {
+            mapgrid_choice = MAPGRID_NATZ;
             NVWriteUInt8 (NV_GRIDSTYLE, mapgrid_choice);
         }
 
@@ -1393,6 +1404,8 @@ void drawMoreEarth()
             // until a few lines later. Without this, drawAllSymbols()'s own (correctly early)
             // drawCountryBorders() call would run *after* these and paint the border lines
             // right over the satellite ground track/footprint, DX path and PSK paths.
+            if (mapgrid_choice == MAPGRID_NATZ)
+                drawNATZFill (NULL);            // tint goes under everything else, once per sweep
             drawCountryBorders();
             drawMapGrid();
             drawSatPathAndFoot();

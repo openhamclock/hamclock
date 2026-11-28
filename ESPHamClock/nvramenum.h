@@ -458,6 +458,9 @@ typedef enum {
     NV_ONTA_SHOWSTATE,              // whether ONTA rows show the 2-letter state/country column;
                                      // when off that width goes to the callsign instead
 
+    // 272
+    NV_BIGDIALOGS,                  // whether menus use the large, full-screen, touch friendly layout
+
     NV_N
 
 } NV_Name;
